@@ -3,11 +3,10 @@ import { NextResponse } from "next/server"
 import type { NextAuthRequest } from "next-auth"
 
 // Routes that require authentication (member area)
+// /aula e /curso são públicas — o paywall é feito dentro do player via preview
 const MEMBER_PREFIXES = [
   "/dashboard",
   "/meus-cursos",
-  "/curso",
-  "/aula",
   "/materiais",
   "/certificados",
   "/minha-conta",

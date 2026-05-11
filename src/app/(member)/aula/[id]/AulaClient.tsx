@@ -56,6 +56,8 @@ interface LessonData {
   videoEmbedUrl: string | null
   videoPlaybackUrl: string | null
   videoThumbnailUrl: string | null
+  isAccessible: boolean
+  isFree: boolean
   materials: Material[]
   progress: { completedAt: string | null; watchedSeconds: number } | null
 }
@@ -97,8 +99,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     setError(null)
     try {
       const res = await fetch(`/api/lessons/${lessonId}`)
-      if (res.status === 401) { router.push("/login"); return }
-      if (res.status === 403) { setError("NO_ACCESS"); return }
+      if (res.status === 401 || res.status === 403) { setError("NO_ACCESS"); return }
       if (!res.ok) { setError("NOT_FOUND"); return }
       const json: ApiResponse = await res.json()
       setData(json)
@@ -215,10 +216,33 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
               className="absolute inset-0 w-full h-full"
               poster={lesson.videoThumbnailUrl ?? undefined}
             />
-          ) : (
+          ) : lesson.isAccessible ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
               <Play className="h-12 w-12 opacity-30" />
               <p className="text-sm">Vídeo ainda não disponível</p>
+            </div>
+          ) : (
+            /* Paywall overlay */
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-6 text-center"
+              style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.95))" }}
+            >
+              {lesson.videoThumbnailUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={lesson.videoThumbnailUrl} alt="" className="absolute inset-0 w-full h-full object-cover -z-10 opacity-30" />
+              )}
+              <Lock className="h-10 w-10 text-primary" />
+              <div>
+                <p className="text-white font-bold text-lg mb-1">Conteúdo exclusivo</p>
+                <p className="text-zinc-400 text-sm">Escolha um plano para ter acesso completo a esta e todas as outras aulas.</p>
+              </div>
+              <div className="flex gap-3 flex-wrap justify-center">
+                <Button asChild size="lg">
+                  <Link href="/#planos">Ver planos</Link>
+                </Button>
+                <Button variant="outline" size="lg" asChild>
+                  <Link href="/login">Já tenho acesso</Link>
+                </Button>
+              </div>
             </div>
           )}
         </div>

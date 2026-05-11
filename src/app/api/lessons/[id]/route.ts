@@ -1,7 +1,8 @@
 /**
  * GET /api/lessons/[id]
- * Returns full lesson data + sibling modules/lessons for the sidebar.
- * Requires authenticated session (member area).
+ * Returns lesson data + sibling modules/lessons for the sidebar.
+ * Public route — session is optional.
+ * Video URLs are only returned when the user has access (paid or free lesson).
  */
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
@@ -12,9 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 })
-  }
+  const userId = session?.user?.id ?? null
 
   const { id } = await params
 
@@ -40,10 +39,12 @@ export async function GET(
                   videoDurationSeconds: true,
                   isFree: true,
                   order: true,
-                  lessonProgress: {
-                    where: { userId: session.user.id },
-                    select: { completedAt: true, watchedSeconds: true },
-                  },
+                  lessonProgress: userId
+                    ? {
+                        where: { userId },
+                        select: { completedAt: true, watchedSeconds: true },
+                      }
+                    : false,
                 },
               },
             },
@@ -62,16 +63,23 @@ export async function GET(
           type: true,
         },
       },
-      lessonProgress: {
-        where: { userId: session.user.id },
-        select: { completedAt: true, watchedSeconds: true },
-      },
+      lessonProgress: userId
+        ? {
+            where: { userId },
+            select: { completedAt: true, watchedSeconds: true },
+          }
+        : false,
     },
   })
 
   if (!lesson) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
   }
+
+  // Decide if the video URL is exposed:
+  // - always for free/preview lessons
+  // - only for authenticated users with access for paid lessons
+  const isAccessible = lesson.isFree || !!userId
 
   // Find prev/next lessons flat across all modules
   const allLessons = lesson.course.modules.flatMap((m) => m.lessons)
@@ -86,12 +94,14 @@ export async function GET(
       title: lesson.title,
       description: lesson.description,
       durationSeconds: lesson.videoDurationSeconds ?? lesson.durationSeconds,
-      videoEmbedUrl: lesson.videoEmbedUrl,
-      videoPlaybackUrl: lesson.videoPlaybackUrl,
+      // Only expose video URLs if accessible
+      videoEmbedUrl: isAccessible ? lesson.videoEmbedUrl : null,
+      videoPlaybackUrl: isAccessible ? lesson.videoPlaybackUrl : null,
       videoThumbnailUrl: lesson.videoThumbnailUrl,
       isFree: lesson.isFree,
-      materials: lesson.materials,
-      progress: lesson.lessonProgress[0] ?? null,
+      isAccessible,
+      materials: isAccessible ? lesson.materials : [],
+      progress: Array.isArray(lesson.lessonProgress) ? (lesson.lessonProgress[0] ?? null) : null,
     },
     course: {
       id: lesson.course.id,
