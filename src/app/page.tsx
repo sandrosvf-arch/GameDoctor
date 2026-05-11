@@ -148,15 +148,15 @@ export default function HomePage() {
               </div>
 
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[0.9]">
-                Diagnostico e<br />
-                <span className="text-cyan-400">Manutencao</span><br />
+                A sua nova plataforma<br />
+                de <span className="text-cyan-400">manutencao</span><br />
                 <span className="text-zinc-300 text-4xl md:text-5xl lg:text-6xl font-bold">
-                  de todos os consoles
+                  de videogames
                 </span>
               </h1>
 
               <p className="text-zinc-300 leading-relaxed max-w-xl text-lg">
-                PlayStation, Xbox, Nintendo Switch e muito mais. Do diagnostico inicial a solda BGA — aprenda com bancada real e instrutores especializados.
+                Assista aulas gravadas em 4K, acesse esquemas eletricos exclusivos, aprenda tecnicas de solda BGA e diagnostico avancado — do basico ao profissional.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -217,9 +217,18 @@ export default function HomePage() {
                         "transition-transform duration-200 ease-out",
                         "group-hover/card:scale-[1.04] group-hover/card:shadow-2xl group-hover/card:shadow-black/60",
                       )}>
+                        {/* Gradient background */}
                         <div className={cn("absolute inset-0 bg-gradient-to-br", course.gradient)} />
-                        <Icon className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-16 w-16 opacity-20", course.iconColor)} />
-                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150" />
+                        {/* Dot-grid pattern */}
+                        <div
+                          className="absolute inset-0 opacity-[0.07]"
+                          style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "18px 18px" }}
+                        />
+                        {/* Icon — always visible */}
+                        <Icon className={cn("absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 h-14 w-14 opacity-35", course.iconColor)} />
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150" />
+                        {/* Play / lock on hover */}
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
                           <div className="h-10 w-10 rounded-full bg-white/15 backdrop-blur border border-white/25 flex items-center justify-center">
                             {course.free
@@ -228,14 +237,17 @@ export default function HomePage() {
                             }
                           </div>
                         </div>
+                        {/* Badge */}
                         {course.badge && badgeStyle && badgeLabel && (
-                          <span className={cn("absolute top-2 left-2 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider", badgeStyle)}>
+                          <span className={cn("absolute top-2 left-2 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider z-10", badgeStyle)}>
                             {badgeLabel}
                           </span>
                         )}
-                        <span className="absolute bottom-1.5 right-1.5 text-[9px] text-zinc-400 bg-black/70 px-1.5 py-0.5 rounded">
-                          {course.duration}
-                        </span>
+                        {/* Bottom title bar */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-2.5 pt-7 pb-2">
+                          <p className="text-[10px] font-bold text-white leading-tight line-clamp-1">{course.title}</p>
+                          <p className="text-[9px] text-zinc-400 mt-0.5">{course.duration}</p>
+                        </div>
                       </div>
                       <p className="mt-1.5 text-[11px] font-medium text-zinc-500 group-hover/card:text-zinc-200 transition-colors line-clamp-1 px-0.5">
                         {course.title}
