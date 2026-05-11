@@ -125,87 +125,63 @@ export default function HomePage() {
 
         {/* HERO */}
         <section className="relative min-h-[92vh] flex items-center overflow-hidden">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute right-[15%] top-[15%] h-[600px] w-[600px] rounded-full bg-blue-600/12 blur-[120px]" />
-            <div className="absolute left-[25%] bottom-[15%] h-[350px] w-[350px] rounded-full bg-cyan-500/8 blur-[90px]" />
-            <div className="absolute left-0 top-0 h-full w-1/2 bg-gradient-to-r from-zinc-950 via-zinc-950/70 to-transparent" />
-          </div>
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-zinc-950 to-transparent z-10" />
+          {/* Video background */}
+          <video
+            className="absolute inset-0 h-full w-full object-cover"
+            src="/hero-bg.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
+          {/* Overlays */}
+          <div className="absolute inset-0 bg-zinc-950/60" />
+          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/95 via-zinc-950/60 to-zinc-950/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-zinc-950/30" />
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-zinc-950 to-transparent z-10" />
 
-          <div className="container relative z-10 grid grid-cols-1 lg:grid-cols-5 gap-12 items-center py-24 lg:py-0 lg:min-h-[92vh]">
-            {/* Left */}
-            <div className="lg:col-span-3 space-y-7">
-              <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-cyan-400 border border-cyan-500/30 bg-cyan-500/5 px-3 py-1.5 rounded-full">
+          <div className="container relative z-10 py-28 lg:py-36 max-w-4xl">
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-cyan-400 border border-cyan-500/30 bg-zinc-950/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
                 <Gamepad2 className="h-3.5 w-3.5" />
-                Em destaque
+                Tecnico de consoles profissional
               </div>
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[0.92]">
-                Diagnostico<br />
-                <span className="text-cyan-400">Completo</span><br />
-                <span className="text-zinc-400 text-4xl md:text-5xl font-bold">PlayStation 5</span>
+
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[0.9]">
+                Diagnostico e<br />
+                <span className="text-cyan-400">Manutencao</span><br />
+                <span className="text-zinc-300 text-4xl md:text-5xl lg:text-6xl font-bold">
+                  de todos os consoles
+                </span>
               </h1>
-              <p className="text-zinc-400 leading-relaxed max-w-md">
-                Aprenda a identificar e resolver qualquer falha no PS5 com bancada real e passo a passo completo.
+
+              <p className="text-zinc-300 leading-relaxed max-w-xl text-lg">
+                PlayStation, Xbox, Nintendo Switch e muito mais. Do diagnostico inicial a solda BGA — aprenda com bancada real e instrutores especializados.
               </p>
+
               <div className="flex flex-wrap gap-3">
                 <Button size="lg" className="bg-white text-zinc-950 hover:bg-zinc-200 font-bold h-12 px-7" asChild>
                   <Link href="/cursos">
                     <Play className="mr-2 h-4 w-4 fill-zinc-950" />
-                    Assistir previa
+                    Ver aulas gratis
                   </Link>
                 </Button>
-                <Button size="lg" variant="ghost" className="border border-zinc-700 hover:bg-white/10 text-zinc-200 h-12 px-7" asChild>
+                <Button size="lg" variant="ghost" className="border border-zinc-600 hover:bg-white/10 text-zinc-200 h-12 px-7 backdrop-blur-sm" asChild>
                   <Link href="/planos">
                     <Info className="mr-2 h-4 w-4" />
                     Ver planos
                   </Link>
                 </Button>
               </div>
-              <div className="flex items-center gap-3 text-xs text-zinc-500 flex-wrap">
-                <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded font-black text-[10px] uppercase tracking-wide">Gratis</span>
-                <span>18 minutos</span>
-                <span>PlayStation 5</span>
-                <span>Aula 1 de 8</span>
-              </div>
-            </div>
 
-            {/* Right — featured course mockup */}
-            <div className="hidden lg:block lg:col-span-2">
-              <div className="relative">
-                <div className="absolute -inset-6 bg-blue-600/15 blur-3xl rounded-3xl" />
-                <div className="relative rounded-2xl overflow-hidden border border-zinc-800/80 shadow-2xl shadow-black/60">
-                  <div className="aspect-video bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-950 relative">
-                    <Gamepad2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-28 w-28 text-blue-900" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="h-16 w-16 rounded-full bg-white/12 backdrop-blur border border-white/20 flex items-center justify-center">
-                        <Play className="h-7 w-7 text-white fill-white ml-1" />
-                      </div>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-4 pt-8 pb-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-0.5">Aula 1 de 8</p>
-                          <p className="text-sm font-semibold text-white">Diagnostico Completo PS5</p>
-                        </div>
-                        <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded uppercase">Gratis</span>
-                      </div>
-                      <div className="h-[2px] bg-zinc-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-cyan-500 w-0 rounded-full" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-zinc-900 px-4 py-3 flex items-center gap-3">
-                    <div className="h-14 w-24 rounded-md bg-gradient-to-br from-blue-950 to-violet-950 flex-shrink-0 flex items-center justify-center">
-                      <Cpu className="h-6 w-6 text-violet-400" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">A seguir</p>
-                      <p className="text-xs font-medium text-zinc-300 truncate">Troca de Pasta Termica PS5</p>
-                      <p className="text-[10px] text-zinc-600 mt-0.5">32 min</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-zinc-600 flex-shrink-0" />
-                  </div>
-                </div>
+              {/* Console tags */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-xs text-zinc-600 mr-1 shrink-0">Cobre:</span>
+                {["PlayStation 5", "PlayStation 4", "Xbox Series X|S", "Xbox One", "Nintendo Switch", "Switch OLED"].map((c) => (
+                  <span key={c} className="text-[11px] text-zinc-400 border border-zinc-700/60 bg-zinc-900/50 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                    {c}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
