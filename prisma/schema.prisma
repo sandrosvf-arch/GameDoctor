@@ -1,0 +1,583 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  STUDENT
+  INSTRUCTOR
+  EDITOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  INACTIVE
+  PENDING
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum CourseStatus {
+  PUBLISHED
+  DRAFT
+  HIDDEN
+  ARCHIVED
+}
+
+enum EntityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LessonStatus {
+  PUBLISHED
+  DRAFT
+  HIDDEN
+}
+
+enum VideoProvider {
+  VIMEO
+  MUX
+  CLOUDFLARE
+  BUNNY
+  WISTIA
+  AWS_S3
+  EXTERNAL
+}
+
+enum VideoPrivacyStatus {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum MaterialType {
+  PDF
+  SPREADSHEET
+  IMAGE
+  LINK
+  CHECKLIST
+  ARCHIVE
+  OTHER
+}
+
+enum BillingType {
+  ONE_TIME
+  MONTHLY
+  YEARLY
+  FREE
+  COURTESY
+}
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  BOLETO
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REFUSED
+  CANCELLED
+  REFUNDED
+  CHARGEBACK
+  EXPIRED
+  FAILED
+}
+
+enum PaymentGateway {
+  MERCADOPAGO
+  PAGARME
+  ASAAS
+  STRIPE
+  IUGU
+  PAGSEGURO
+  MANUAL
+}
+
+enum AccessType {
+  LIFETIME
+  TIMED
+  SUBSCRIPTION
+  COURTESY
+  TRIAL
+  MANUAL
+  BLOCKED
+  CANCELLED
+  EXPIRED
+}
+
+enum AccessOrigin {
+  PURCHASE
+  MANUAL
+  COURTESY
+  FREE_PLAN
+  SUBSCRIPTION
+  SPECIAL_COUPON
+  MIGRATION
+}
+
+enum AccessStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum CouponStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum CertificateStatus {
+  ISSUED
+  REVOKED
+}
+
+// ─────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────
+
+model User {
+  id           String       @id @default(cuid())
+  name         String
+  email        String       @unique
+  phone        String?
+  cpf          String?
+  passwordHash String?      @map("password_hash")
+  googleId     String?      @unique @map("google_id")
+  avatarUrl    String?      @map("avatar_url")
+  authProvider AuthProvider @default(EMAIL) @map("auth_provider")
+  role         UserRole     @default(STUDENT)
+  status       UserStatus   @default(ACTIVE)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  lastLoginAt  DateTime?    @map("last_login_at")
+
+  orders            Order[]
+  payments          Payment[]
+  accessPermissions AccessPermission[]
+  lessonProgress    LessonProgress[]
+  certificates      Certificate[]
+  adminLogs         AdminLog[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  image       String?
+  order       Int          @default(0)
+  status      EntityStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  courses Course[]
+
+  @@map("categories")
+}
+
+model Platform {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  image       String?
+  order       Int          @default(0)
+  status      EntityStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  courses Course[]
+
+  @@map("platforms")
+}
+
+model Course {
+  id               String       @id @default(cuid())
+  title            String
+  slug             String       @unique
+  shortDescription String?      @map("short_description")
+  description      String?
+  coverImage       String?      @map("cover_image")
+  bannerImage      String?      @map("banner_image")
+  price            Decimal?     @db.Decimal(10, 2)
+  status           CourseStatus @default(DRAFT)
+  categoryId       String?      @map("category_id")
+  platformId       String?      @map("platform_id")
+  workloadHours    Int?         @map("workload_hours")
+  instructorId     String?      @map("instructor_id")
+  certificateEnabled Boolean    @default(false) @map("certificate_enabled")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  category          Category?          @relation(fields: [categoryId], references: [id])
+  platform          Platform?          @relation(fields: [platformId], references: [id])
+  modules           Module[]
+  lessons           Lesson[]
+  materials         Material[]
+  planCourses       PlanCourse[]
+  orderItems        OrderItem[]
+  accessPermissions AccessPermission[]
+  lessonProgress    LessonProgress[]
+  certificates      Certificate[]
+
+  @@map("courses")
+}
+
+model Module {
+  id          String       @id @default(cuid())
+  courseId    String       @map("course_id")
+  title       String
+  description String?
+  order       Int          @default(0)
+  status      EntityStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+  materials Material[]
+
+  @@map("modules")
+}
+
+model VideoAsset {
+  id               String             @id @default(cuid())
+  provider         VideoProvider
+  providerVideoId  String             @map("provider_video_id")
+  title            String?
+  description      String?
+  playbackUrl      String?            @map("playback_url")
+  embedUrl         String?            @map("embed_url")
+  thumbnailUrl     String?            @map("thumbnail_url")
+  durationSeconds  Int?               @map("duration_seconds")
+  privacyStatus    VideoPrivacyStatus @default(PRIVATE) @map("privacy_status")
+  downloadAllowed  Boolean            @default(false) @map("download_allowed")
+  processingStatus ProcessingStatus   @default(PENDING) @map("processing_status")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  lessons Lesson[]
+
+  @@map("video_assets")
+}
+
+model Lesson {
+  id                     String              @id @default(cuid())
+  courseId               String              @map("course_id")
+  moduleId               String?             @map("module_id")
+  videoAssetId           String?             @map("video_asset_id")
+  title                  String
+  description            String?
+  videoUrl               String?             @map("video_url")
+  videoProvider          VideoProvider?      @map("video_provider")
+  videoProviderId        String?             @map("video_provider_id")
+  videoEmbedUrl          String?             @map("video_embed_url")
+  videoPlaybackUrl       String?             @map("video_playback_url")
+  videoThumbnailUrl      String?             @map("video_thumbnail_url")
+  videoDurationSeconds   Int?                @map("video_duration_seconds")
+  videoPrivacyStatus     VideoPrivacyStatus? @map("video_privacy_status")
+  videoDownloadAllowed   Boolean             @default(false) @map("video_download_allowed")
+  videoProcessingStatus  ProcessingStatus?   @map("video_processing_status")
+  thumbnail              String?
+  durationSeconds        Int?                @map("duration_seconds")
+  order                  Int                 @default(0)
+  isFree                 Boolean             @default(false) @map("is_free")
+  previewEnabled         Boolean             @default(false) @map("preview_enabled")
+  previewDurationSeconds Int?                @map("preview_duration_seconds")
+  previewPercentage      Int?                @map("preview_percentage")
+  requiresPlan           Boolean             @default(false) @map("requires_plan")
+  requiredPlanId         String?             @map("required_plan_id")
+  status                 LessonStatus        @default(DRAFT)
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
+
+  course         Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module         Module?         @relation(fields: [moduleId], references: [id])
+  videoAsset     VideoAsset?     @relation(fields: [videoAssetId], references: [id])
+  requiredPlan   Plan?           @relation("RequiredPlan", fields: [requiredPlanId], references: [id])
+  materials      Material[]
+  planLessons    PlanLesson[]
+  lessonProgress LessonProgress[]
+
+  @@map("lessons")
+}
+
+model Material {
+  id          String       @id @default(cuid())
+  courseId    String?      @map("course_id")
+  moduleId    String?      @map("module_id")
+  lessonId    String?      @map("lesson_id")
+  title       String
+  description String?
+  fileUrl     String?      @map("file_url")
+  externalUrl String?      @map("external_url")
+  type        MaterialType
+  isFree      Boolean      @default(false) @map("is_free")
+  status      EntityStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  course Course?  @relation(fields: [courseId], references: [id])
+  module Module?  @relation(fields: [moduleId], references: [id])
+  lesson Lesson?  @relation(fields: [lessonId], references: [id])
+
+  @@map("materials")
+}
+
+model Plan {
+  id                 String      @id @default(cuid())
+  name               String
+  slug               String      @unique
+  description        String?
+  price              Decimal?    @db.Decimal(10, 2)
+  billingType        BillingType @default(ONE_TIME) @map("billing_type")
+  accessDurationDays Int?        @map("access_duration_days")
+  status             PlanStatus  @default(ACTIVE)
+  highlighted        Boolean     @default(false)
+  certificateIncluded Boolean    @default(false) @map("certificate_included")
+  supportIncluded    Boolean     @default(false) @map("support_included")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  planCourses       PlanCourse[]
+  planLessons       PlanLesson[]
+  orderItems        OrderItem[]
+  accessPermissions AccessPermission[]
+  coupons           Coupon[]
+  requiredByLessons Lesson[]     @relation("RequiredPlan")
+
+  @@map("plans")
+}
+
+model PlanCourse {
+  id        String   @id @default(cuid())
+  planId    String   @map("plan_id")
+  courseId  String   @map("course_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, courseId])
+  @@map("plan_courses")
+}
+
+model PlanLesson {
+  id        String   @id @default(cuid())
+  planId    String   @map("plan_id")
+  lessonId  String   @map("lesson_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, lessonId])
+  @@map("plan_lessons")
+}
+
+model Coupon {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  discountType   DiscountType @map("discount_type")
+  discountValue  Decimal      @db.Decimal(10, 2) @map("discount_value")
+  planId         String?      @map("plan_id")
+  startsAt       DateTime?    @map("starts_at")
+  expiresAt      DateTime?    @map("expires_at")
+  maxUses        Int?         @map("max_uses")
+  usesCount      Int          @default(0) @map("uses_count")
+  maxUsesPerUser Int?         @map("max_uses_per_user")
+  status         CouponStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  plan   Plan?   @relation(fields: [planId], references: [id])
+  orders Order[]
+
+  @@map("coupons")
+}
+
+model Order {
+  id               String         @id @default(cuid())
+  userId           String         @map("user_id")
+  total            Decimal        @db.Decimal(10, 2)
+  discountTotal    Decimal        @default(0) @db.Decimal(10, 2) @map("discount_total")
+  finalTotal       Decimal        @db.Decimal(10, 2) @map("final_total")
+  paymentMethod    PaymentMethod? @map("payment_method")
+  paymentStatus    PaymentStatus  @default(PENDING) @map("payment_status")
+  gateway          PaymentGateway?
+  gatewayReference String?        @map("gateway_reference")
+  couponId         String?        @map("coupon_id")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id])
+  coupon     Coupon?     @relation(fields: [couponId], references: [id])
+  orderItems OrderItem[]
+  payments   Payment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String   @map("order_id")
+  courseId  String?  @map("course_id")
+  planId    String?  @map("plan_id")
+  price     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id])
+  plan   Plan?   @relation(fields: [planId], references: [id])
+
+  @@map("order_items")
+}
+
+model Payment {
+  id               String         @id @default(cuid())
+  orderId          String         @map("order_id")
+  userId           String         @map("user_id")
+  gateway          PaymentGateway
+  paymentMethod    PaymentMethod  @map("payment_method")
+  paymentStatus    PaymentStatus  @default(PENDING) @map("payment_status")
+  gatewayPaymentId String?        @map("gateway_payment_id")
+  amount           Decimal        @db.Decimal(10, 2)
+  installments     Int            @default(1)
+  pixQrCode        String?        @map("pix_qr_code")
+  pixCopyPaste     String?        @map("pix_copy_paste")
+  paidAt           DateTime?      @map("paid_at")
+  expiresAt        DateTime?      @map("expires_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("payments")
+}
+
+model PaymentWebhook {
+  id          String         @id @default(cuid())
+  gateway     PaymentGateway
+  eventType   String         @map("event_type")
+  payload     Json
+  processed   Boolean        @default(false)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  processedAt DateTime?      @map("processed_at")
+
+  @@map("payment_webhooks")
+}
+
+model AccessPermission {
+  id         String       @id @default(cuid())
+  userId     String       @map("user_id")
+  courseId   String?      @map("course_id")
+  planId     String?      @map("plan_id")
+  accessType AccessType   @map("access_type")
+  origin     AccessOrigin
+  startsAt   DateTime     @default(now()) @map("starts_at")
+  expiresAt  DateTime?    @map("expires_at")
+  status     AccessStatus @default(ACTIVE)
+  notes      String?
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id])
+  course Course? @relation(fields: [courseId], references: [id])
+  plan   Plan?   @relation(fields: [planId], references: [id])
+
+  @@map("access_permissions")
+}
+
+model LessonProgress {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  courseId      String    @map("course_id")
+  lessonId      String    @map("lesson_id")
+  watchedSeconds Int      @default(0) @map("watched_seconds")
+  completed     Boolean   @default(false)
+  completedAt   DateTime? @map("completed_at")
+  lastWatchedAt DateTime? @map("last_watched_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+  lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+  @@map("lesson_progress")
+}
+
+model Certificate {
+  id              String            @id @default(cuid())
+  userId          String            @map("user_id")
+  courseId        String            @map("course_id")
+  certificateCode String            @unique @map("certificate_code")
+  issuedAt        DateTime          @default(now()) @map("issued_at")
+  pdfUrl          String?           @map("pdf_url")
+  status          CertificateStatus @default(ISSUED)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@map("certificates")
+}
+
+model AdminLog {
+  id          String   @id @default(cuid())
+  adminUserId String   @map("admin_user_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id")
+  description String?
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  adminUser User @relation(fields: [adminUserId], references: [id])
+
+  @@map("admin_logs")
+}
