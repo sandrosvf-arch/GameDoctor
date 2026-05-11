@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import type { NextAuthRequest } from "next-auth"
 
 // Routes that require authentication (member area)
 const MEMBER_PREFIXES = [
@@ -19,7 +19,7 @@ const ADMIN_PREFIXES = ["/admin"]
 // Routes only accessible when NOT authenticated
 const AUTH_ONLY_PREFIXES = ["/login", "/cadastro", "/recuperar-senha"]
 
-export default auth((req: NextRequest & { auth: Awaited<ReturnType<typeof auth>> }) => {
+export default auth((req: NextAuthRequest) => {
   const { nextUrl } = req
   const session = req.auth
   const isLoggedIn = !!session

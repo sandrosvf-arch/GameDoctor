@@ -15,13 +15,14 @@ import { hasAccessToLesson } from "@/lib/access"
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   const userId = session?.user?.id ?? null
+  const { id } = await params
 
   const { hasAccess, isPreview, previewDurationSeconds } =
-    await hasAccessToLesson(userId, params.id)
+    await hasAccessToLesson(userId, id)
 
   if (!hasAccess) {
     return NextResponse.json(
@@ -35,7 +36,7 @@ export async function GET(
   }
 
   const lesson = await db.lesson.findUnique({
-    where: { id: params.id, status: "PUBLISHED" },
+    where: { id, status: "PUBLISHED" },
     select: {
       id: true,
       title: true,

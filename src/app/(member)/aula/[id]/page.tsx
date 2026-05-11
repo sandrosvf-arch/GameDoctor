@@ -4,10 +4,11 @@
 // Prévia: overlay "Continue assistindo" ao atingir limite
 
 interface Props {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
-export default function AulaPage({ params }: Props) {
+export default async function AulaPage({ params }: Props) {
+  const { id } = await params
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
       {/* Player area */}
@@ -18,7 +19,7 @@ export default function AulaPage({ params }: Props) {
         {/* - Overlay "Continue assistindo" com botões: Ver Planos | Já tenho acesso | Suporte */}
         {/* - Salva progresso via POST /api/progress */}
         <div className="aspect-video bg-black flex items-center justify-center">
-          <p className="text-muted-foreground">Player — aula {params.id}</p>
+          <p className="text-muted-foreground">Player — aula {id}</p>
         </div>
 
         {/* Lesson info below player */}

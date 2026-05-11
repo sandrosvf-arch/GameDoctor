@@ -2,10 +2,11 @@
 // Exibe: banner, módulos, aulas, progresso, materiais, botão continuar
 
 interface Props {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
-export default function CursoMembroPage({ params }: Props) {
+export default async function CursoMembroPage({ params }: Props) {
+  const { slug } = await params
   return (
     <div className="p-6 md:p-8">
       {/* TODO: buscar curso + verificar acesso via hasAccessToCourse() */}
@@ -13,7 +14,7 @@ export default function CursoMembroPage({ params }: Props) {
       {/* TODO: Progresso geral (barra + percentual) */}
       {/* TODO: Lista de módulos com aulas e status (concluída/em andamento/bloqueada) */}
       {/* TODO: Materiais do curso */}
-      <p className="text-muted-foreground">Carregando curso: {params.slug}</p>
+      <p className="text-muted-foreground">Carregando curso: {slug}</p>
     </div>
   )
 }
