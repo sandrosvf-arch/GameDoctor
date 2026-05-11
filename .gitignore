@@ -13,6 +13,8 @@ node_modules/
 dist/
 build/
 out/
+.next/
+.vercel/
 
 # OS files
 .DS_Store
