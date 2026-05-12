@@ -598,3 +598,23 @@ model AdminLog {
 
   @@map("admin_logs")
 }
+
+model HeroBanner {
+  id               String   @id @default(cuid())
+  title            String
+  subtitle         String?
+  badge            String?
+  videoUrl         String?  @map("video_url")
+  imageUrl         String?  @map("image_url")
+  ctaText          String?  @map("cta_text")
+  ctaHref          String?  @map("cta_href")
+  secondaryCtaText String?  @map("secondary_cta_text")
+  secondaryCtaHref String?  @map("secondary_cta_href")
+  consoles         String[]
+  order            Int      @default(0)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("hero_banners")
+}

@@ -42,3 +42,4 @@ venv/
 *.dll
 *.so
 *.dylib
+.vercel

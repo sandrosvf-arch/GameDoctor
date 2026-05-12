@@ -18,10 +18,11 @@ import {
   Zap,
   Wrench,
   ChevronRight,
-  Info,
   CheckCircle2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { db } from "@/lib/db"
+import { HeroBannerClient } from "@/components/HeroBannerClient"
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type BadgeType = "FREE" | "NEW" | "PRO" | "PREMIUM"
@@ -118,75 +119,45 @@ const faqs = [
 ]
 
 // ═══════════════════════════════════════════════════════════════════════════
-export default function HomePage() {
+export default async function HomePage() {
+  // Fetch active banners from DB; fall back to a static default if none exist
+  const dbBanners = await db.heroBanner.findMany({
+    where: { isActive: true },
+    orderBy: { order: "asc" },
+  })
+
+  // Static fallback shown before any banner is created via admin
+  const fallbackBanner = {
+    id: "default",
+    title: "A sua nova plataforma\nde manutenção\nde videogames",
+    subtitle:
+      "Assista aulas gravadas em 4K, acesse esquemas elétricos exclusivos, aprenda técnicas de solda BGA e diagnóstico avançado — do básico ao profissional.",
+    badge: "Técnico de consoles profissional",
+    videoUrl: "/hero-bg.mp4",
+    imageUrl: null,
+    ctaText: "Ver aulas grátis",
+    ctaHref: "/cursos",
+    secondaryCtaText: "Ver planos",
+    secondaryCtaHref: "/planos",
+    consoles: [
+      "PlayStation 5",
+      "PlayStation 4",
+      "Xbox Series X|S",
+      "Xbox One",
+      "Nintendo Switch",
+      "Switch OLED",
+    ],
+  }
+
+  const banners = dbBanners.length > 0 ? dbBanners : [fallbackBanner]
+
   return (
     <>
       <Header />
       <main className="bg-zinc-950 text-white overflow-x-hidden">
 
-        {/* HERO */}
-        <section className="relative min-h-[92vh] flex items-center overflow-hidden">
-          {/* Video background */}
-          <video
-            className="absolute inset-0 h-full w-full object-cover"
-            src="/hero-bg.mp4"
-            autoPlay
-            muted
-            loop
-            playsInline
-          />
-          {/* Overlays */}
-          <div className="absolute inset-0 bg-zinc-950/60" />
-          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/95 via-zinc-950/60 to-zinc-950/20" />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-zinc-950/30" />
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-zinc-950 to-transparent z-10" />
-
-          <div className="container relative z-10 py-28 lg:py-36 max-w-4xl">
-            <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-cyan-400 border border-cyan-500/30 bg-zinc-950/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                <Gamepad2 className="h-3.5 w-3.5" />
-                Tecnico de consoles profissional
-              </div>
-
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[0.9]">
-                A sua nova plataforma<br />
-                de <span className="text-cyan-400">manutencao</span><br />
-                <span className="text-zinc-300 text-4xl md:text-5xl lg:text-6xl font-bold">
-                  de videogames
-                </span>
-              </h1>
-
-              <p className="text-zinc-300 leading-relaxed max-w-xl text-lg">
-                Assista aulas gravadas em 4K, acesse esquemas eletricos exclusivos, aprenda tecnicas de solda BGA e diagnostico avancado — do basico ao profissional.
-              </p>
-
-              <div className="flex flex-wrap gap-3">
-                <Button size="lg" className="bg-white text-zinc-950 hover:bg-zinc-200 font-bold h-12 px-7" asChild>
-                  <Link href="/cursos">
-                    <Play className="mr-2 h-4 w-4 fill-zinc-950" />
-                    Ver aulas gratis
-                  </Link>
-                </Button>
-                <Button size="lg" variant="ghost" className="border border-zinc-600 hover:bg-white/10 text-zinc-200 h-12 px-7 backdrop-blur-sm" asChild>
-                  <Link href="/planos">
-                    <Info className="mr-2 h-4 w-4" />
-                    Ver planos
-                  </Link>
-                </Button>
-              </div>
-
-              {/* Console tags */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-xs text-zinc-600 mr-1 shrink-0">Cobre:</span>
-                {["PlayStation 5", "PlayStation 4", "Xbox Series X|S", "Xbox One", "Nintendo Switch", "Switch OLED"].map((c) => (
-                  <span key={c} className="text-[11px] text-zinc-400 border border-zinc-700/60 bg-zinc-900/50 backdrop-blur-sm px-2.5 py-1 rounded-full">
-                    {c}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* HERO — rotating banner */}
+        <HeroBannerClient banners={banners} />
 
         {/* CARROSSEIS */}
         <section className="pb-16 space-y-10 pt-2">

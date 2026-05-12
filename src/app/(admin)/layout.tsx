@@ -3,6 +3,21 @@
 
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
+import Link from "next/link"
+
+const navItems = [
+  { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin/banners", label: "Banners da Home" },
+  { href: "/admin/cursos", label: "Cursos" },
+  { href: "/admin/alunos", label: "Alunos" },
+  { href: "/admin/acessos", label: "Acessos" },
+  { href: "/admin/planos", label: "Planos" },
+  { href: "/admin/pedidos", label: "Pedidos" },
+  { href: "/admin/pagamentos", label: "Pagamentos" },
+  { href: "/admin/cupons", label: "Cupons" },
+  { href: "/admin/relatorios", label: "Relatórios" },
+  { href: "/admin/logs", label: "Logs" },
+]
 
 export default async function AdminLayout({
   children,
@@ -17,15 +32,22 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="w-64 border-r border-border hidden lg:flex flex-col p-4 shrink-0">
-        <div className="text-lg font-bold text-[hsl(var(--gd-primary))] mb-2">
+      <aside className="w-56 border-r border-border hidden lg:flex flex-col p-4 shrink-0">
+        <div className="text-lg font-bold text-[hsl(var(--gd-primary))] mb-1">
           GameDoctor
         </div>
-        <p className="text-xs text-muted-foreground mb-8">Painel Administrativo</p>
-        {/* TODO: AdminSidebar — links para todas as seções do admin */}
-        {/* Dashboard, Cursos, Categorias, Plataformas, Módulos, Aulas, */}
-        {/* Vídeos, Materiais, Alunos, Acessos, Planos, Pedidos, */}
-        {/* Pagamentos, Cupons, Certificados, Relatórios, Logs, Config */}
+        <p className="text-xs text-muted-foreground mb-6">Painel Administrativo</p>
+        <nav className="space-y-0.5">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center px-3 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
