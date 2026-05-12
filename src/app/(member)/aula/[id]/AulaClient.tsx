@@ -18,6 +18,9 @@ import {
   Menu,
   X,
   Sparkles,
+  MessageSquare,
+  Send,
+  User2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -70,6 +73,13 @@ interface ApiResponse {
   course: { id: string; title: string; slug: string; modules: ModuleItem[] }
   prevLesson: { id: string; title: string } | null
   nextLesson: { id: string; title: string } | null
+}
+
+interface CommentItem {
+  id: string
+  content: string
+  createdAt: string
+  user: { id: string; name: string; avatarUrl: string | null }
 }
 
 function formatDuration(seconds: number | null | undefined): string {
@@ -131,6 +141,12 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openModules, setOpenModules] = useState<Set<string>>(new Set())
   const [markingDone, setMarkingDone] = useState(false)
+
+  const [comments, setComments] = useState<CommentItem[]>([])
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentText, setCommentText] = useState("")
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [commentError, setCommentError] = useState<string | null>(null)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -204,6 +220,43 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     })
     await load()
     setMarkingDone(false)
+  }
+
+  const loadComments = useCallback(async () => {
+    setCommentsLoading(true)
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}/comments`)
+      if (res.ok) setComments(await res.json())
+    } finally {
+      setCommentsLoading(false)
+    }
+  }, [lessonId])
+
+  useEffect(() => { loadComments() }, [loadComments])
+
+  const submitComment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCommentError(null)
+    if (!commentText.trim()) return
+    setSubmittingComment(true)
+    const res = await fetch(`/api/lessons/${lessonId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: commentText.trim() }),
+    })
+    setSubmittingComment(false)
+    if (res.status === 401) {
+      setCommentError("Faça login para comentar.")
+      return
+    }
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setCommentError(d.error ?? "Erro ao enviar comentário.")
+      return
+    }
+    const newComment: CommentItem = await res.json()
+    setComments((prev) => [...prev, newComment])
+    setCommentText("")
   }
 
   if (loading) {
@@ -387,6 +440,76 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
               </Button>
             </div>
           )}
+
+          {/* Comments section */}
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+              <MessageSquare className="h-3.5 w-3.5" />
+              Comentários
+              {comments.length > 0 && (
+                <span className="bg-white/10 text-white/50 px-1.5 py-0.5 rounded text-[10px] font-normal">{comments.length}</span>
+              )}
+            </h2>
+
+            {/* Comment form */}
+            <form onSubmit={submitComment} className="mb-6">
+              <div className="flex gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                  <User2 className="h-4 w-4 text-zinc-500" />
+                </div>
+                <div className="flex-1">
+                  <textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Deixe sua dúvida ou comentário..."
+                    rows={3}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                  {commentError && (
+                    <p className="text-xs text-destructive mt-1">{commentError}</p>
+                  )}
+                  <div className="flex justify-end mt-2">
+                    <Button type="submit" size="sm" disabled={submittingComment || !commentText.trim()}>
+                      {submittingComment ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                      Enviar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            {/* Comments list */}
+            {commentsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+              </div>
+            ) : comments.length === 0 ? (
+              <p className="text-sm text-zinc-600 text-center py-8">Seja o primeiro a comentar nesta aula.</p>
+            ) : (
+              <div className="space-y-4">
+                {comments.map((c) => (
+                  <div key={c.id} className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
+                      {c.user.avatarUrl ? (
+                        <img src={c.user.avatarUrl} alt={c.user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User2 className="h-4 w-4 text-zinc-500" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2 mb-1">
+                        <span className="text-sm font-medium">{c.user.name}</span>
+                        <span className="text-[10px] text-zinc-600">
+                          {new Date(c.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">{c.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
