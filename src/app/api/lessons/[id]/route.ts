@@ -76,9 +76,6 @@ export async function GET(
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
   }
 
-  // Decide if the video URL is exposed:
-  // - always for free/preview lessons
-  // - only for authenticated users with access for paid lessons
   const isAccessible = lesson.isFree || !!userId
 
   // Find prev/next lessons flat across all modules
@@ -94,12 +91,15 @@ export async function GET(
       title: lesson.title,
       description: lesson.description,
       durationSeconds: lesson.videoDurationSeconds ?? lesson.durationSeconds,
-      // Only expose video URLs if accessible
-      videoEmbedUrl: isAccessible ? lesson.videoEmbedUrl : null,
-      videoPlaybackUrl: isAccessible ? lesson.videoPlaybackUrl : null,
+      // Always expose video URL — preview cutoff is enforced client-side
+      videoEmbedUrl: lesson.videoEmbedUrl,
+      videoPlaybackUrl: lesson.videoPlaybackUrl,
       videoThumbnailUrl: lesson.videoThumbnailUrl,
       isFree: lesson.isFree,
       isAccessible,
+      previewEnabled: lesson.previewEnabled,
+      // Default 120s preview if not set and lesson is not accessible
+      previewDurationSeconds: lesson.previewDurationSeconds ?? 120,
       materials: isAccessible ? lesson.materials : [],
       progress: Array.isArray(lesson.lessonProgress) ? (lesson.lessonProgress[0] ?? null) : null,
     },
