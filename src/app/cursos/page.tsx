@@ -2,136 +2,184 @@ import Link from "next/link"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { Button } from "@/components/ui/button"
-import {
-  type LucideIcon,
-  Gamepad2,
-  Monitor,
-  Cpu,
-  Zap,
-  Wrench,
-  Play,
-  Lock,
-} from "lucide-react"
+import { Play, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { db } from "@/lib/db"
 
-type BadgeType = "FREE" | "NEW" | "PRO" | "PREMIUM"
-
-interface CourseCard {
+interface CourseWithFirstLesson {
   id: string
   title: string
-  duration: string
-  badge?: BadgeType
-  gradient: string
-  iconColor: string
-  Icon: LucideIcon
-  free: boolean
-  href: string
+  coverImage: string | null
+  isFree: boolean
+  firstLessonId: string | null
+  lessonCount: number
 }
 
-interface Section {
+interface PlatformSection {
   id: string
-  label: string
-  courses: CourseCard[]
+  name: string
+  courses: CourseWithFirstLesson[]
 }
 
-const badgeStyles: Record<BadgeType, string> = {
-  FREE:    "bg-emerald-500 text-white",
-  NEW:     "bg-red-600 text-white",
-  PRO:     "bg-cyan-500 text-zinc-900",
-  PREMIUM: "bg-amber-500 text-zinc-900",
+async function getData(): Promise<PlatformSection[]> {
+  const platforms = await db.platform.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: { order: "asc" },
+    include: {
+      courses: {
+        where: { status: "PUBLISHED" },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          title: true,
+          coverImage: true,
+          modules: {
+            where: { status: "ACTIVE" },
+            orderBy: { order: "asc" },
+            take: 1,
+            select: {
+              lessons: {
+                where: { status: "PUBLISHED" },
+                orderBy: { order: "asc" },
+                take: 1,
+                select: { id: true, isFree: true },
+              },
+            },
+          },
+          lessons: {
+            where: { status: "PUBLISHED" },
+            select: { id: true },
+          },
+        },
+      },
+    },
+  })
+
+  // Also fetch courses without a platform
+  const noPlatformCourses = await db.course.findMany({
+    where: { status: "PUBLISHED", platformId: null },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      title: true,
+      coverImage: true,
+      modules: {
+        where: { status: "ACTIVE" },
+        orderBy: { order: "asc" },
+        take: 1,
+        select: {
+          lessons: {
+            where: { status: "PUBLISHED" },
+            orderBy: { order: "asc" },
+            take: 1,
+            select: { id: true, isFree: true },
+          },
+        },
+      },
+      lessons: {
+        where: { status: "PUBLISHED" },
+        select: { id: true },
+      },
+    },
+  })
+
+  const mapCourse = (c: {
+    id: string
+    title: string
+    coverImage: string | null
+    modules: { lessons: { id: string; isFree: boolean }[] }[]
+    lessons: { id: string }[]
+  }): CourseWithFirstLesson => {
+    const firstLesson = c.modules[0]?.lessons[0] ?? null
+    return {
+      id: c.id,
+      title: c.title,
+      coverImage: c.coverImage,
+      isFree: firstLesson?.isFree ?? false,
+      firstLessonId: firstLesson?.id ?? null,
+      lessonCount: c.lessons.length,
+    }
+  }
+
+  const sections: PlatformSection[] = platforms
+    .filter((p) => p.courses.length > 0)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      courses: p.courses.map(mapCourse),
+    }))
+
+  if (noPlatformCourses.length > 0) {
+    sections.push({
+      id: "outros",
+      name: "Outros",
+      courses: noPlatformCourses.map(mapCourse),
+    })
+  }
+
+  return sections
 }
 
-const badgeLabels: Record<BadgeType, string> = {
-  FREE:    "GRÁTIS",
-  NEW:     "NOVO",
-  PRO:     "PRO",
-  PREMIUM: "PREMIUM",
-}
+function CourseCard({ course }: { course: CourseWithFirstLesson }) {
+  const href = course.firstLessonId ? `/aula/${course.firstLessonId}` : "/planos"
 
-const ps5: CourseCard[] = [
-  { id: "ps5-diag",   title: "Diagnóstico Completo PS5",     duration: "18 min",   badge: "FREE", gradient: "from-blue-950 via-blue-900 to-indigo-950",    iconColor: "text-blue-400",   Icon: Gamepad2, free: true,  href: "/cursos" },
-  { id: "ps5-pasta",  title: "Troca de Pasta Térmica",       duration: "32 min",   badge: "NEW",  gradient: "from-blue-950 via-purple-950 to-blue-950",    iconColor: "text-purple-400", Icon: Wrench,   free: false, href: "/planos" },
-  { id: "ps5-erro",   title: "Erro CE-108255 e CE-107891",   duration: "45 min",                  gradient: "from-slate-900 via-blue-950 to-slate-900",    iconColor: "text-blue-300",   Icon: Cpu,      free: false, href: "/planos" },
-  { id: "ps5-leitor", title: "Troca do Leitor de Disco",     duration: "28 min",                  gradient: "from-blue-950 to-violet-950",                 iconColor: "text-violet-400", Icon: Wrench,   free: false, href: "/planos" },
-  { id: "ps5-bga",    title: "Solda BGA no PS5",             duration: "1h 12min", badge: "PRO",  gradient: "from-violet-950 via-purple-950 to-blue-950",  iconColor: "text-violet-300", Icon: Zap,      free: false, href: "/planos" },
-  { id: "ps5-fonte",  title: "Reparo da Fonte PS5",          duration: "52 min",                  gradient: "from-indigo-950 to-blue-950",                 iconColor: "text-indigo-400", Icon: Cpu,      free: false, href: "/planos" },
-]
-
-const xbox: CourseCard[] = [
-  { id: "xbox-diag",     title: "Diagnóstico Xbox Series X",   duration: "22 min",  badge: "FREE", gradient: "from-green-950 via-emerald-950 to-green-950", iconColor: "text-green-400",   Icon: Gamepad2, free: true,  href: "/cursos" },
-  { id: "xbox-hdmi",     title: "Troca Porta HDMI Xbox",       duration: "35 min",  badge: "NEW",  gradient: "from-emerald-950 to-teal-950",                iconColor: "text-emerald-400", Icon: Monitor,  free: false, href: "/planos" },
-  { id: "xbox-e101",     title: "Erro E101 / E102 Xbox",       duration: "40 min",                 gradient: "from-green-950 via-slate-900 to-green-950",   iconColor: "text-green-300",   Icon: Cpu,      free: false, href: "/planos" },
-  { id: "xbox-series-s", title: "Desmontagem Xbox Series S",   duration: "18 min",                 gradient: "from-slate-800 to-green-950",                 iconColor: "text-slate-300",   Icon: Wrench,   free: false, href: "/planos" },
-  { id: "xbox-bga",      title: "Solda BGA Xbox Series X",     duration: "58 min",  badge: "PRO",  gradient: "from-green-950 to-emerald-900",               iconColor: "text-emerald-300", Icon: Zap,      free: false, href: "/planos" },
-]
-
-const nintendo: CourseCard[] = [
-  { id: "sw-joycon",  title: "Joy-Con Drift — Solução",      duration: "15 min",   badge: "FREE", gradient: "from-red-950 via-rose-950 to-red-950",        iconColor: "text-red-400",   Icon: Gamepad2, free: true,  href: "/cursos" },
-  { id: "sw-tela",    title: "Troca da Tela Switch OLED",    duration: "38 min",   badge: "NEW",  gradient: "from-rose-950 to-pink-950",                   iconColor: "text-rose-400",  Icon: Monitor,  free: false, href: "/planos" },
-  { id: "sw-imagem",  title: "Switch Sem Imagem",            duration: "42 min",                  gradient: "from-red-950 via-slate-900 to-red-950",       iconColor: "text-red-300",   Icon: Cpu,      free: false, href: "/planos" },
-  { id: "sw-bga",     title: "Solda BGA Nintendo Switch",    duration: "1h 05min", badge: "PRO",  gradient: "from-red-950 to-rose-900",                    iconColor: "text-rose-300",  Icon: Zap,      free: false, href: "/planos" },
-  { id: "sw-limpeza", title: "Limpeza e Manutenção Switch",  duration: "20 min",                  gradient: "from-rose-950 via-red-950 to-slate-900",      iconColor: "text-rose-400",  Icon: Wrench,   free: false, href: "/planos" },
-]
-
-const basics: CourseCard[] = [
-  { id: "basic-multi", title: "Uso do Multímetro",                   duration: "25 min",   badge: "FREE", gradient: "from-amber-950 via-orange-950 to-amber-950", iconColor: "text-amber-400",  Icon: Cpu,     free: true,  href: "/cursos" },
-  { id: "basic-solda", title: "Estação de Solda — Primeiros Passos", duration: "45 min",                  gradient: "from-orange-950 to-red-950",                 iconColor: "text-orange-400", Icon: Zap,     free: false, href: "/planos" },
-  { id: "basic-comp",  title: "Identificando Componentes",           duration: "32 min",                  gradient: "from-amber-950 via-yellow-950 to-amber-950", iconColor: "text-yellow-400", Icon: Cpu,     free: false, href: "/planos" },
-  { id: "basic-smd",   title: "Técnicas de Solda SMD",               duration: "1h 20min", badge: "PRO",  gradient: "from-orange-950 to-amber-900",               iconColor: "text-amber-300",  Icon: Zap,     free: false, href: "/planos" },
-  { id: "basic-micro", title: "Como Usar o Microscópio",             duration: "28 min",                  gradient: "from-amber-950 via-slate-900 to-amber-950",  iconColor: "text-amber-400",  Icon: Monitor, free: false, href: "/planos" },
-]
-
-const sections: Section[] = [
-  { id: "ps5",     label: "PlayStation 5",           courses: ps5 },
-  { id: "xbox",    label: "Xbox Series X|S",         courses: xbox },
-  { id: "switch",  label: "Nintendo Switch",         courses: nintendo },
-  { id: "basics",  label: "Fundamentos de Eletrônica", courses: basics },
-]
-
-function Card({ card }: { card: CourseCard }) {
-  const Icon = card.Icon
   return (
-    <Link href={card.href} className="group block shrink-0 w-48 sm:w-56">
-      {/* Thumbnail */}
+    <Link href={href} className="group block">
       <div className={cn(
-        "relative w-full aspect-video rounded-lg overflow-hidden bg-gradient-to-br",
-        card.gradient,
+        "relative w-full aspect-video rounded-lg overflow-hidden bg-zinc-900",
         "ring-0 group-hover:ring-2 ring-primary/60 transition-all duration-300"
       )}>
-        {/* dot grid */}
-        <div className="absolute inset-0 opacity-20"
-          style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }}
-        />
-        <Icon className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-10 w-10 opacity-35", card.iconColor)} />
+        {course.coverImage ? (
+          <img
+            src={course.coverImage}
+            alt={course.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900"
+            style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "20px 20px" }}
+          />
+        )}
+
+        {/* overlay gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
         {/* badge */}
-        {card.badge && (
-          <span className={cn("absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded", badgeStyles[card.badge])}>
-            {badgeLabels[card.badge]}
+        {course.isFree && (
+          <span className="absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500 text-white">
+            GRÁTIS
           </span>
         )}
+
         {/* lock */}
-        {!card.free && (
+        {!course.isFree && (
           <div className="absolute top-2 right-2">
             <Lock className="h-3.5 w-3.5 text-white/60" />
           </div>
         )}
-        {/* bottom bar */}
-        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent px-2 pt-6 pb-2">
-          <p className="text-white text-xs font-medium leading-snug line-clamp-2">{card.title}</p>
-          <p className="text-white/50 text-[10px] mt-0.5">{card.duration}</p>
-        </div>
-        {/* play overlay */}
+
+        {/* play hover */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="bg-white/20 backdrop-blur-sm rounded-full p-2">
+          <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
             <Play className="h-5 w-5 text-white fill-white" />
           </div>
+        </div>
+
+        {/* title bar */}
+        <div className="absolute bottom-0 inset-x-0 px-2 pb-2">
+          <p className="text-white text-xs font-medium leading-snug line-clamp-2">{course.title}</p>
+          {course.lessonCount > 0 && (
+            <p className="text-white/50 text-[10px] mt-0.5">{course.lessonCount} aula{course.lessonCount !== 1 ? "s" : ""}</p>
+          )}
         </div>
       </div>
     </Link>
   )
 }
 
-export default function CursosPage() {
+export default async function CursosPage() {
+  const sections = await getData()
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
@@ -155,19 +203,25 @@ export default function CursosPage() {
           </Button>
         </div>
 
-        {/* Sections */}
-        <div className="space-y-12">
-          {sections.map((sec) => (
-            <section key={sec.id}>
-              <h2 className="text-xl font-semibold mb-5">{sec.label}</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {sec.courses.map((c) => (
-                  <Card key={c.id} card={c} />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        {sections.length === 0 ? (
+          <div className="py-20 text-center text-muted-foreground">
+            <p>Nenhum curso publicado ainda.</p>
+            <p className="text-sm mt-1">Volte em breve — novos cursos chegando!</p>
+          </div>
+        ) : (
+          <div className="space-y-12">
+            {sections.map((sec) => (
+              <section key={sec.id}>
+                <h2 className="text-xl font-semibold mb-5">{sec.name}</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  {sec.courses.map((c) => (
+                    <CourseCard key={c.id} course={c} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
       </main>
 
       <Footer />
