@@ -1,0 +1,5 @@
+const { PrismaClient } = require('@prisma/client')
+const db = new PrismaClient()
+db.user.findMany({ select: { id: true, email: true, role: true } })
+  .then(u => console.log(JSON.stringify(u, null, 2)))
+  .finally(() => db.$disconnect())

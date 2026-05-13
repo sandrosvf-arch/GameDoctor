@@ -120,6 +120,16 @@ export default function AdminBannersPage() {
   const [form, setForm] = useState<Omit<Banner, "id" | "order">>(empty)
   const [saving, setSaving] = useState(false)
   const [consolesInput, setConsolesInput] = useState("")
+  const [bunnyVideoId, setBunnyVideoId] = useState("")
+
+  const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
+
+  function handleBunnyVideoId(v: string) {
+    setBunnyVideoId(v)
+    if (v.trim()) {
+      set("videoUrl", `https://${BUNNY_CDN}/${v.trim()}/play_720p.mp4`)
+    }
+  }
 
   async function load() {
     setLoading(true)
@@ -136,6 +146,7 @@ export default function AdminBannersPage() {
   function openCreate() {
     setForm(empty)
     setConsolesInput("")
+    setBunnyVideoId("")
     setEditing(null)
     setCreating(true)
   }
@@ -155,6 +166,9 @@ export default function AdminBannersPage() {
       isActive: b.isActive,
     })
     setConsolesInput(b.consoles.join(", "))
+    // Extract Bunny video ID from videoUrl if present
+    const bunnyMatch = b.videoUrl?.match(/\/([0-9a-f-]{36})\/play_720p\.mp4$/)
+    setBunnyVideoId(bunnyMatch ? bunnyMatch[1] : "")
     setEditing(b)
     setCreating(false)
   }
@@ -463,13 +477,24 @@ export default function AdminBannersPage() {
                 </p>
                 <div className="grid grid-cols-1 gap-3">
                   <Field
+                    label="Bunny Video ID"
+                    hint="Cole o ID do vídeo no Bunny Stream. Preenche o campo de URL automaticamente."
+                  >
+                    <Input
+                      value={bunnyVideoId}
+                      onChange={handleBunnyVideoId}
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      className="font-mono"
+                    />
+                  </Field>
+                  <Field
                     label="URL do vídeo"
-                    hint="Caminho público (ex: /hero-bg.mp4) ou URL externa. Tem prioridade sobre imagem."
+                    hint="Preenchida automaticamente pelo Bunny ID, ou cole uma URL manual (.mp4)."
                   >
                     <Input
                       value={form.videoUrl ?? ""}
                       onChange={(v) => set("videoUrl", v)}
-                      placeholder="/hero-bg.mp4"
+                      placeholder="https://... ou /hero-bg.mp4"
                     />
                   </Field>
                   <Field

@@ -4,10 +4,12 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/banners", label: "Banners da Home" },
+  { href: "/admin/trilhas", label: "Trilhas" },
   { href: "/admin/cursos", label: "Cursos" },
   { href: "/admin/alunos", label: "Alunos" },
   { href: "/admin/acessos", label: "Acessos" },
@@ -33,10 +35,17 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="w-56 border-r border-border hidden lg:flex flex-col p-4 shrink-0">
-        <div className="text-lg font-bold text-[hsl(var(--gd-primary))] mb-1">
-          GameDoctor
+        <div className="mb-6 px-1">
+          <Image
+            src="/doctor-oficial.png"
+            alt="GameDoctor"
+            width={160}
+            height={48}
+            className="object-contain"
+            priority
+          />
+          <p className="text-xs text-muted-foreground mt-2">Painel Administrativo</p>
         </div>
-        <p className="text-xs text-muted-foreground mb-6">Painel Administrativo</p>
         <nav className="space-y-0.5">
           {navItems.map((item) => (
             <Link

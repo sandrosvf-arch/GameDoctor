@@ -249,6 +249,7 @@ model Course {
   workloadHours    Int?         @map("workload_hours")
   instructorId     String?      @map("instructor_id")
   certificateEnabled Boolean    @default(false) @map("certificate_enabled")
+  displayOrder     Int          @default(0) @map("display_order")
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
 

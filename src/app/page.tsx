@@ -100,16 +100,22 @@ const basics: CourseCard[] = [
 ]
 
 const rowBrandColor: Record<string, string> = {
-  ps5:    "#0070d1",
-  xbox:   "#107c10",
-  switch: "#e4000f",
+  ps5:        "#0070d1",
+  xbox:       "#107c10",
+  switch:     "#e4000f",
+  primeiros:  "#f59e0b",
 }
 
+const primeiros: CourseCard[] = [
+  { id: "prim-video", title: "Introdução", duration: "1 min 56 s", badge: "FREE", gradient: "from-amber-950 to-yellow-950", iconColor: "text-amber-400", Icon: Play, free: true, href: "/aula/bunny/09038255-7c3d-495b-8155-c71c7516a13e?titulo=Introdu%C3%A7%C3%A3o&legenda=In%C3%ADcio+da+Jornada", thumbnail: `https://vz-38444944-922.b-cdn.net/09038255-7c3d-495b-8155-c71c7516a13e/thumbnail.jpg` },
+]
+
 const rows: CourseRow[] = [
-  { id: "ps5",     title: "PlayStation 5",          courses: ps5 },
-  { id: "xbox",    title: "Xbox Series X|S",         courses: xbox },
-  { id: "switch",  title: "Nintendo Switch",         courses: nintendo },
-  { id: "basics",  title: "Fundamentos de Eletronica", courses: basics },
+  { id: "primeiros", title: "Início da Jornada",         courses: primeiros },
+  { id: "ps5",       title: "PlayStation 5",            courses: ps5 },
+  { id: "xbox",      title: "Xbox Series X|S",           courses: xbox },
+  { id: "switch",    title: "Nintendo Switch",           courses: nintendo },
+  { id: "basics",    title: "Fundamentos de Eletronica", courses: basics },
 ]
 
 const plans = [
@@ -147,7 +153,7 @@ export default async function HomePage() {
       subtitle:
         "Aulas em 4K, esquemas elétricos exclusivos, técnicas de solda BGA e diagnósticos avançados, do básico ao profissional.",
       badge: "TÉCNICO DE MANUTENÇÕES EM VIDEOGAMES",
-      videoUrl: "/hero-bg.mp4",
+      videoUrl: "https://vz-38444944-922.b-cdn.net/67b73495-a6be-46e2-8fd8-e3338e929cc1/play_720p.mp4",
       imageUrl: null,
       ctaText: "Ver Aulas",
       ctaHref: "/cursos",
@@ -168,7 +174,7 @@ export default async function HomePage() {
       subtitle:
         "Aprenda as técnicas avançadas de micro-soldagem usadas em bancadas profissionais de todo o Brasil.",
       badge: "CURSO EM DESTAQUE",
-      videoUrl: "/hero-bg.mp4",
+      videoUrl: "https://vz-38444944-922.b-cdn.net/67b73495-a6be-46e2-8fd8-e3338e929cc1/play_720p.mp4",
       imageUrl: null,
       ctaText: "Ver Aulas",
       ctaHref: "/aula/demo-lesson-ps5-01",
@@ -232,6 +238,31 @@ export default async function HomePage() {
     ? { id: "continue", title: "Continue assistindo", courses: continueWatchingCourses }
     : null
 
+  // ── Course order from DB ───────────────────────────────────────────────
+  // Map static row id → DB slug
+  const rowSlugMap: Record<string, string> = {
+    primeiros: "inicio-da-jornada",
+    ps5:       "playstation-5",
+    xbox:      "xbox-series-xs",
+    switch:    "nintendo-switch",
+    basics:    "fundamentos-de-eletronica",
+  }
+  let orderedRows = rows
+  try {
+    const courseOrder = await db.course.findMany({
+      select: { slug: true, displayOrder: true },
+      orderBy: { displayOrder: "asc" },
+    })
+    const slugToOrder = Object.fromEntries(courseOrder.map(c => [c.slug, c.displayOrder]))
+    orderedRows = [...rows].sort((a, b) => {
+      const oa = slugToOrder[rowSlugMap[a.id] ?? ""] ?? 99
+      const ob = slugToOrder[rowSlugMap[b.id] ?? ""] ?? 99
+      return oa - ob
+    })
+  } catch {
+    // DB unreachable — keep static order
+  }
+
   return (
     <>
       <Header />
@@ -242,7 +273,7 @@ export default async function HomePage() {
 
         {/* CARROSSEIS */}
         <section className="pb-16 space-y-10 pt-2">
-          {[...(continueRow ? [continueRow] : []), ...rows].map((row) => {
+          {[...(continueRow ? [continueRow] : []), ...orderedRows].map((row) => {
             const neonColor = rowBrandColor[row.id] ?? (row.id === "continue" ? "#00cfff" : null)
             return (
             <div key={row.id} className="relative">
