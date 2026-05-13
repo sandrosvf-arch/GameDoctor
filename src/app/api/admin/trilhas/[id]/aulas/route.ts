@@ -37,9 +37,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id: courseId } = await params
   const body = await request.json().catch(() => ({}))
 
-  const { title, description, bunnyVideoId, isFree = false, order } = body as {
+  const { title, description, bunnyVideoId, isFree = false, order, thumbnail } = body as {
     title?: string; description?: string; bunnyVideoId?: string
-    isFree?: boolean; order?: number
+    isFree?: boolean; order?: number; thumbnail?: string
   }
 
   if (!title?.trim()) return NextResponse.json({ error: "Título obrigatório" }, { status: 400 })
@@ -57,6 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       isFree,
       order: order ?? count,
       status: "PUBLISHED",
+      ...(thumbnail?.trim() && { thumbnail: thumbnail.trim() }),
       ...videoFields,
     },
   })

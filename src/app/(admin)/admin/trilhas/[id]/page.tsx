@@ -4,21 +4,23 @@ import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import {
   Plus, Trash2, Loader2, ChevronLeft, GripVertical,
-  Play, Save, ExternalLink, Eye, EyeOff,
+  Play, Save, ExternalLink, Eye, EyeOff, Film,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
+
 interface Lesson {
   id: string
   title: string
-  description: string | null
   videoDurationSeconds: number | null
   durationSeconds: number | null
   videoProvider: string | null
   videoProviderId: string | null
   videoEmbedUrl: string | null
   videoThumbnailUrl: string | null
+  thumbnail: string | null
   isFree: boolean
   status: string
   order: number
@@ -40,6 +42,63 @@ function formatSecs(s: number | null | undefined) {
   return r > 0 ? `${m} min ${r}s` : `${m} min`
 }
 
+function fmtTime(s: number) {
+  const m = Math.floor(s / 60); const sec = s % 60
+  return `${m}:${String(sec).padStart(2, "0")}`
+}
+
+function FramePicker({
+  bunnyId,
+  durationSecs,
+  onSelect,
+  onClose,
+}: {
+  bunnyId: string
+  durationSecs: number
+  onSelect: (url: string) => void
+  onClose: () => void
+}) {
+  const [time, setTime] = useState(0)
+  const max = Math.max(durationSecs, 1)
+  const previewUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${time}`
+
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Escolher frame da capa</p>
+      <div className="flex gap-4 items-start">
+        <img
+          src={previewUrl}
+          alt="frame preview"
+          className="w-40 aspect-video rounded-lg object-cover bg-zinc-800 shrink-0 border border-border"
+        />
+        <div className="flex-1 space-y-3 min-w-0">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>0:00</span>
+            <span className="font-mono text-sm text-foreground">{fmtTime(time)}</span>
+            <span>{fmtTime(max)}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={max}
+            step={1}
+            value={time}
+            onChange={e => setTime(Number(e.target.value))}
+            className="w-full accent-primary cursor-pointer"
+          />
+          <p className="text-xs text-muted-foreground">Arraste para navegar nos frames do vídeo</p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => onSelect(previewUrl)}>
+          Usar este frame
+        </Button>
+        <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
+      </div>
+    </div>
+  )
+}
+
 export default function EditarTrilhaPage({ params }: { params: Promise<{ id: string }> }) {
   const [trilhaId, setTrilhaId] = useState("")
   const [trilha, setTrilha] = useState<Trilha | null>(null)
@@ -47,24 +106,24 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
 
   // Trilha edit state
   const [editTitle, setEditTitle] = useState("")
-  const [editDesc, setEditDesc] = useState("")
-  const [editShortDesc, setEditShortDesc] = useState("")
   const [editStatus, setEditStatus] = useState("DRAFT")
   const [savingTrilha, setSavingTrilha] = useState(false)
 
   // New lesson form
   const [showLessonForm, setShowLessonForm] = useState(false)
   const [newLessonTitle, setNewLessonTitle] = useState("")
-  const [newLessonDesc, setNewLessonDesc] = useState("")
   const [newBunnyId, setNewBunnyId] = useState("")
+  const [newThumbnail, setNewThumbnail] = useState("")
   const [newIsFree, setNewIsFree] = useState(true)
   const [creatingLesson, setCreatingLesson] = useState(false)
+  const [newFramePickerOpen, setNewFramePickerOpen] = useState(false)
 
   // Lesson inline edit
   const [editingLesson, setEditingLesson] = useState<string | null>(null)
-  const [lessonEdits, setLessonEdits] = useState<Record<string, Partial<Lesson & { bunnyVideoId: string }>>>({})
+  const [lessonEdits, setLessonEdits] = useState<Record<string, Partial<Lesson & { bunnyVideoId: string; thumbnail: string }>>>({})
   const [savingLesson, setSavingLesson] = useState<string | null>(null)
   const [deletingLesson, setDeletingLesson] = useState<string | null>(null)
+  const [framePickerOpen, setFramePickerOpen] = useState<string | null>(null)
 
   const load = useCallback(async (id: string) => {
     setLoading(true)
@@ -73,8 +132,6 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       const data: Trilha = await res.json()
       setTrilha(data)
       setEditTitle(data.title)
-      setEditDesc(data.description ?? "")
-      setEditShortDesc(data.shortDescription ?? "")
       setEditStatus(data.status)
     }
     setLoading(false)
@@ -90,7 +147,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     await fetch(`/api/admin/trilhas/${trilhaId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: editTitle, shortDescription: editShortDesc, description: editDesc, status: editStatus }),
+      body: JSON.stringify({ title: editTitle, status: editStatus }),
     })
     setSavingTrilha(false)
     load(trilhaId)
@@ -105,13 +162,14 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: newLessonTitle.trim(),
-        description: newLessonDesc.trim() || undefined,
         bunnyVideoId: newBunnyId.trim() || undefined,
+        thumbnail: newThumbnail.trim() || undefined,
         isFree: newIsFree,
       }),
     })
     setCreatingLesson(false)
-    setNewLessonTitle(""); setNewLessonDesc(""); setNewBunnyId(""); setNewIsFree(true)
+    setNewLessonTitle(""); setNewBunnyId(""); setNewThumbnail(""); setNewIsFree(true)
+    setNewFramePickerOpen(false)
     setShowLessonForm(false)
     load(trilhaId)
   }
@@ -126,6 +184,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     })
     setSavingLesson(null)
     setEditingLesson(null)
+    setFramePickerOpen(null)
     load(trilhaId)
   }
 
@@ -139,12 +198,13 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
 
   function startEdit(lesson: Lesson) {
     setEditingLesson(lesson.id)
+    setFramePickerOpen(null)
     setLessonEdits(prev => ({
       ...prev,
       [lesson.id]: {
         title: lesson.title,
-        description: lesson.description ?? "",
         bunnyVideoId: lesson.videoProviderId ?? "",
+        thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
         status: lesson.status,
       },
@@ -199,17 +259,6 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
               </select>
             </div>
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Descrição curta</label>
-            <input className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              placeholder="Uma linha que aparece nos carrosséis"
-              value={editShortDesc} onChange={e => setEditShortDesc(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Descrição completa</label>
-            <textarea rows={3} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
-              value={editDesc} onChange={e => setEditDesc(e.target.value)} />
-          </div>
           <Button type="submit" size="sm" disabled={savingTrilha}>
             {savingTrilha ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
             Salvar alterações
@@ -236,22 +285,48 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Título *</label>
                 <input className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  placeholder="ex: Introdução" value={newLessonTitle}
+                  placeholder="ex: Introdução ao PS5" value={newLessonTitle}
                   onChange={e => setNewLessonTitle(e.target.value)} required />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Bunny Video ID</label>
                 <input className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  value={newBunnyId} onChange={e => setNewBunnyId(e.target.value)} />
+                  value={newBunnyId} onChange={e => { setNewBunnyId(e.target.value); setNewFramePickerOpen(false); setNewThumbnail("") }} />
               </div>
             </div>
+
+            {/* Capa */}
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Legenda / Descrição</label>
-              <input className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                placeholder="ex: Início da Jornada"
-                value={newLessonDesc} onChange={e => setNewLessonDesc(e.target.value)} />
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-muted-foreground">Capa</label>
+                {newBunnyId.trim() && (
+                  <button type="button" onClick={() => setNewFramePickerOpen(o => !o)}
+                    className="flex items-center gap-1 text-xs text-primary hover:text-primary/80">
+                    <Film className="h-3 w-3" /> Escolher frame do vídeo
+                  </button>
+                )}
+              </div>
+              {newFramePickerOpen && newBunnyId.trim() ? (
+                <FramePicker
+                  bunnyId={newBunnyId.trim()}
+                  durationSecs={300}
+                  onSelect={url => { setNewThumbnail(url); setNewFramePickerOpen(false) }}
+                  onClose={() => setNewFramePickerOpen(false)}
+                />
+              ) : (
+                <div className="flex gap-2 items-center">
+                  <input className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    placeholder="URL da imagem (ou escolha um frame acima)"
+                    value={newThumbnail} onChange={e => setNewThumbnail(e.target.value)} />
+                  {newThumbnail && (
+                    <img src={newThumbnail} alt="preview" className="w-20 aspect-video rounded object-cover bg-zinc-800 shrink-0"
+                      onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
+                  )}
+                </div>
+              )}
             </div>
+
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
               <input type="checkbox" checked={newIsFree} onChange={e => setNewIsFree(e.target.checked)} className="rounded" />
               Aula gratuita (visível sem assinatura)
@@ -275,6 +350,13 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
             const isEditing = editingLesson === lesson.id
             const edits = lessonEdits[lesson.id] ?? {}
             const dur = formatSecs(lesson.videoDurationSeconds ?? lesson.durationSeconds)
+            const displayThumb = lesson.thumbnail
+              ?? (lesson.videoProviderId ? `https://${BUNNY_CDN}/${lesson.videoProviderId}/thumbnail.jpg` : null)
+              ?? lesson.videoThumbnailUrl
+
+            const editBunnyId = (edits.bunnyVideoId as string) ?? lesson.videoProviderId ?? ""
+            const editThumb = (edits.thumbnail as string) ?? lesson.thumbnail ?? ""
+            const editDuration = lesson.videoDurationSeconds ?? lesson.durationSeconds ?? 300
 
             return (
               <div key={lesson.id} className={cn(
@@ -285,14 +367,13 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                 <div className="flex items-center gap-3 px-4 py-3">
                   <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 opacity-30" />
                   <span className="text-xs text-muted-foreground w-5 shrink-0">{i + 1}</span>
-                  {lesson.videoThumbnailUrl
-                    ? <img src={lesson.videoThumbnailUrl} alt="" className="w-16 aspect-video rounded object-cover shrink-0 bg-zinc-800" />
+                  {displayThumb
+                    ? <img src={displayThumb} alt="" className="w-16 aspect-video rounded object-cover shrink-0 bg-zinc-800" />
                     : <div className="w-16 aspect-video rounded bg-zinc-800 flex items-center justify-center shrink-0"><Play className="h-4 w-4 opacity-20" /></div>
                   }
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{lesson.title}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      {lesson.description && <p className="text-xs text-muted-foreground truncate">{lesson.description}</p>}
                       {dur && <span className="text-xs text-muted-foreground shrink-0">{dur}</span>}
                       {lesson.isFree && <span className="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 rounded-full shrink-0">Grátis</span>}
                     </div>
@@ -329,17 +410,44 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                         <label className="text-xs text-muted-foreground block mb-1">Bunny Video ID</label>
                         <input className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
                           placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                          value={(edits.bunnyVideoId as string) ?? lesson.videoProviderId ?? ""}
-                          onChange={e => patchEdit(lesson.id, "bunnyVideoId", e.target.value)} />
+                          value={editBunnyId}
+                          onChange={e => { patchEdit(lesson.id, "bunnyVideoId", e.target.value); setFramePickerOpen(null) }} />
                       </div>
                     </div>
+
+                    {/* Capa */}
                     <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Legenda / Descrição</label>
-                      <input className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                        placeholder="ex: Início da Jornada"
-                        value={(edits.description as string) ?? lesson.description ?? ""}
-                        onChange={e => patchEdit(lesson.id, "description", e.target.value)} />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs text-muted-foreground">Capa</label>
+                        {editBunnyId && (
+                          <button type="button"
+                            onClick={() => setFramePickerOpen(framePickerOpen === lesson.id ? null : lesson.id)}
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80">
+                            <Film className="h-3 w-3" /> Escolher frame do vídeo
+                          </button>
+                        )}
+                      </div>
+                      {framePickerOpen === lesson.id ? (
+                        <FramePicker
+                          bunnyId={editBunnyId}
+                          durationSecs={editDuration}
+                          onSelect={url => { patchEdit(lesson.id, "thumbnail", url); setFramePickerOpen(null) }}
+                          onClose={() => setFramePickerOpen(null)}
+                        />
+                      ) : (
+                        <div className="flex gap-2 items-center">
+                          <input className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                            placeholder="URL da imagem (ou escolha um frame acima)"
+                            value={editThumb}
+                            onChange={e => patchEdit(lesson.id, "thumbnail", e.target.value)} />
+                          {editThumb && (
+                            <img src={editThumb} alt="preview" className="w-20 aspect-video rounded object-cover bg-zinc-800 shrink-0"
+                              onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
+                          )}
+                        </div>
+                      )}
                     </div>
+
                     <div className="flex items-center gap-4">
                       <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                         <input type="checkbox"
@@ -359,7 +467,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                         {savingLesson === lesson.id ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
                         Salvar
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingLesson(null)}>Cancelar</Button>
+                      <Button size="sm" variant="outline" onClick={() => { setEditingLesson(null); setFramePickerOpen(null) }}>Cancelar</Button>
                     </div>
                   </div>
                 )}

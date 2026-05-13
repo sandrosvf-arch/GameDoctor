@@ -238,7 +238,7 @@ export default async function HomePage() {
     ? { id: "continue", title: "Continue assistindo", courses: continueWatchingCourses }
     : null
 
-  // ── Course order from DB ───────────────────────────────────────────────
+  // ── Course order + lessons from DB ───────────────────────────────────────
   // Map static row id → DB slug
   const rowSlugMap: Record<string, string> = {
     primeiros: "inicio-da-jornada",
@@ -247,20 +247,119 @@ export default async function HomePage() {
     switch:    "nintendo-switch",
     basics:    "fundamentos-de-eletronica",
   }
+
+  // Row brand colors and default gradients per row id
+  const rowGradients: Record<string, string> = {
+    primeiros: "from-amber-950 to-yellow-950",
+    ps5:       "from-blue-950 via-blue-900 to-indigo-950",
+    xbox:      "from-green-950 via-emerald-950 to-green-950",
+    switch:    "from-red-950 via-rose-950 to-red-950",
+    basics:    "from-amber-950 via-orange-950 to-amber-950",
+  }
+  const rowIconColors: Record<string, string> = {
+    primeiros: "text-amber-400",
+    ps5:       "text-blue-400",
+    xbox:      "text-green-400",
+    switch:    "text-red-400",
+    basics:    "text-amber-400",
+  }
+
   let orderedRows = rows
   try {
-    const courseOrder = await db.course.findMany({
-      select: { slug: true, displayOrder: true },
+    const dbCourses = await db.course.findMany({
+      where: { slug: { in: Object.values(rowSlugMap) } },
+      select: {
+        slug: true,
+        displayOrder: true,
+        lessons: {
+          where: { moduleId: null },
+          orderBy: { order: "asc" },
+          select: {
+            id: true, title: true, description: true,
+            durationSeconds: true, videoDurationSeconds: true,
+            videoProviderId: true, videoThumbnailUrl: true, thumbnail: true,
+            isFree: true, status: true,
+          },
+        },
+        modules: {
+          orderBy: { order: "asc" },
+          include: {
+            lessons: {
+              orderBy: { order: "asc" },
+              select: {
+                id: true, title: true, description: true,
+                durationSeconds: true, videoDurationSeconds: true,
+                videoProviderId: true, videoThumbnailUrl: true, thumbnail: true,
+                isFree: true, status: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { displayOrder: "asc" },
     })
-    const slugToOrder = Object.fromEntries(courseOrder.map(c => [c.slug, c.displayOrder]))
-    orderedRows = [...rows].sort((a, b) => {
-      const oa = slugToOrder[rowSlugMap[a.id] ?? ""] ?? 99
-      const ob = slugToOrder[rowSlugMap[b.id] ?? ""] ?? 99
+
+    // Build slug → row id map (reverse of rowSlugMap)
+    const slugToRowId = Object.fromEntries(Object.entries(rowSlugMap).map(([k, v]) => [v, k]))
+    const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
+
+    const dbRows: CourseRow[] = dbCourses.map(course => {
+      const rowId = slugToRowId[course.slug] ?? course.slug
+      const allLessons = [
+        ...course.lessons,
+        ...course.modules.flatMap(m => m.lessons),
+      ]
+      const cards: CourseCard[] = allLessons.map(l => {
+        const dur = l.videoDurationSeconds ?? l.durationSeconds
+        const durStr = dur
+          ? dur >= 3600
+            ? `${Math.floor(dur / 3600)}h ${Math.floor((dur % 3600) / 60)}min`
+            : `${Math.floor(dur / 60)} min`
+          : ""
+        const href = l.videoProviderId
+          ? `/aula/bunny/${l.videoProviderId}?titulo=${encodeURIComponent(l.title)}${l.description ? `&legenda=${encodeURIComponent(l.description)}` : ""}`
+          : `/aula/${l.id}`
+        const thumbnail = l.thumbnail
+          ?? (l.videoProviderId ? `https://${BUNNY_CDN}/${l.videoProviderId}/thumbnail.jpg` : null)
+          ?? l.videoThumbnailUrl
+          ?? "/thumbs/t01.jpg"
+        return {
+          id: l.id,
+          title: l.title,
+          duration: durStr,
+          badge: l.isFree ? "FREE" as BadgeType : undefined,
+          gradient: rowGradients[rowId] ?? "from-zinc-900 to-zinc-800",
+          iconColor: rowIconColors[rowId] ?? "text-zinc-400",
+          Icon: Play,
+          free: l.isFree,
+          href,
+          thumbnail,
+        }
+      })
+
+      // Find the original static row to keep its title
+      const staticRow = rows.find(r => r.id === rowId)
+      return {
+        id: rowId,
+        title: staticRow?.title ?? course.slug,
+        courses: cards.length > 0 ? cards : (staticRow?.courses ?? []),
+      }
+    })
+
+    // Sort by displayOrder and fill in any rows missing from DB with static fallback
+    const dbRowIds = new Set(dbRows.map(r => r.id))
+    const fallbackRows = rows.filter(r => !dbRowIds.has(r.id))
+    const allRows = [...dbRows, ...fallbackRows]
+
+    // Re-sort by DB displayOrder
+    const slugToOrder = Object.fromEntries(dbCourses.map(c => [slugToRowId[c.slug], c.displayOrder]))
+    orderedRows = allRows.sort((a, b) => {
+      const oa = slugToOrder[a.id] ?? 99
+      const ob = slugToOrder[b.id] ?? 99
       return oa - ob
     })
   } catch {
-    // DB unreachable — keep static order
+    // DB unreachable — keep static rows
   }
 
   return (

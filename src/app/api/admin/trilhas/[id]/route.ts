@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
               id: true, title: true, description: true,
               durationSeconds: true, videoDurationSeconds: true,
               videoProvider: true, videoProviderId: true,
-              videoEmbedUrl: true, videoThumbnailUrl: true,
+              videoEmbedUrl: true, videoThumbnailUrl: true, thumbnail: true,
               isFree: true, status: true, order: true,
             },
           },
@@ -39,7 +39,31 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   })
 
   if (!course) return NextResponse.json({ error: "Não encontrado" }, { status: 404 })
-  return NextResponse.json(course)
+
+  // Incluir aulas sem módulo (moduleId = null) num módulo virtual
+  const directLessons = await db.lesson.findMany({
+    where: { courseId: id, moduleId: null },
+    orderBy: { order: "asc" },
+    select: {
+      id: true, title: true, description: true,
+      durationSeconds: true, videoDurationSeconds: true,
+      videoProvider: true, videoProviderId: true,
+      videoEmbedUrl: true, videoThumbnailUrl: true,
+      isFree: true, status: true, order: true,
+    },
+  })
+
+  const response = {
+    ...course,
+    modules: [
+      ...(directLessons.length > 0
+        ? [{ id: "__direct__", title: "", lessons: directLessons }]
+        : []),
+      ...course.modules,
+    ],
+  }
+
+  return NextResponse.json(response)
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
