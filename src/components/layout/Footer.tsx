@@ -1,5 +1,6 @@
 import Link from "next/link"
-import { Gamepad2, Youtube, Instagram, MessageCircle } from "lucide-react"
+import Image from "next/image"
+import { Youtube, Instagram, MessageCircle } from "lucide-react"
 
 const footerLinks = {
   plataforma: [
@@ -22,13 +23,14 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           {/* Brand */}
           <div className="space-y-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/30">
-                <Gamepad2 className="h-5 w-5 text-primary" />
-              </div>
-              <span className="font-bold text-lg">
-                Game<span className="text-primary">Doctor</span>
-              </span>
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/doctor-oficial.png"
+                alt="GameDoctor"
+                width={240}
+                height={48}
+                className="h-10 w-auto"
+              />
             </Link>
             <p className="text-sm text-muted-foreground max-w-xs">
               Aprenda manutenção de videogames com videoaulas práticas. PlayStation, Xbox, Nintendo e muito mais.

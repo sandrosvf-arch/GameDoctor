@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: {
-    default: "GameDoctor — Manutenção de Videogames",
+    default: "GameDoctor",
     template: "%s | GameDoctor",
   },
   description:
@@ -23,6 +23,9 @@ export const metadata: Metadata = {
     "Nintendo",
     "solda eletrônica",
   ],
+  icons: {
+    icon: [{ url: "/icon-doctor.png", sizes: "any" }],
+  },
   openGraph: {
     type: "website",
     locale: "pt_BR",

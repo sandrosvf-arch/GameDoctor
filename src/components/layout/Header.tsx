@@ -1,9 +1,86 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useSession, signOut } from "next-auth/react"
-import { useState } from "react"
-import { Menu, X, Gamepad2, ChevronDown } from "lucide-react"
+import { useState, useEffect } from "react"
+
+// ── ECG / Heartbeat line (continuous, slow) ───────────────────────────────────
+function HeartbeatLine() {
+  const [tick, setTick] = useState(-1)
+
+  useEffect(() => {
+    // Delay first pulse so page loads cleanly, then repeat
+    let interval: ReturnType<typeof setInterval>
+    const timeout = setTimeout(() => {
+      setTick(0)
+      interval = setInterval(() => setTick((t) => t + 1), 3500)
+    }, 1000)
+    return () => {
+      clearTimeout(timeout)
+      clearInterval(interval)
+    }
+  }, [])
+
+  const points = "0,8 28,8 36,3 41,14 46,0 52,8 112,8"
+  const pathLen = 158
+
+  return (
+    <svg
+      width="100"
+      height="15"
+      viewBox="0 0 112 16"
+      fill="none"
+      aria-hidden="true"
+      className="overflow-visible mt-1"
+    >
+      {/* dim baseline */}
+      <polyline points={points} stroke="rgba(0,207,255,0.15)" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {/* animated ECG draw — only after first tick */}
+      {tick >= 0 && (
+        <polyline
+          key={tick}
+          points={points}
+          stroke="#00CFFF"
+          strokeWidth="1.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            strokeDasharray: pathLen,
+            strokeDashoffset: pathLen,
+            filter: "drop-shadow(0 0 4px #00CFFF)",
+            animation: "ecgDraw 2s cubic-bezier(0.4,0,0.2,1) forwards",
+          }}
+        />
+      )}
+      {/* glowing dot */}
+      {tick >= 0 && (
+        <circle
+          key={`d-${tick}`}
+          r="2.5"
+          fill="#00CFFF"
+          style={{ filter: "drop-shadow(0 0 5px #00CFFF)", animation: "ecgFade 2s forwards" }}
+        >
+          <animateMotion dur="1.3s" path="M0,8 L28,8 L36,3 L41,14 L46,0 L52,8 L112,8" fill="freeze" />
+        </circle>
+      )}
+      <style>{`
+        @keyframes ecgDraw {
+          from { stroke-dashoffset: ${pathLen}; }
+          65%  { stroke-dashoffset: 0; opacity: 1; }
+          100% { stroke-dashoffset: 0; opacity: 0; }
+        }
+        @keyframes ecgFade {
+          0%,65% { opacity: 1; }
+          100%   { opacity: 0; }
+        }
+      `}</style>
+    </svg>
+  )
+}
+// ─────────────────────────────────────────────────────────────────────────────
+import { Menu, X, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -39,15 +116,19 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/30 group-hover:ring-primary/60 transition-all">
-            <Gamepad2 className="h-5 w-5 text-primary" />
-          </div>
-          <span className="font-bold text-lg tracking-tight">
-            Game<span className="text-primary">Doctor</span>
-          </span>
-        </Link>
+        {/* Logo + heartbeat */}
+        <div className="flex items-center">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/doctor-oficial.png"
+              alt="GameDoctor"
+              width={240}
+              height={48}
+              className="h-7 md:h-9 w-auto"
+            />
+          </Link>
+          <HeartbeatLine />
+        </div>
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6">
@@ -130,13 +211,10 @@ export function Header() {
             <div className="flex flex-col gap-6 pt-6">
               <Link
                 href="/"
-                className="flex items-center gap-2"
+                className="flex items-center"
                 onClick={() => setMobileOpen(false)}
               >
-                <Gamepad2 className="h-5 w-5 text-primary" />
-                <span className="font-bold">
-                  Game<span className="text-primary">Doctor</span>
-                </span>
+                <Image src="/doctor-oficial.png" alt="GameDoctor" width={180} height={36} className="h-8 w-auto" />
               </Link>
               <nav className="flex flex-col gap-1">
                 {navLinks.map((link) => (

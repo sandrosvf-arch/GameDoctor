@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Play, Info, ChevronLeft, ChevronRight, Gamepad2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+const SLIDE_DURATION = 9000 // ms
 
 export interface BannerSlide {
   id: string
@@ -27,6 +29,10 @@ interface HeroBannerClientProps {
 export function HeroBannerClient({ banners }: HeroBannerClientProps) {
   const [current, setCurrent] = useState(0)
   const [transitioning, setTransitioning] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const progressRef = useRef<number>(0)
+  const startTimeRef = useRef<number>(Date.now())
+  const rafRef = useRef<number | null>(null)
 
   const go = useCallback(
     (index: number) => {
@@ -35,6 +41,10 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
       setTimeout(() => {
         setCurrent(index)
         setTransitioning(false)
+        // Reset progress timer
+        startTimeRef.current = Date.now()
+        progressRef.current = 0
+        setProgress(0)
       }, 400)
     },
     [current, transitioning],
@@ -48,19 +58,36 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
     go((current - 1 + banners.length) % banners.length)
   }, [current, banners.length, go])
 
-  // Auto-rotate every 9 seconds
+  // Progress animation loop
   useEffect(() => {
     if (banners.length <= 1) return
-    const timer = setInterval(next, 9000)
-    return () => clearInterval(timer)
-  }, [next, banners.length])
+    startTimeRef.current = Date.now()
+
+    const tick = () => {
+      const elapsed = Date.now() - startTimeRef.current
+      const pct = Math.min(elapsed / SLIDE_DURATION, 1)
+      setProgress(pct)
+      if (pct < 1) {
+        rafRef.current = requestAnimationFrame(tick)
+      }
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [current, banners.length])
+
+  // Auto-rotate
+  useEffect(() => {
+    if (banners.length <= 1) return
+    const timer = setTimeout(next, SLIDE_DURATION)
+    return () => clearTimeout(timer)
+  }, [next, banners.length, current])
 
   if (banners.length === 0) return null
 
   const slide = banners[current]
 
   return (
-    <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+    <section className="relative min-h-[60vh] md:min-h-[92vh] flex items-center justify-center overflow-hidden">
       {/* Background media */}
       {slide.videoUrl ? (
         <video
@@ -86,10 +113,10 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
       <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 from-[20%] via-zinc-950/60 via-[50%] to-transparent to-[75%]" />
       <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 from-[0%] via-zinc-950/50 via-[18%] to-transparent to-[40%]" />
 
-      {/* Content — vertically centered with navbar offset */}
+      {/* Content */}
       <div
         className={cn(
-          "relative z-10 w-full -mt-16 pl-24 md:pl-44 lg:pl-64",
+          "relative z-10 w-full pt-10 px-10 md:pt-0 md:px-0 md:pl-44 lg:pl-64",
           transitioning ? "opacity-0" : "opacity-100",
         )}
         style={{ transition: "opacity 0.4s ease" }}
@@ -106,11 +133,9 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
             {slide.title}
           </h1>
 
-          {slide.subtitle && (
-            <p className="text-zinc-300 leading-relaxed text-base md:text-lg max-w-[440px]">
-              {slide.subtitle}
-            </p>
-          )}
+          <p className="text-zinc-300 leading-relaxed text-base md:text-lg max-w-[440px]">
+            Aulas em 4K, esquemas elétricos exclusivos, técnicas de solda BGA e diagnósticos avançados, do básico ao profissional.
+          </p>
 
           <div className="flex flex-wrap gap-3 pt-1">
             {slide.ctaText && slide.ctaHref && (
@@ -121,7 +146,7 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
               >
                 <Link href={slide.ctaHref}>
                   <Play className="mr-2 h-4 w-4 fill-zinc-950" />
-                  {slide.ctaText}
+                  Ver Aulas
                 </Link>
               </Button>
             )}
@@ -140,19 +165,6 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
             )}
           </div>
 
-          {slide.consoles.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-xs text-zinc-600 mr-1 shrink-0">Cobre:</span>
-              {slide.consoles.map((c) => (
-                <span
-                  key={c}
-                  className="text-[11px] text-zinc-400 border border-zinc-700/60 bg-zinc-900/50 backdrop-blur-sm px-2.5 py-1 rounded-full"
-                >
-                  {c}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -174,20 +186,29 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
             <ChevronRight className="h-5 w-5 text-white" />
           </button>
 
-          {/* Progress dots */}
-          <div className="absolute bottom-8 left-24 md:left-44 lg:left-64 z-20 flex gap-2 items-center">
+          {/* Progress bar — centered, 1 line per slide */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2 items-center">
             {banners.map((_, i) => (
               <button
                 key={i}
                 onClick={() => go(i)}
-                className={cn(
-                  "h-[3px] rounded-full transition-all duration-300",
-                  i === current
-                    ? "w-8 bg-white"
-                    : "w-3 bg-white/40 hover:bg-white/70",
-                )}
                 aria-label={`Ir para banner ${i + 1}`}
-              />
+                className="relative h-[3px] w-16 rounded-full bg-white/20 overflow-hidden"
+              >
+                {i === current && (
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full"
+                    style={{
+                      width: `${progress * 100}%`,
+                      background: "linear-gradient(90deg, #00CFFF, #0080FF)",
+                      boxShadow: "0 0 6px #00CFFF88",
+                    }}
+                  />
+                )}
+                {i < current && (
+                  <div className="absolute inset-0 rounded-full bg-white/50" />
+                )}
+              </button>
             ))}
           </div>
         </>
