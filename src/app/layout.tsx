@@ -23,9 +23,6 @@ export const metadata: Metadata = {
     "Nintendo",
     "solda eletrônica",
   ],
-  icons: {
-    icon: [{ url: "/icon-doctor.png", sizes: "any" }],
-  },
   openGraph: {
     type: "website",
     locale: "pt_BR",
