@@ -59,18 +59,31 @@ function FramePicker({
   onClose: () => void
 }) {
   const [time, setTime] = useState(0)
+  const [imgLoading, setImgLoading] = useState(true)
   const max = Math.max(durationSecs, 1)
+  // Cache buster = time value itself (each unique time = unique URL = new fetch)
   const previewUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${time}`
 
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Escolher frame da capa</p>
       <div className="flex gap-4 items-start">
-        <img
-          src={previewUrl}
-          alt="frame preview"
-          className="w-40 aspect-video rounded-lg object-cover bg-zinc-800 shrink-0 border border-border"
-        />
+        {/* key forces React to remount the <img> on every URL change → new browser request */}
+        <div className="w-40 aspect-video rounded-lg bg-zinc-800 shrink-0 border border-border relative overflow-hidden">
+          {imgLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
+            </div>
+          )}
+          <img
+            key={previewUrl}
+            src={previewUrl}
+            alt="frame preview"
+            className="w-full h-full object-cover"
+            onLoad={() => setImgLoading(false)}
+            onLoadStart={() => setImgLoading(true)}
+          />
+        </div>
         <div className="flex-1 space-y-3 min-w-0">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>0:00</span>
@@ -81,16 +94,16 @@ function FramePicker({
             type="range"
             min={0}
             max={max}
-            step={1}
+            step={5}
             value={time}
-            onChange={e => setTime(Number(e.target.value))}
+            onChange={e => { setTime(Number(e.target.value)); setImgLoading(true) }}
             className="w-full accent-primary cursor-pointer"
           />
           <p className="text-xs text-muted-foreground">Arraste para navegar nos frames do vídeo</p>
         </div>
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => onSelect(previewUrl)}>
+        <Button size="sm" onClick={() => onSelect(previewUrl)} disabled={imgLoading}>
           Usar este frame
         </Button>
         <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
