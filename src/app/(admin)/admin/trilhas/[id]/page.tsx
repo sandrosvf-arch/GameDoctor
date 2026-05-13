@@ -59,24 +59,21 @@ function FramePicker({
   onClose: () => void
 }) {
   const [time, setTime] = useState(0)
-  const [committed, setCommitted] = useState(0) // only updates on mouseup/touchend
+  // "ver" increments on mouseUp/touchEnd to create a unique URL → forces browser to refetch
+  const [ver, setVer] = useState(0)
   const [loading, setLoading] = useState(false)
-  const imgRef = useRef<HTMLImageElement>(null)
   const max = Math.max(durationSecs, 1)
-  const cleanUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${committed}`
 
-  // Imperatively set img src so the browser always makes a new request
-  useEffect(() => {
-    const img = imgRef.current
-    if (!img) return
-    setLoading(true)
-    img.src = ""
-    img.src = cleanUrl
-  }, [cleanUrl])
+  // previewSrc has a unique &v= so browser never serves from cache
+  const previewSrc = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${time}&v=${ver}`
+  // saveUrl is clean — no cache-buster needed, Bunny serves correct frame at production CDN
+  const saveUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${time}`
 
-  function commit(val: number) {
-    setCommitted(val)
+  function handleRelease(e: React.SyntheticEvent<HTMLInputElement>) {
+    const val = Number((e.target as HTMLInputElement).value)
     setTime(val)
+    setVer(v => v + 1) // new version → unique URL → browser fetches fresh
+    setLoading(true)
   }
 
   return (
@@ -84,19 +81,27 @@ function FramePicker({
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Escolher frame da capa</p>
       <div className="flex gap-4 items-start">
         <div className="w-40 aspect-video rounded-lg bg-zinc-800 shrink-0 border border-border relative overflow-hidden">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
+          {loading && ver > 0 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-zinc-800/70 z-10">
+              <Loader2 className="h-5 w-5 animate-spin text-zinc-300" />
             </div>
           )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            ref={imgRef}
-            alt="frame preview"
-            className="w-full h-full object-cover"
-            onLoad={() => setLoading(false)}
-            onError={() => setLoading(false)}
-          />
+          {ver === 0 ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+              <Film className="h-6 w-6 text-zinc-600" />
+              <span className="text-[10px] text-zinc-500">solte o slider para ver</span>
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={previewSrc}
+              src={previewSrc}
+              alt="frame preview"
+              className="w-full h-full object-cover"
+              onLoad={() => setLoading(false)}
+              onError={() => setLoading(false)}
+            />
+          )}
         </div>
         <div className="flex-1 space-y-3 min-w-0">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -111,18 +116,30 @@ function FramePicker({
             step={5}
             value={time}
             onChange={e => setTime(Number(e.target.value))}
-            onMouseUp={e => commit(Number((e.target as HTMLInputElement).value))}
-            onTouchEnd={e => commit(Number((e.target as HTMLInputElement).value))}
+            onMouseUp={handleRelease}
+            onTouchEnd={handleRelease}
             className="w-full accent-primary cursor-pointer"
           />
-          <p className="text-xs text-muted-foreground">Arraste e solte para ver o frame</p>
+          <p className="text-xs text-muted-foreground">Arraste e <strong>solte</strong> o slider para carregar o frame</p>
         </div>
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => onSelect(cleanUrl)}>
+        {/* type="button" is critical — without it these buttons submit the parent <form> */}
+        <button
+          type="button"
+          disabled={ver === 0}
+          onClick={() => onSelect(saveUrl)}
+          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+        >
           Usar este frame
-        </Button>
-        <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent transition-colors"
+        >
+          Cancelar
+        </button>
       </div>
     </div>
   )
