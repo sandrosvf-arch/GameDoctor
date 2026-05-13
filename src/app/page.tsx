@@ -122,11 +122,16 @@ const faqs = [
 
 // ═══════════════════════════════════════════════════════════════════════════
 export default async function HomePage() {
-  // Fetch active banners from DB; fall back to a static default if none exist
-  const dbBanners = await db.heroBanner.findMany({
-    where: { isActive: true },
-    orderBy: { order: "asc" },
-  })
+  // Fetch active banners from DB; fall back to a static default if none exist or DB unreachable
+  let dbBanners: Awaited<ReturnType<typeof db.heroBanner.findMany>> = []
+  try {
+    dbBanners = await db.heroBanner.findMany({
+      where: { isActive: true },
+      orderBy: { order: "asc" },
+    })
+  } catch {
+    // DB unreachable — use fallback below
+  }
 
   // Static fallback shown before any banner is created via admin
   const fallbackBanner = {

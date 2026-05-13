@@ -180,7 +180,12 @@ function CourseCard({ course }: { course: CourseWithFirstLesson }) {
 }
 
 export default async function CursosPage() {
-  const sections = await getData()
+  let sections: PlatformSection[] = []
+  try {
+    sections = await getData()
+  } catch {
+    // DB unreachable — render empty state
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
