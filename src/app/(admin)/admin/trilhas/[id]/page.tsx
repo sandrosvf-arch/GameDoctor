@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import {
   Plus, Trash2, Loader2, ChevronLeft, GripVertical,
-  Play, Save, ExternalLink, Eye, EyeOff, Film,
+  Play, Save, ExternalLink, Eye, EyeOff, Film, Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -58,81 +58,74 @@ function FramePicker({
   onSelect: (url: string) => void
   onClose: () => void
 }) {
-  const [sliderTime, setSliderTime] = useState(0)
-  // imgSrc stored in state — only changes after debounce, includes _nc to bust CDN/browser cache
-  const [imgSrc, setImgSrc] = useState<string | null>(null)
-  const [imgLoading, setImgLoading] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const max = Math.max(durationSecs, 1)
+  const [selected, setSelected] = useState<{ time: number; url: string } | null>(null)
+  const dur = Math.max(durationSecs, 60)
 
-  // URL saved to DB — clean, no cache-buster
-  const saveUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${sliderTime}`
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = Number(e.target.value)
-    setSliderTime(val)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      // _nc=timestamp makes the URL unique so CDN and browser never return a cached version
-      setImgSrc(`https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${val}&_nc=${Date.now()}`)
-      setImgLoading(true)
-    }, 500)
-  }
+  // Generate 20 evenly-spaced frames — each ?time=N is a unique CDN cache entry, no cache issue
+  const NUM = 20
+  const frames = Array.from({ length: NUM }, (_, i) => {
+    const t = Math.round((i / (NUM - 1)) * dur)
+    return { time: t, url: `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${t}` }
+  })
 
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Escolher frame da capa</p>
-      <div className="flex gap-4 items-start">
-        <div className="w-40 aspect-video rounded-lg bg-zinc-800 shrink-0 border border-border relative overflow-hidden flex items-center justify-center">
-          {imgSrc ? (
-            <>
-              {imgLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-zinc-800/80 z-10">
-                  <Loader2 className="h-5 w-5 animate-spin text-zinc-300" />
-                </div>
-              )}
-              {/* key=imgSrc — each unique URL remounts the element, bypassing browser cache */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                key={imgSrc}
-                src={imgSrc}
-                alt=""
-                className="w-full h-full object-cover"
-                onLoad={() => setImgLoading(false)}
-                onError={() => setImgLoading(false)}
-              />
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-1 text-center">
-              <Film className="h-6 w-6 text-zinc-600" />
-              <span className="text-[10px] text-zinc-500 px-2">mova o slider para pré-visualizar</span>
-            </div>
-          )}
-        </div>
-        <div className="flex-1 space-y-3 min-w-0">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>0:00</span>
-            <span className="font-mono text-sm text-foreground">{fmtTime(sliderTime)}</span>
-            <span>{fmtTime(max)}</span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={max}
-            step={5}
-            value={sliderTime}
-            onChange={handleChange}
-            className="w-full accent-primary cursor-pointer"
-          />
-          <p className="text-xs text-muted-foreground">Arraste o slider — frame carrega após parar</p>
+
+      {/* Filmstrip — horizontally scrollable */}
+      <div className="overflow-x-auto pb-1">
+        <div className="flex gap-1.5" style={{ width: "max-content" }}>
+          {frames.map((frame) => {
+            const isSelected = selected?.time === frame.time
+            return (
+              <button
+                key={frame.time}
+                type="button"
+                onClick={() => setSelected(frame)}
+                className={cn(
+                  "relative shrink-0 rounded-md overflow-hidden border-2 transition-all hover:opacity-90",
+                  isSelected ? "border-primary ring-2 ring-primary/50" : "border-transparent"
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={frame.url}
+                  alt={fmtTime(frame.time)}
+                  className="w-[88px] aspect-video object-cover block bg-zinc-800"
+                  loading="lazy"
+                />
+                <span className="absolute bottom-0 left-0 right-0 text-[9px] text-center text-white/80 bg-black/50 py-0.5">
+                  {fmtTime(frame.time)}
+                </span>
+                {isSelected && (
+                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                    <Check className="h-4 w-4 text-white drop-shadow" />
+                  </div>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
+
+      {/* Selected preview */}
+      {selected && (
+        <div className="flex items-center gap-3 rounded-lg bg-background/50 border border-border px-3 py-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={selected.url} alt="" className="w-16 aspect-video rounded object-cover bg-zinc-800 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-medium">Frame selecionado</p>
+            <p className="text-xs text-muted-foreground">{fmtTime(selected.time)} do vídeo</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2">
-        {/* type="button" prevents form submission when inside a <form> */}
         <button
           type="button"
-          onClick={() => onSelect(saveUrl)}
-          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          disabled={!selected}
+          onClick={() => selected && onSelect(selected.url)}
+          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors"
         >
           Usar este frame
         </button>
