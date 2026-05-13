@@ -58,55 +58,61 @@ function FramePicker({
   onSelect: (url: string) => void
   onClose: () => void
 }) {
-  const [time, setTime] = useState(0)
-  // "ver" increments on mouseUp/touchEnd to create a unique URL → forces browser to refetch
-  const [ver, setVer] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [sliderTime, setSliderTime] = useState(0)
+  const [previewTime, setPreviewTime] = useState<number | null>(null)
+  const [imgLoading, setImgLoading] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const max = Math.max(durationSecs, 1)
 
-  // previewSrc has a unique &v= so browser never serves from cache
-  const previewSrc = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${time}&v=${ver}`
-  // saveUrl is clean — no cache-buster needed, Bunny serves correct frame at production CDN
-  const saveUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${time}`
+  // Preview via our proxy — bypasses Bunny CDN cache entirely
+  const proxyUrl = previewTime !== null
+    ? `/api/admin/bunny-frame?videoId=${encodeURIComponent(bunnyId)}&time=${previewTime}`
+    : null
 
-  function handleRelease(e: React.SyntheticEvent<HTMLInputElement>) {
-    const val = Number((e.target as HTMLInputElement).value)
-    setTime(val)
-    setVer(v => v + 1) // new version → unique URL → browser fetches fresh
-    setLoading(true)
+  // Save URL uses the direct Bunny CDN (correct frame will be cached there on first access)
+  const saveUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${sliderTime}`
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = Number(e.target.value)
+    setSliderTime(val)
+    setImgLoading(true)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setPreviewTime(val), 450)
   }
 
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Escolher frame da capa</p>
       <div className="flex gap-4 items-start">
-        <div className="w-40 aspect-video rounded-lg bg-zinc-800 shrink-0 border border-border relative overflow-hidden">
-          {loading && ver > 0 && (
-            <div className="absolute inset-0 flex items-center justify-center bg-zinc-800/70 z-10">
-              <Loader2 className="h-5 w-5 animate-spin text-zinc-300" />
-            </div>
-          )}
-          {ver === 0 ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-              <Film className="h-6 w-6 text-zinc-600" />
-              <span className="text-[10px] text-zinc-500">solte o slider para ver</span>
-            </div>
+        <div className="w-40 aspect-video rounded-lg bg-zinc-800 shrink-0 border border-border relative overflow-hidden flex items-center justify-center">
+          {proxyUrl ? (
+            <>
+              {imgLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-zinc-800/80 z-10">
+                  <Loader2 className="h-5 w-5 animate-spin text-zinc-300" />
+                </div>
+              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                key={proxyUrl}
+                src={proxyUrl}
+                alt="frame preview"
+                className="w-full h-full object-cover"
+                onLoad={() => setImgLoading(false)}
+                onError={() => setImgLoading(false)}
+              />
+            </>
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={previewSrc}
-              src={previewSrc}
-              alt="frame preview"
-              className="w-full h-full object-cover"
-              onLoad={() => setLoading(false)}
-              onError={() => setLoading(false)}
-            />
+            <div className="flex flex-col items-center justify-center gap-1 text-center">
+              <Film className="h-6 w-6 text-zinc-600" />
+              <span className="text-[10px] text-zinc-500 px-2">mova o slider para pré-visualizar</span>
+            </div>
           )}
         </div>
         <div className="flex-1 space-y-3 min-w-0">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>0:00</span>
-            <span className="font-mono text-sm text-foreground">{fmtTime(time)}</span>
+            <span className="font-mono text-sm text-foreground">{fmtTime(sliderTime)}</span>
             <span>{fmtTime(max)}</span>
           </div>
           <input
@@ -114,22 +120,19 @@ function FramePicker({
             min={0}
             max={max}
             step={5}
-            value={time}
-            onChange={e => setTime(Number(e.target.value))}
-            onMouseUp={handleRelease}
-            onTouchEnd={handleRelease}
+            value={sliderTime}
+            onChange={handleChange}
             className="w-full accent-primary cursor-pointer"
           />
-          <p className="text-xs text-muted-foreground">Arraste e <strong>solte</strong> o slider para carregar o frame</p>
+          <p className="text-xs text-muted-foreground">Arraste o slider — frame carrega após parar</p>
         </div>
       </div>
       <div className="flex gap-2">
-        {/* type="button" is critical — without it these buttons submit the parent <form> */}
+        {/* type="button" prevents form submission when inside a <form> */}
         <button
           type="button"
-          disabled={ver === 0}
           onClick={() => onSelect(saveUrl)}
-          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           Usar este frame
         </button>
