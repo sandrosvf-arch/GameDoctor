@@ -136,13 +136,13 @@ export default async function HomePage() {
   // Static fallback shown before any banner is created via admin
   const fallbackBanner = {
     id: "default",
-    title: "A sua nova plataforma\nde manutenção\nde videogames",
+    title: "Sua plataforma completa de manutenção de videogames",
     subtitle:
-      "Assista aulas gravadas em 4K, acesse esquemas elétricos exclusivos, aprenda técnicas de solda BGA e diagnóstico avançado — do básico ao profissional.",
-    badge: "Técnico de consoles profissional",
+      "Aulas em 4K, esquemas elétricos exclusivos, técnicas de solda BGA e diagnósticos avançados, do básico ao profissional.",
+    badge: "TÉCNICO DE MANUTENÇÕES EM VIDEOGAMES",
     videoUrl: "/hero-bg.mp4",
     imageUrl: null,
-    ctaText: "Ver aulas grátis",
+    ctaText: "Ver Aulas",
     ctaHref: "/cursos",
     secondaryCtaText: "Ver planos",
     secondaryCtaHref: "/planos",
