@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import Link from "next/link"
 import {
   Plus, Trash2, Loader2, ChevronLeft, GripVertical,
@@ -59,29 +59,43 @@ function FramePicker({
   onClose: () => void
 }) {
   const [time, setTime] = useState(0)
-  const [imgLoading, setImgLoading] = useState(true)
+  const [committed, setCommitted] = useState(0) // only updates on mouseup/touchend
+  const [loading, setLoading] = useState(false)
+  const imgRef = useRef<HTMLImageElement>(null)
   const max = Math.max(durationSecs, 1)
-  // Cache buster = time value itself (each unique time = unique URL = new fetch)
-  const previewUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${time}`
+  const cleanUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${committed}`
+
+  // Imperatively set img src so the browser always makes a new request
+  useEffect(() => {
+    const img = imgRef.current
+    if (!img) return
+    setLoading(true)
+    img.src = ""
+    img.src = cleanUrl
+  }, [cleanUrl])
+
+  function commit(val: number) {
+    setCommitted(val)
+    setTime(val)
+  }
 
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Escolher frame da capa</p>
       <div className="flex gap-4 items-start">
-        {/* key forces React to remount the <img> on every URL change → new browser request */}
         <div className="w-40 aspect-video rounded-lg bg-zinc-800 shrink-0 border border-border relative overflow-hidden">
-          {imgLoading && (
+          {loading && (
             <div className="absolute inset-0 flex items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
             </div>
           )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            key={previewUrl}
-            src={previewUrl}
+            ref={imgRef}
             alt="frame preview"
             className="w-full h-full object-cover"
-            onLoad={() => setImgLoading(false)}
-            onLoadStart={() => setImgLoading(true)}
+            onLoad={() => setLoading(false)}
+            onError={() => setLoading(false)}
           />
         </div>
         <div className="flex-1 space-y-3 min-w-0">
@@ -96,14 +110,16 @@ function FramePicker({
             max={max}
             step={5}
             value={time}
-            onChange={e => { setTime(Number(e.target.value)); setImgLoading(true) }}
+            onChange={e => setTime(Number(e.target.value))}
+            onMouseUp={e => commit(Number((e.target as HTMLInputElement).value))}
+            onTouchEnd={e => commit(Number((e.target as HTMLInputElement).value))}
             className="w-full accent-primary cursor-pointer"
           />
-          <p className="text-xs text-muted-foreground">Arraste para navegar nos frames do vídeo</p>
+          <p className="text-xs text-muted-foreground">Arraste e solte para ver o frame</p>
         </div>
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => onSelect(previewUrl)} disabled={imgLoading}>
+        <Button size="sm" onClick={() => onSelect(cleanUrl)}>
           Usar este frame
         </Button>
         <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>

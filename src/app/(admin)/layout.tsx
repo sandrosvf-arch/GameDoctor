@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import { AdminLogoutButton } from "@/components/layout/AdminLogoutButton"
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard" },
@@ -46,7 +47,7 @@ export default async function AdminLayout({
           />
           <p className="text-xs text-muted-foreground mt-2">Painel Administrativo</p>
         </div>
-        <nav className="space-y-0.5">
+        <nav className="flex-1 space-y-0.5">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -57,6 +58,9 @@ export default async function AdminLayout({
             </Link>
           ))}
         </nav>
+        <div className="border-t border-border pt-3 mt-3">
+          <AdminLogoutButton email={session.user.email ?? ""} />
+        </div>
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
