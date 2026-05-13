@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { db } from "@/lib/db"
+import { auth } from "@/lib/auth"
 import { HeroBannerClient } from "@/components/HeroBannerClient"
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -98,12 +99,17 @@ const basics: CourseCard[] = [
   { id: "basic-micro", title: "Como Usar o Microscopio",              duration: "28 min",                   gradient: "from-amber-950 via-slate-900 to-amber-950",  iconColor: "text-amber-400",  Icon: Monitor, free: false, href: "/aula/demo-lesson-ps5-01", thumbnail: "/thumbs/t01.jpg" },
 ]
 
+const rowBrandColor: Record<string, string> = {
+  ps5:    "#0070d1",
+  xbox:   "#107c10",
+  switch: "#e4000f",
+}
+
 const rows: CourseRow[] = [
-  { id: "free",    title: "Comece agora — totalmente gratis", subtitle: "Sem cadastro, sem cartao de credito", courses: [ps5[0], xbox[0], nintendo[0], basics[0]] },
-  { id: "ps5",     title: "PlayStation 5",                    courses: ps5 },
-  { id: "xbox",    title: "Xbox Series X|S",                  courses: xbox },
-  { id: "switch",  title: "Nintendo Switch",                  courses: nintendo },
-  { id: "basics",  title: "Fundamentos de Eletronica",        courses: basics },
+  { id: "ps5",     title: "PlayStation 5",          courses: ps5 },
+  { id: "xbox",    title: "Xbox Series X|S",         courses: xbox },
+  { id: "switch",  title: "Nintendo Switch",         courses: nintendo },
+  { id: "basics",  title: "Fundamentos de Eletronica", courses: basics },
 ]
 
 const plans = [
@@ -158,6 +164,54 @@ export default async function HomePage() {
 
   const banners = dbBanners.length > 0 ? dbBanners : [fallbackBanner]
 
+  // ── "Continue assistindo" row ──────────────────────────────────────────
+  // Logged-in users: last watched lessons from DB. Fallback: PS5 courses.
+  let continueWatchingCourses: CourseCard[] = ps5
+  let continueWatchingTitle = "PlayStation 5"
+  let isLoggedIn = false
+
+  try {
+    const session = await auth()
+    if (session?.user?.id) {
+      isLoggedIn = true
+      const recentProgress = await db.lessonProgress.findMany({
+        where: { userId: session.user.id },
+        orderBy: { lastWatchedAt: "desc" },
+        take: 8,
+        include: {
+          lesson: { select: { id: true, title: true, durationSeconds: true, thumbnail: true, isFree: true, courseId: true } },
+          course: { select: { id: true, title: true, slug: true } },
+        },
+      })
+      if (recentProgress.length > 0) {
+        continueWatchingTitle = "Continue assistindo"
+        continueWatchingCourses = recentProgress.map((p) => {
+          const dur = p.lesson.durationSeconds
+          const durStr = dur ? (dur >= 3600 ? `${Math.floor(dur / 3600)}h ${Math.floor((dur % 3600) / 60)}min` : `${Math.floor(dur / 60)} min`) : ""
+          return {
+            id: p.lessonId,
+            title: p.lesson.title,
+            duration: durStr,
+            gradient: "from-zinc-900 to-zinc-800",
+            iconColor: "text-cyan-400",
+            Icon: Play,
+            free: p.lesson.isFree,
+            href: `/aula/${p.lessonId}`,
+            thumbnail: p.lesson.thumbnail ?? "/thumbs/t01.jpg",
+          }
+        })
+      } else {
+        continueWatchingTitle = "Comece pelo PlayStation 5"
+      }
+    }
+  } catch {
+    // DB unreachable or unauthenticated — use PS5 fallback
+  }
+
+  const continueRow: CourseRow | null = isLoggedIn && continueWatchingTitle === "Continue assistindo"
+    ? { id: "continue", title: "Continue assistindo", courses: continueWatchingCourses }
+    : null
+
   return (
     <>
       <Header />
@@ -168,10 +222,34 @@ export default async function HomePage() {
 
         {/* CARROSSEIS */}
         <section className="pb-16 space-y-10 pt-2">
-          {rows.map((row) => (
-            <div key={row.id}>
+          {[...(continueRow ? [continueRow] : []), ...rows].map((row) => {
+            const neonColor = rowBrandColor[row.id] ?? (row.id === "continue" ? "#00cfff" : null)
+            return (
+            <div key={row.id} className="relative">
               <div className="px-4 md:px-8 lg:px-14 mb-3 flex items-baseline gap-3">
-                <h2 className="text-base md:text-[17px] font-bold text-white">{row.title}</h2>
+                {/* Soft neon glow on left edge — no hard bar */}
+                {neonColor && (
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[28px] h-[40%] pointer-events-none rounded-full"
+                    style={{
+                      background: neonColor,
+                      filter: "blur(28px)",
+                      opacity: 0.75,
+                    }}
+                  />
+                )}
+                <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2.5">
+                  {row.id === "continue" && (
+                    <span className="inline-block w-2 h-6 rounded-full bg-cyan-400 shrink-0" />
+                  )}
+                  {rowBrandColor[row.id] && (
+                    <span
+                      className="inline-block w-2 h-6 rounded-full shrink-0"
+                      style={{ backgroundColor: rowBrandColor[row.id], filter: "brightness(1.4) saturate(1.6)" }}
+                    />
+                  )}
+                  {row.title}
+                </h2>
                 {row.subtitle && (
                   <span className="text-xs text-zinc-600 hidden sm:block">{row.subtitle}</span>
                 )}
@@ -188,17 +266,26 @@ export default async function HomePage() {
                     <Link
                       key={course.id}
                       href={course.href}
-                      className="group/card flex-shrink-0 w-[190px] sm:w-[220px] md:w-[245px] lg:w-[265px]"
+                      className="group/card flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]"
                     >
-                      <div className={cn(
-                        "relative aspect-video rounded-lg overflow-hidden",
-                        "transition-transform duration-200 ease-out",
-                        "group-hover/card:scale-[1.04] group-hover/card:shadow-2xl group-hover/card:shadow-black/60",
-                      )}>
+                      <div
+                        className={cn(
+                          "relative aspect-video rounded-lg overflow-hidden",
+                          "transition-transform duration-200 ease-out",
+                          "group-hover/card:scale-[1.04] group-hover/card:shadow-2xl group-hover/card:shadow-black/60",
+                        )}
+                      >
                         {/* Thumbnail */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={course.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
                         <div className="absolute inset-0 bg-zinc-950/25" />
+                        {/* Left color accent line */}
+                        {neonColor && (
+                          <div
+                            className="absolute top-0 left-0 bottom-0 w-[2px] z-10"
+                            style={{ background: `linear-gradient(to bottom, ${neonColor}, ${neonColor}88, transparent)` }}
+                          />
+                        )}
                         {/* Hover overlay */}
                         <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150" />
                         {/* Play / lock on hover */}
@@ -217,19 +304,16 @@ export default async function HomePage() {
                           </span>
                         )}
                         {/* Bottom title bar */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-2.5 pt-7 pb-2">
-                          <p className="text-[10px] font-bold text-white leading-tight line-clamp-1">{course.title}</p>
-                          <p className="text-[9px] text-zinc-400 mt-0.5">{course.duration}</p>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pt-10 pb-3">
+                          <p className="text-[17px] font-bold text-white leading-snug line-clamp-2">{course.title}</p>
+                          <p className="text-[14px] text-zinc-400 mt-0.5">{course.duration}</p>
                         </div>
                       </div>
-                      <p className="mt-1.5 text-[11px] font-medium text-zinc-500 group-hover/card:text-zinc-200 transition-colors line-clamp-1 px-0.5">
-                        {course.title}
-                      </p>
                     </Link>
                   )
                 })}
 
-                <Link href="/cursos" className="group/more flex-shrink-0 w-[190px] sm:w-[220px] md:w-[245px] lg:w-[265px]">
+                <Link href="/cursos" className="group/more flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]">
                   <div className="aspect-video rounded-lg border border-zinc-800 bg-zinc-900/40 group-hover/more:bg-zinc-800/60 transition-colors flex flex-col items-center justify-center gap-2">
                     <div className="h-9 w-9 rounded-full border border-zinc-700 group-hover/more:border-zinc-500 flex items-center justify-center transition-colors">
                       <ChevronRight className="h-5 w-5 text-zinc-600 group-hover/more:text-zinc-300 transition-colors" />
@@ -241,7 +325,7 @@ export default async function HomePage() {
                 </Link>
               </div>
             </div>
-          ))}
+          )})}
         </section>
 
         {/* PLANOS */}
