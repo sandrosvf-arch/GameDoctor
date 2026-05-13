@@ -140,29 +140,49 @@ export default async function HomePage() {
   }
 
   // Static fallback shown before any banner is created via admin
-  const fallbackBanner = {
-    id: "default",
-    title: "Sua plataforma completa de manutenção de videogames",
-    subtitle:
-      "Aulas em 4K, esquemas elétricos exclusivos, técnicas de solda BGA e diagnósticos avançados, do básico ao profissional.",
-    badge: "TÉCNICO DE MANUTENÇÕES EM VIDEOGAMES",
-    videoUrl: "/hero-bg.mp4",
-    imageUrl: null,
-    ctaText: "Ver Aulas",
-    ctaHref: "/cursos",
-    secondaryCtaText: "Ver planos",
-    secondaryCtaHref: "/planos",
-    consoles: [
-      "PlayStation 5",
-      "PlayStation 4",
-      "Xbox Series X|S",
-      "Xbox One",
-      "Nintendo Switch",
-      "Switch OLED",
-    ],
-  }
+  const fallbackBanners = [
+    {
+      id: "default-1",
+      title: "Sua plataforma completa de manutenção de videogames",
+      subtitle:
+        "Aulas em 4K, esquemas elétricos exclusivos, técnicas de solda BGA e diagnósticos avançados, do básico ao profissional.",
+      badge: "TÉCNICO DE MANUTENÇÕES EM VIDEOGAMES",
+      videoUrl: "/hero-bg.mp4",
+      imageUrl: null,
+      ctaText: "Ver Aulas",
+      ctaHref: "/cursos",
+      secondaryCtaText: "Ver planos",
+      secondaryCtaHref: "/planos",
+      consoles: [
+        "PlayStation 5",
+        "PlayStation 4",
+        "Xbox Series X|S",
+        "Xbox One",
+        "Nintendo Switch",
+        "Switch OLED",
+      ],
+    },
+    {
+      id: "default-2",
+      title: "Solda BGA do zero ao profissional",
+      subtitle:
+        "Aprenda as técnicas avançadas de micro-soldagem usadas em bancadas profissionais de todo o Brasil.",
+      badge: "CURSO EM DESTAQUE",
+      videoUrl: "/hero-bg.mp4",
+      imageUrl: null,
+      ctaText: "Ver Aulas",
+      ctaHref: "/aula/demo-lesson-ps5-01",
+      secondaryCtaText: "Todos os cursos",
+      secondaryCtaHref: "/cursos",
+      consoles: [
+        "PlayStation 5",
+        "Xbox Series X|S",
+        "Nintendo Switch",
+      ],
+    },
+  ]
 
-  const banners = dbBanners.length > 0 ? dbBanners : [fallbackBanner]
+  const banners = dbBanners.length > 0 ? dbBanners : fallbackBanners
 
   // ── "Continue assistindo" row ──────────────────────────────────────────
   // Logged-in users: last watched lessons from DB. Fallback: PS5 courses.
