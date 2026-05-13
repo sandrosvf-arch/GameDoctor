@@ -59,25 +59,24 @@ function FramePicker({
   onClose: () => void
 }) {
   const [sliderTime, setSliderTime] = useState(0)
-  const [previewTime, setPreviewTime] = useState<number | null>(null)
+  // imgSrc stored in state — only changes after debounce, includes _nc to bust CDN/browser cache
+  const [imgSrc, setImgSrc] = useState<string | null>(null)
   const [imgLoading, setImgLoading] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const max = Math.max(durationSecs, 1)
 
-  // Preview via our proxy — bypasses Bunny CDN cache entirely
-  const proxyUrl = previewTime !== null
-    ? `/api/admin/bunny-frame?videoId=${encodeURIComponent(bunnyId)}&time=${previewTime}`
-    : null
-
-  // Save URL uses the direct Bunny CDN (correct frame will be cached there on first access)
+  // URL saved to DB — clean, no cache-buster
   const saveUrl = `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${sliderTime}`
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = Number(e.target.value)
     setSliderTime(val)
-    setImgLoading(true)
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => setPreviewTime(val), 450)
+    debounceRef.current = setTimeout(() => {
+      // _nc=timestamp makes the URL unique so CDN and browser never return a cached version
+      setImgSrc(`https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${val}&_nc=${Date.now()}`)
+      setImgLoading(true)
+    }, 500)
   }
 
   return (
@@ -85,18 +84,19 @@ function FramePicker({
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Escolher frame da capa</p>
       <div className="flex gap-4 items-start">
         <div className="w-40 aspect-video rounded-lg bg-zinc-800 shrink-0 border border-border relative overflow-hidden flex items-center justify-center">
-          {proxyUrl ? (
+          {imgSrc ? (
             <>
               {imgLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-zinc-800/80 z-10">
                   <Loader2 className="h-5 w-5 animate-spin text-zinc-300" />
                 </div>
               )}
+              {/* key=imgSrc — each unique URL remounts the element, bypassing browser cache */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                key={proxyUrl}
-                src={proxyUrl}
-                alt="frame preview"
+                key={imgSrc}
+                src={imgSrc}
+                alt=""
                 className="w-full h-full object-cover"
                 onLoad={() => setImgLoading(false)}
                 onError={() => setImgLoading(false)}
