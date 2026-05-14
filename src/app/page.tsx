@@ -141,8 +141,8 @@ export default async function HomePage() {
       where: { isActive: true },
       orderBy: { order: "asc" },
     })
-  } catch (err) {
-    console.error("[HomePage] Banner DB query failed:", err)
+  } catch {
+    // fallback to static banners
   }
 
   // Static fallback shown before any banner is created via admin
@@ -358,8 +358,8 @@ export default async function HomePage() {
       const ob = slugToOrder[b.id] ?? 99
       return oa - ob
     })
-  } catch (err) {
-    console.error("[HomePage] DB query failed:", err)
+  } catch {
+    // fallback to static lessons
   }
 
   return (
