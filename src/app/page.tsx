@@ -420,43 +420,58 @@ export default async function HomePage() {
                     >
                       <div
                         className={cn(
-                          "relative aspect-video rounded-lg overflow-hidden",
-                          "transition-transform duration-200 ease-out",
-                          "group-hover/card:scale-[1.04] group-hover/card:shadow-2xl group-hover/card:shadow-black/60",
+                          "relative aspect-video rounded-2xl overflow-hidden border border-zinc-800/50",
+                          "transition-all duration-200 ease-out",
+                          "group-hover/card:scale-[1.03] group-hover/card:shadow-xl group-hover/card:shadow-cyan-500/10 group-hover/card:border-zinc-700",
                         )}
                       >
-                        {/* Thumbnail */}
+                        {/* Thumbnail — full cover, high quality */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={course.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
-                        <div className="absolute inset-0 bg-zinc-950/25" />
-                        {/* Left color accent line */}
+                        
+                        {/* Subtle overlay for text legibility */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                        
+                        {/* Left neon accent line — heartbeat-inspired */}
                         {neonColor && (
                           <div
-                            className="absolute top-0 left-0 bottom-0 w-[2px] z-10"
-                            style={{ background: `linear-gradient(to bottom, ${neonColor}, ${neonColor}88, transparent)` }}
+                            className="absolute top-0 left-0 bottom-0 w-1 z-10 opacity-80"
+                            style={{ background: `linear-gradient(to bottom, ${neonColor}, ${neonColor}66, transparent)` }}
                           />
                         )}
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150" />
-                        {/* Play / lock on hover */}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
-                          <div className="h-10 w-10 rounded-full bg-white/15 backdrop-blur border border-white/25 flex items-center justify-center">
-                            {course.free
-                              ? <Play className="h-5 w-5 text-white fill-white ml-0.5" />
-                              : <Lock className="h-4 w-4 text-white" />
-                            }
-                          </div>
-                        </div>
-                        {/* Badge */}
+                        
+                        {/* Badge — top-left, prominent */}
                         {course.badge && badgeStyle && badgeLabel && (
-                          <span className={cn("absolute top-2 left-2 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider z-10", badgeStyle)}>
+                          <span className={cn(
+                            "absolute top-3 left-3 text-[11px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider z-20",
+                            "drop-shadow-lg",
+                            badgeStyle
+                          )}>
                             {badgeLabel}
                           </span>
                         )}
-                        {/* Bottom title bar */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pt-10 pb-3">
-                          <p className="text-[17px] font-bold text-white leading-snug line-clamp-2">{course.title}</p>
-                          <p className="text-[14px] text-zinc-400 mt-0.5">{course.duration}</p>
+                        
+                        {/* Hover overlay with play/lock icon */}
+                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
+                          <div className="h-12 w-12 rounded-full bg-white/15 backdrop-blur border border-white/30 flex items-center justify-center">
+                            {course.free
+                              ? <Play className="h-6 w-6 text-white fill-white ml-0.5" />
+                              : <Lock className="h-5 w-5 text-white" />
+                            }
+                          </div>
+                        </div>
+                        
+                        {/* Bottom content — title hierarchy: image → title → duration */}
+                        <div className="absolute bottom-0 left-0 right-0 px-3 py-3 space-y-1.5">
+                          {/* Title — bold, large, limited to 2 lines */}
+                          <p className="text-[16px] sm:text-[17px] font-black text-white leading-tight line-clamp-2">
+                            {course.title}
+                          </p>
+                          {/* Duration — smaller, secondary */}
+                          <p className="text-[12px] sm:text-[13px] text-zinc-300 font-medium">
+                            {course.duration}
+                          </p>
                         </div>
                       </div>
                     </Link>

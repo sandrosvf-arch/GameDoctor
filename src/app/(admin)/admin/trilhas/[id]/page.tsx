@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import {
   Plus, Trash2, Loader2, ChevronLeft, GripVertical,
-  Play, Save, ExternalLink, Eye, EyeOff, Film, Check,
+  Play, Save, ExternalLink, Eye, EyeOff,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -48,125 +48,85 @@ function fmtTime(s: number) {
   return `${m}:${String(sec).padStart(2, "0")}`
 }
 
-function FramePicker({
-  bunnyId,
-  durationSecs,
-  onSelect,
-  onClose,
-}: {
-  bunnyId: string
-  durationSecs: number
-  onSelect: (url: string) => void
-  onClose: () => void
-}) {
-  // currentTime is captured from the Bunny player via postMessage, or set manually
-  const [currentTime, setCurrentTime] = useState(Math.round((durationSecs || 60) / 4))
-  const [hasEvent, setHasEvent] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Listen for timeupdate / pause events from the Bunny iframe player
-  useEffect(() => {
-    function handleMessage(e: MessageEvent) {
-      if (e.origin !== "https://iframe.mediadelivery.net") return
-      try {
-        const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data
-        if (data && typeof data.time === "number") {
-          setCurrentTime(Math.round(data.time))
-          setHasEvent(true)
-        }
-      } catch { /* ignore malformed messages */ }
-    }
-    window.addEventListener("message", handleMessage)
-    return () => window.removeEventListener("message", handleMessage)
-  }, [])
-
-  async function handleUseFrame() {
-    setSaving(true)
-    setError(null)
-    try {
-      const res = await fetch(
-        `/api/admin/set-thumbnail?videoId=${encodeURIComponent(bunnyId)}&time=${currentTime}`,
-        { method: "POST" }
-      )
-      const data = await res.json()
-      if (!res.ok || data.error) {
-        setError(`Erro ${data.status ?? res.status}: ${data.detail || data.error}`)
-        setSaving(false)
-        return
+function readImageAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result)
+      } else {
+        reject(new Error("Não foi possível ler a imagem."))
       }
-      onSelect(data.thumbnailUrl)
-    } catch (e) {
-      setError(`Erro: ${e instanceof Error ? e.message : "Tente novamente."}`)
-      setSaving(false)
+    }
+    reader.onerror = () => reject(new Error("Não foi possível ler a imagem."))
+    reader.readAsDataURL(file)
+  })
+}
+
+function CoverUploadField({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (value: string) => void
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [fileName, setFileName] = useState("")
+
+  async function handlePickFile(file: File | null) {
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      alert("Selecione uma imagem válida.")
+      return
+    }
+    setUploading(true)
+    setFileName(file.name)
+    try {
+      const dataUrl = await readImageAsDataUrl(file)
+      onChange(dataUrl)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível carregar a imagem.")
+    } finally {
+      setUploading(false)
     }
   }
 
   return (
-    <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Escolher frame da capa</p>
-
-      <p className="text-xs text-muted-foreground">
-        Reproduza o vídeo e <strong>pause</strong> no frame desejado. O tempo é capturado automaticamente.
-      </p>
-
-      {/* Bunny embed player */}
-      <div className="relative w-full rounded-lg overflow-hidden bg-zinc-900" style={{ paddingTop: "56.25%" }}>
-        <iframe
-          src={`https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${bunnyId}?autoplay=false&responsive=true`}
-          className="absolute inset-0 w-full h-full border-0"
-          allowFullScreen
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        />
-      </div>
-
-      {/* Time indicator + manual fallback */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex-1 min-w-0">
-          {hasEvent ? (
-            <p className="text-sm">
-              <span className="text-muted-foreground">Posição atual: </span>
-              <span className="font-mono font-medium">{fmtTime(currentTime)}</span>
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground italic">
-              Pause o vídeo para capturar o frame automaticamente
-            </p>
-          )}
-        </div>
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
-          Ou insira (seg):
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
+          {uploading ? "Enviando..." : "Selecionar imagem"}
           <input
-            type="number"
-            min={0}
-            max={durationSecs || 9999}
-            step={1}
-            value={currentTime}
-            onChange={(e) => { setCurrentTime(Number(e.target.value)); setHasEvent(true) }}
-            className="w-20 h-7 rounded border border-input bg-background px-2 text-sm text-center font-mono"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              void handlePickFile(e.target.files?.[0] ?? null)
+              e.currentTarget.value = ""
+            }}
           />
         </label>
+        {fileName && <span className="text-xs text-muted-foreground">{fileName}</span>}
+        {value && value.startsWith("data:") && (
+          <span className="text-xs text-emerald-500">Arquivo pronto para salvar</span>
+        )}
       </div>
-
-      {error && <p className="text-xs text-destructive">{error}</p>}
-
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={saving}
-          onClick={handleUseFrame}
-          className="inline-flex items-center gap-1.5 justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors"
-        >
-          {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          {saving ? "Salvando..." : "Usar este frame"}
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent transition-colors"
-        >
-          Cancelar
-        </button>
+      <div className="flex gap-2 items-center">
+        <input
+          className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          placeholder="URL da imagem da capa"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        {value && (
+          <img
+            src={value}
+            alt="preview"
+            className="w-20 aspect-video rounded object-cover bg-zinc-800 shrink-0"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+          />
+        )}
       </div>
     </div>
   )
@@ -189,16 +149,12 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [newThumbnail, setNewThumbnail] = useState("")
   const [newIsFree, setNewIsFree] = useState(true)
   const [creatingLesson, setCreatingLesson] = useState(false)
-  const [newFramePickerOpen, setNewFramePickerOpen] = useState(false)
 
   // Lesson inline edit
   const [editingLesson, setEditingLesson] = useState<string | null>(null)
   const [lessonEdits, setLessonEdits] = useState<Record<string, Partial<Lesson & { bunnyVideoId: string; thumbnail: string }>>>({})
   const [savingLesson, setSavingLesson] = useState<string | null>(null)
   const [deletingLesson, setDeletingLesson] = useState<string | null>(null)
-  const [framePickerOpen, setFramePickerOpen] = useState<string | null>(null)
-
-  const [savingThumbnail, setSavingThumbnail] = useState<string | null>(null)
 
   const load = useCallback(async (id: string) => {
     setLoading(true)
@@ -244,7 +200,6 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     })
     setCreatingLesson(false)
     setNewLessonTitle(""); setNewBunnyId(""); setNewThumbnail(""); setNewIsFree(true)
-    setNewFramePickerOpen(false)
     setShowLessonForm(false)
     load(trilhaId)
   }
@@ -259,7 +214,6 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     })
     setSavingLesson(null)
     setEditingLesson(null)
-    setFramePickerOpen(null)
     load(trilhaId)
   }
 
@@ -271,22 +225,8 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     load(trilhaId)
   }
 
-  async function saveThumbnailNow(lessonId: string, url: string) {
-    setSavingThumbnail(lessonId)
-    patchEdit(lessonId, "thumbnail", url)
-    await fetch(`/api/admin/trilhas/${trilhaId}/aulas/${lessonId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ thumbnail: url }),
-    })
-    setSavingThumbnail(null)
-    setFramePickerOpen(null)
-    load(trilhaId)
-  }
-
   function startEdit(lesson: Lesson) {
     setEditingLesson(lesson.id)
-    setFramePickerOpen(null)
     setLessonEdits(prev => ({
       ...prev,
       [lesson.id]: {
@@ -386,33 +326,13 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
 
             {/* Capa */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs text-muted-foreground">Capa</label>
-                {newBunnyId.trim() && (
-                  <button type="button" onClick={() => setNewFramePickerOpen(o => !o)}
-                    className="flex items-center gap-1 text-xs text-primary hover:text-primary/80">
-                    <Film className="h-3 w-3" /> Escolher frame do vídeo
-                  </button>
-                )}
-              </div>
-              {newFramePickerOpen && newBunnyId.trim() ? (
-                <FramePicker
-                  bunnyId={newBunnyId.trim()}
-                  durationSecs={300}
-                  onSelect={url => { setNewThumbnail(url); setNewFramePickerOpen(false) }}
-                  onClose={() => setNewFramePickerOpen(false)}
-                />
-              ) : (
-                <div className="flex gap-2 items-center">
-                  <input className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    placeholder="URL da imagem (ou escolha um frame acima)"
-                    value={newThumbnail} onChange={e => setNewThumbnail(e.target.value)} />
-                  {newThumbnail && (
-                    <img src={newThumbnail} alt="preview" className="w-20 aspect-video rounded object-cover bg-zinc-800 shrink-0"
-                      onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
-                  )}
-                </div>
-              )}
+              <label className="text-xs text-muted-foreground block mb-1">
+                Capa pronta
+              </label>
+              <p className="text-[11px] text-muted-foreground mb-2">
+                Envie uma imagem pronta ou cole a URL da capa.
+              </p>
+              <CoverUploadField value={newThumbnail} onChange={setNewThumbnail} />
             </div>
 
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
@@ -443,7 +363,9 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
               ?? lesson.videoThumbnailUrl
 
             const editBunnyId = (edits.bunnyVideoId as string) ?? lesson.videoProviderId ?? ""
-            const editThumb = ((edits.thumbnail as string | undefined) !== undefined ? (edits.thumbnail as string) : null) || lesson.thumbnail || ""
+            const editThumb = (edits.thumbnail as string | undefined) !== undefined
+              ? (edits.thumbnail as string)
+              : (lesson.thumbnail ?? "")
             const editDuration = lesson.videoDurationSeconds ?? lesson.durationSeconds ?? 300
 
             return (
@@ -505,35 +427,16 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
 
                     {/* Capa */}
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs text-muted-foreground">Capa</label>
-                        {editBunnyId && (
-                          <button type="button"
-                            onClick={() => setFramePickerOpen(framePickerOpen === lesson.id ? null : lesson.id)}
-                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80">
-                            <Film className="h-3 w-3" /> Escolher frame do vídeo
-                          </button>
-                        )}
-                      </div>
-                      {framePickerOpen === lesson.id ? (
-                        <FramePicker
-                          bunnyId={editBunnyId}
-                          durationSecs={editDuration}
-                          onSelect={url => saveThumbnailNow(lesson.id, url)}
-                          onClose={() => setFramePickerOpen(null)}
-                        />
-                      ) : (
-                        <div className="flex gap-2 items-center">
-                          <input className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                            placeholder="URL da imagem (ou escolha um frame acima)"
-                            value={editThumb}
-                            onChange={e => patchEdit(lesson.id, "thumbnail", e.target.value)} />
-                          {editThumb && (
-                            <img src={editThumb} alt="preview" className="w-20 aspect-video rounded object-cover bg-zinc-800 shrink-0"
-                              onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
-                          )}
-                        </div>
-                      )}
+                      <label className="text-xs text-muted-foreground block mb-1">
+                        Capa pronta
+                      </label>
+                      <p className="text-[11px] text-muted-foreground mb-2">
+                        Envie uma imagem pronta ou cole a URL da capa.
+                      </p>
+                      <CoverUploadField
+                        value={editThumb}
+                        onChange={(value) => patchEdit(lesson.id, "thumbnail", value)}
+                      />
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -555,7 +458,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                         {savingLesson === lesson.id ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
                         Salvar
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setEditingLesson(null); setFramePickerOpen(null) }}>Cancelar</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingLesson(null)}>Cancelar</Button>
                     </div>
                   </div>
                 )}
