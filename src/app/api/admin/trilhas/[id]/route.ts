@@ -48,7 +48,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       id: true, title: true, description: true,
       durationSeconds: true, videoDurationSeconds: true,
       videoProvider: true, videoProviderId: true,
-      videoEmbedUrl: true, videoThumbnailUrl: true,
+      videoEmbedUrl: true, videoThumbnailUrl: true, thumbnail: true,
       isFree: true, status: true, order: true,
     },
   })

@@ -89,11 +89,15 @@ function FramePicker({
         `/api/admin/set-thumbnail?videoId=${encodeURIComponent(bunnyId)}&time=${currentTime}`,
         { method: "POST" }
       )
-      if (!res.ok) throw new Error("Falha")
-      const { thumbnailUrl } = await res.json()
-      onSelect(thumbnailUrl)
-    } catch {
-      setError("Erro ao salvar thumbnail. Tente novamente.")
+      const data = await res.json()
+      if (!res.ok || data.error) {
+        setError(`Erro ${data.status ?? res.status}: ${data.detail || data.error}`)
+        setSaving(false)
+        return
+      }
+      onSelect(data.thumbnailUrl)
+    } catch (e) {
+      setError(`Erro: ${e instanceof Error ? e.message : "Tente novamente."}`)
       setSaving(false)
     }
   }
@@ -154,7 +158,7 @@ function FramePicker({
           className="inline-flex items-center gap-1.5 justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors"
         >
           {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          Usar este frame
+          {saving ? "Salvando..." : "Usar este frame"}
         </button>
         <button
           type="button"
@@ -193,6 +197,8 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [savingLesson, setSavingLesson] = useState<string | null>(null)
   const [deletingLesson, setDeletingLesson] = useState<string | null>(null)
   const [framePickerOpen, setFramePickerOpen] = useState<string | null>(null)
+
+  const [savingThumbnail, setSavingThumbnail] = useState<string | null>(null)
 
   const load = useCallback(async (id: string) => {
     setLoading(true)
@@ -262,6 +268,19 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     setDeletingLesson(lessonId)
     await fetch(`/api/admin/trilhas/${trilhaId}/aulas/${lessonId}`, { method: "DELETE" })
     setDeletingLesson(null)
+    load(trilhaId)
+  }
+
+  async function saveThumbnailNow(lessonId: string, url: string) {
+    setSavingThumbnail(lessonId)
+    patchEdit(lessonId, "thumbnail", url)
+    await fetch(`/api/admin/trilhas/${trilhaId}/aulas/${lessonId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ thumbnail: url }),
+    })
+    setSavingThumbnail(null)
+    setFramePickerOpen(null)
     load(trilhaId)
   }
 
@@ -424,7 +443,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
               ?? lesson.videoThumbnailUrl
 
             const editBunnyId = (edits.bunnyVideoId as string) ?? lesson.videoProviderId ?? ""
-            const editThumb = (edits.thumbnail as string) ?? lesson.thumbnail ?? ""
+            const editThumb = ((edits.thumbnail as string | undefined) !== undefined ? (edits.thumbnail as string) : null) || lesson.thumbnail || ""
             const editDuration = lesson.videoDurationSeconds ?? lesson.durationSeconds ?? 300
 
             return (
@@ -500,7 +519,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                         <FramePicker
                           bunnyId={editBunnyId}
                           durationSecs={editDuration}
-                          onSelect={url => { patchEdit(lesson.id, "thumbnail", url); setFramePickerOpen(null) }}
+                          onSelect={url => saveThumbnailNow(lesson.id, url)}
                           onClose={() => setFramePickerOpen(null)}
                         />
                       ) : (

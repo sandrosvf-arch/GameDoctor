@@ -25,8 +25,9 @@ export async function POST(request: Request) {
   }
 
   // Bunny Stream API: set video thumbnail to a specific time (thumbnailTime in milliseconds)
-  const timeMs = timeSecs * 1000
-  const apiUrl = `https://video.bunnycdn.com/library/${LIBRARY_ID}/videos/${videoId}/thumbnail?thumbnailTime=${timeMs}`
+  // Bunny Stream API: update video metadata with thumbnailTime (in seconds)
+  // Correct endpoint is POST /videos/{id} with JSON body, NOT /videos/{id}/thumbnail
+  const apiUrl = `https://video.bunnycdn.com/library/${LIBRARY_ID}/videos/${videoId}`
 
   const res = await fetch(apiUrl, {
     method: "POST",
@@ -34,12 +35,14 @@ export async function POST(request: Request) {
       AccessKey: API_KEY,
       "Content-Type": "application/json",
     },
+    body: JSON.stringify({ thumbnailTime: timeSecs }),
   })
 
   if (!res.ok) {
     const body = await res.text().catch(() => "")
     console.error("[set-thumbnail] Bunny API error", res.status, body)
-    return NextResponse.json({ error: "Bunny API error", detail: body }, { status: 502 })
+    // Return 200 with error detail so client can show it
+    return NextResponse.json({ error: "Bunny API error", status: res.status, detail: body })
   }
 
   // Add cache-busting version so browser/CDN serves the newly-set thumbnail
