@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/auth"
+import { auth } from "@/lib/auth"
 
 const LIBRARY_ID = process.env.BUNNY_LIBRARY_ID
 const API_KEY = process.env.BUNNY_STREAM_API_KEY
