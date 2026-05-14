@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
+const BUNNY_LIBRARY_ID = "659969"
 
 interface Lesson {
   id: string
@@ -58,75 +59,101 @@ function FramePicker({
   onSelect: (url: string) => void
   onClose: () => void
 }) {
-  const [selected, setSelected] = useState<{ time: number; url: string } | null>(null)
-  const dur = Math.max(durationSecs, 60)
+  // currentTime is captured from the Bunny player via postMessage, or set manually
+  const [currentTime, setCurrentTime] = useState(Math.round((durationSecs || 60) / 4))
+  const [hasEvent, setHasEvent] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Generate 20 evenly-spaced frames — each ?time=N is a unique CDN cache entry, no cache issue
-  const NUM = 20
-  const frames = Array.from({ length: NUM }, (_, i) => {
-    const t = Math.round((i / (NUM - 1)) * dur)
-    return { time: t, url: `https://${BUNNY_CDN}/${bunnyId}/thumbnail.jpg?time=${t}` }
-  })
+  // Listen for timeupdate / pause events from the Bunny iframe player
+  useEffect(() => {
+    function handleMessage(e: MessageEvent) {
+      if (e.origin !== "https://iframe.mediadelivery.net") return
+      try {
+        const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data
+        if (data && typeof data.time === "number") {
+          setCurrentTime(Math.round(data.time))
+          setHasEvent(true)
+        }
+      } catch { /* ignore malformed messages */ }
+    }
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [])
+
+  async function handleUseFrame() {
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(
+        `/api/admin/set-thumbnail?videoId=${encodeURIComponent(bunnyId)}&time=${currentTime}`,
+        { method: "POST" }
+      )
+      if (!res.ok) throw new Error("Falha")
+      const { thumbnailUrl } = await res.json()
+      onSelect(thumbnailUrl)
+    } catch {
+      setError("Erro ao salvar thumbnail. Tente novamente.")
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Escolher frame da capa</p>
 
-      {/* Filmstrip — horizontally scrollable */}
-      <div className="overflow-x-auto pb-1">
-        <div className="flex gap-1.5" style={{ width: "max-content" }}>
-          {frames.map((frame) => {
-            const isSelected = selected?.time === frame.time
-            return (
-              <button
-                key={frame.time}
-                type="button"
-                onClick={() => setSelected(frame)}
-                className={cn(
-                  "relative shrink-0 rounded-md overflow-hidden border-2 transition-all hover:opacity-90",
-                  isSelected ? "border-primary ring-2 ring-primary/50" : "border-transparent"
-                )}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={frame.url}
-                  alt={fmtTime(frame.time)}
-                  className="w-[88px] aspect-video object-cover block bg-zinc-800"
-                  loading="lazy"
-                />
-                <span className="absolute bottom-0 left-0 right-0 text-[9px] text-center text-white/80 bg-black/50 py-0.5">
-                  {fmtTime(frame.time)}
-                </span>
-                {isSelected && (
-                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                    <Check className="h-4 w-4 text-white drop-shadow" />
-                  </div>
-                )}
-              </button>
-            )
-          })}
-        </div>
+      <p className="text-xs text-muted-foreground">
+        Reproduza o vídeo e <strong>pause</strong> no frame desejado. O tempo é capturado automaticamente.
+      </p>
+
+      {/* Bunny embed player */}
+      <div className="relative w-full rounded-lg overflow-hidden bg-zinc-900" style={{ paddingTop: "56.25%" }}>
+        <iframe
+          src={`https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${bunnyId}?autoplay=false&responsive=true`}
+          className="absolute inset-0 w-full h-full border-0"
+          allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        />
       </div>
 
-      {/* Selected preview */}
-      {selected && (
-        <div className="flex items-center gap-3 rounded-lg bg-background/50 border border-border px-3 py-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={selected.url} alt="" className="w-16 aspect-video rounded object-cover bg-zinc-800 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs font-medium">Frame selecionado</p>
-            <p className="text-xs text-muted-foreground">{fmtTime(selected.time)} do vídeo</p>
-          </div>
+      {/* Time indicator + manual fallback */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
+          {hasEvent ? (
+            <p className="text-sm">
+              <span className="text-muted-foreground">Posição atual: </span>
+              <span className="font-mono font-medium">{fmtTime(currentTime)}</span>
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">
+              Pause o vídeo para capturar o frame automaticamente
+            </p>
+          )}
         </div>
-      )}
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+          Ou insira (seg):
+          <input
+            type="number"
+            min={0}
+            max={durationSecs || 9999}
+            step={1}
+            value={currentTime}
+            onChange={(e) => { setCurrentTime(Number(e.target.value)); setHasEvent(true) }}
+            className="w-20 h-7 rounded border border-input bg-background px-2 text-sm text-center font-mono"
+          />
+        </label>
+      </div>
+
+      {error && <p className="text-xs text-destructive">{error}</p>}
 
       <div className="flex gap-2">
         <button
           type="button"
-          disabled={!selected}
-          onClick={() => selected && onSelect(selected.url)}
-          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          disabled={saving}
+          onClick={handleUseFrame}
+          className="inline-flex items-center gap-1.5 justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors"
         >
+          {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           Usar este frame
         </button>
         <button
