@@ -33,6 +33,8 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
   const progressRef = useRef<number>(0)
   const startTimeRef = useRef<number>(Date.now())
   const rafRef = useRef<number | null>(null)
+  const touchStartXRef = useRef<number>(0)
+  const touchStartYRef = useRef<number>(0)
 
   const go = useCallback(
     (index: number) => {
@@ -57,6 +59,31 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
   const prev = useCallback(() => {
     go((current - 1 + banners.length) % banners.length)
   }, [current, banners.length, go])
+
+  // Handle touch/swipe for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX
+    touchStartYRef.current = e.touches[0].clientY
+  }, [])
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const touchEndX = e.changedTouches[0].clientX
+    const touchEndY = e.changedTouches[0].clientY
+    const diffX = touchStartXRef.current - touchEndX
+    const diffY = touchStartYRef.current - touchEndY
+
+    // Only trigger swipe if horizontal movement is greater than vertical
+    const swipeThreshold = 50
+    if (Math.abs(diffX) > swipeThreshold && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX > 0) {
+        // Swiped left — go to next
+        next()
+      } else {
+        // Swiped right — go to previous
+        prev()
+      }
+    }
+  }, [next, prev])
 
   // Progress animation loop
   useEffect(() => {
@@ -87,7 +114,11 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
   const slide = banners[current]
 
   return (
-    <section className="relative min-h-[60vh] md:min-h-[92vh] flex items-center justify-center overflow-hidden">
+    <section
+      className="relative min-h-[60vh] md:min-h-[92vh] flex items-center justify-center overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Background media */}
       {slide.videoUrl ? (
         <video
