@@ -523,7 +523,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                         <input className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
                           placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                           value={editBunnyId}
-                          onChange={e => { patchEdit(lesson.id, "bunnyVideoId", e.target.value); setFramePickerOpen(null) }} />
+                          onChange={e => patchEdit(lesson.id, "bunnyVideoId", e.target.value)} />
                       </div>
                     </div>
 
