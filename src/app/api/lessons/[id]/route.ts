@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { hasAccessToCourse } from "@/lib/access"
 
 export async function GET(
   _request: Request,
@@ -76,7 +77,8 @@ export async function GET(
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
   }
 
-  const isAccessible = lesson.isFree || !!userId
+  const courseAccess = userId ? await hasAccessToCourse(userId, lesson.courseId) : false
+  const isAccessible = lesson.isFree || courseAccess
 
   // Find prev/next lessons flat across all modules
   const allLessons = lesson.course.modules.flatMap((m) => m.lessons)
@@ -98,8 +100,8 @@ export async function GET(
       isFree: lesson.isFree,
       isAccessible,
       previewEnabled: lesson.previewEnabled,
-      // Default 120s preview if not set and lesson is not accessible
-      previewDurationSeconds: lesson.previewDurationSeconds ?? 120,
+      // Locked lessons show a short 7s preview before the paywall.
+      previewDurationSeconds: isAccessible ? null : 7,
       materials: isAccessible ? lesson.materials : [],
       progress: Array.isArray(lesson.lessonProgress) ? (lesson.lessonProgress[0] ?? null) : null,
     },

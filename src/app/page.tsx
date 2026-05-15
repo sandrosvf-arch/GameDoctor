@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic"
+﻿export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { Header } from "@/components/layout/Header"
@@ -28,7 +28,7 @@ import { auth } from "@/lib/auth"
 import { HeroBannerClient } from "@/components/HeroBannerClient"
 import { HorizontalCardRail } from "@/components/HorizontalCardRail"
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type BadgeType = "FREE" | "NEW" | "PRO" | "PREMIUM"
 
 interface CourseCard {
@@ -52,7 +52,7 @@ interface CourseRow {
   courses: CourseCard[]
 }
 
-// ── Badge styles ─────────────────────────────────────────────────────────
+// â”€â”€ Badge styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const badgeStyles: Record<BadgeType, string> = {
   FREE:    "bg-emerald-500 text-white",
   NEW:     "bg-red-600 text-white",
@@ -61,13 +61,13 @@ const badgeStyles: Record<BadgeType, string> = {
 }
 
 const badgeLabels: Record<BadgeType, string> = {
-  FREE:    "GRATIS",
+  FREE:    "GRÁTIS",
   NEW:     "NOVO",
   PRO:     "PRO",
   PREMIUM: "PREMIUM",
 }
 
-// ── Course data ──────────────────────────────────────────────────────────
+// â”€â”€ Course data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ps5: CourseCard[] = [
   { id: "ps5-diag",   title: "Diagnostico Completo PS5",     duration: "18 min",    badge: "FREE", gradient: "from-blue-950 via-blue-900 to-indigo-950",      iconColor: "text-blue-400",   Icon: Gamepad2, free: true,  href: "/aula/demo-lesson-ps5-01", thumbnail: "/thumbs/t02.jpg" },
   { id: "ps5-pasta",  title: "Troca de Pasta Termica",       duration: "32 min",    badge: "NEW",  gradient: "from-blue-950 via-purple-950 to-blue-950",     iconColor: "text-purple-400", Icon: Wrench,   free: false, href: "/aula/demo-lesson-ps5-01", thumbnail: "/thumbs/t03.jpg" },
@@ -171,13 +171,13 @@ const plans = [
 
 const faqs = [
   { q: "Preciso ter experiencia previa?",     a: "Nao. Os cursos vao do basico ao avancado. Se voce sabe segurar uma chave de fenda, ja pode comecar." },
-  { q: "Posso assistir antes de comprar?",    a: "Sim. Varias aulas tem previa gratuita — sem cadastro e sem cartao de credito." },
+  { q: "Posso assistir antes de comprar?",    a: "Sim. Varias aulas tem previa gratuita - sem cadastro e sem cartao de credito." },
   { q: "O que e o acesso vitalicio?",         a: "Uma vez comprado, o acesso nao expira. Atualizacoes e novos modulos sao incluidos automaticamente." },
   { q: "Quais ferramentas sao necessarias?",  a: "Cada curso lista suas ferramentas. Em geral: chaves de precisao, estacao de solda e multimetro cobrem 90% dos procedimentos." },
   { q: "Aceita Pix ou apenas cartao?",        a: "Aceitamos Pix (aprovacao instantanea) e cartao de credito em ate 12x." },
 ]
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export default async function HomePage() {
   // Fetch active banners from DB; fall back to a static default if none exist or DB unreachable
   let dbBanners: Awaited<ReturnType<typeof db.heroBanner.findMany>> = []
@@ -197,7 +197,7 @@ export default async function HomePage() {
       title: "Sua plataforma completa de manutenção de videogames",
       subtitle:
         "Aulas em 4K, esquemas elétricos exclusivos, técnicas de solda BGA e diagnósticos avançados, do básico ao profissional.",
-      badge: "TÉCNICO DE MANUTENÇÕES EM VIDEOGAMES",
+      badge: "TÉCNICO DE MANUTENÇÃO EM VIDEOGAMES",
       videoUrl: "https://vz-38444944-922.b-cdn.net/67b73495-a6be-46e2-8fd8-e3338e929cc1/play_720p.mp4",
       imageUrl: null,
       ctaText: "Ver Aulas",
@@ -235,7 +235,7 @@ export default async function HomePage() {
 
   const banners = dbBanners.length > 0 ? dbBanners : fallbackBanners
 
-  // ── "Continue assistindo" row ──────────────────────────────────────────
+  // â”€â”€ "Continue assistindo" row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Logged-in users: last watched lessons from DB. Fallback: PS5 courses.
   let continueWatchingCourses: CourseCard[] = ps5
   let continueWatchingTitle = "PlayStation 5"
@@ -278,15 +278,15 @@ export default async function HomePage() {
       }
     }
   } catch {
-    // DB unreachable or unauthenticated — use PS5 fallback
+    // DB unreachable or unauthenticated - use PS5 fallback
   }
 
   const continueRow: CourseRow | null = isLoggedIn && continueWatchingTitle === "Continue assistindo"
     ? { id: "continue", title: "Continue assistindo", platformBadge: continueWatchingPlatformBadge, courses: continueWatchingCourses }
     : null
 
-  // ── Course order + lessons from DB ───────────────────────────────────────
-  // Map static row id → DB slug
+  // â”€â”€ Course order + lessons from DB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Map static row id â†’ DB slug
   const rowSlugMap: Record<string, string> = {
     primeiros: "inicio-da-jornada",
     ps5:       "playstation-5",
@@ -351,7 +351,7 @@ export default async function HomePage() {
       orderBy: { displayOrder: "asc" },
     })
 
-    // Build slug → row id map (reverse of rowSlugMap)
+    // Build slug â†’ row id map (reverse of rowSlugMap)
     const slugToRowId = Object.fromEntries(Object.entries(rowSlugMap).map(([k, v]) => [v, k]))
 
     // Populate color overrides from DB
@@ -431,7 +431,7 @@ export default async function HomePage() {
       <Header />
       <main className="bg-zinc-950 text-white overflow-x-hidden">
 
-        {/* HERO — rotating banner */}
+        {/* HERO â€” rotating banner */}
         <HeroBannerClient banners={banners} />
 
         {/* CARROSSEIS */}
@@ -448,7 +448,7 @@ export default async function HomePage() {
             return (
             <div key={row.id} className="relative">
               <div className="px-4 md:px-8 lg:px-14 mb-3 flex items-baseline gap-3">
-                {/* Soft neon glow on left edge — no hard bar */}
+                {/* Soft neon glow on left edge â€” no hard bar */}
                 {neonColor && (
                   <div
                     className="absolute left-0 top-1/2 -translate-y-1/2 w-[28px] h-[40%] pointer-events-none rounded-full"
@@ -487,7 +487,7 @@ export default async function HomePage() {
                       href={course.href}
                       className="group/card flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]"
                     >
-                      {/* Gradient border wrapper — strong on left, fades right */}
+                      {/* Gradient border wrapper â€” strong on left, fades right */}
                       <div
                         className="relative overflow-hidden rounded-[12px] p-[1.2px] transition-colors duration-200 ease-out"
                         style={{
@@ -500,10 +500,10 @@ export default async function HomePage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={course.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
 
-                        {/* Bottom shadow — strong, starts at mid-card */}
+                        {/* Bottom shadow â€” strong, starts at mid-card */}
                         <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
 
-                        {/* Platform badge — top-left */}
+                        {/* Platform badge â€” top-left */}
                         <span
                           className="absolute left-2.5 top-2.5 z-20 rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
                           style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
@@ -653,3 +653,4 @@ export default async function HomePage() {
     </>
   )
 }
+

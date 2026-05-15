@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
+import ReactPlayer from "react-player"
 import {
   ChevronLeft,
   ChevronRight,
@@ -113,16 +114,16 @@ function PaywallOverlay({ lessonId }: { lessonId: string }) {
           </span>
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight">
-          Continue assistindo com assinatura
+          Continue assistindo
         </h2>
         <p className="text-zinc-400 text-sm leading-relaxed">
-          Desbloqueie este curso e todos os outros com acesso vitalício.
+          Para continuar vendo esta aula, escolha um plano de assinatura.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-1">
           <Button size="default" asChild>
-            <Link href="/#planos">
+            <Link href="/planos">
               <Sparkles className="h-4 w-4 mr-2" />
-              Ver planos
+              Continuar assistindo
             </Link>
           </Button>
           <Button
@@ -155,12 +156,10 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   const [submittingComment, setSubmittingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
 
-  const videoRef = useRef<HTMLVideoElement>(null)
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showPaywall = useCallback(() => {
     setPaywallVisible(true)
-    if (videoRef.current) videoRef.current.pause()
     if (previewTimerRef.current) clearTimeout(previewTimerRef.current)
   }, [])
 
@@ -185,7 +184,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
         const secs = json.lesson.previewDurationSeconds
         previewTimerRef.current = setTimeout(() => {
           setPaywallVisible(true)
-          if (videoRef.current) videoRef.current.pause()
         }, secs * 1000)
       }
     } catch {
@@ -200,11 +198,12 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     return () => { if (previewTimerRef.current) clearTimeout(previewTimerRef.current) }
   }, [load])
 
-  const handleTimeUpdate = useCallback(() => {
+  const handleProgress = useCallback((state: { playedSeconds?: number }) => {
     if (!data || data.lesson.isAccessible) return
-    const vid = videoRef.current
-    if (!vid) return
-    if (vid.currentTime >= data.lesson.previewDurationSeconds) showPaywall()
+    const playedSeconds = state.playedSeconds ?? 0
+    if (playedSeconds >= data.lesson.previewDurationSeconds) {
+      showPaywall()
+    }
   }, [data, showPaywall])
 
   const toggleModule = (moduleId: string) => {
@@ -317,24 +316,24 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
             <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-xl" style={{ aspectRatio: "16/9" }}>
               {paywallVisible && <PaywallOverlay lessonId={lessonId} />}
 
-              {lesson.videoEmbedUrl ? (
+              {lesson.videoPlaybackUrl ? (
+                <ReactPlayer
+                  src={lesson.videoPlaybackUrl}
+                  playing={!paywallVisible}
+                  controls={!paywallVisible}
+                  muted
+                  width="100%"
+                  height="100%"
+                  className="absolute inset-0"
+                  onProgress={handleProgress}
+                />
+              ) : lesson.videoEmbedUrl ? (
                 <iframe
                   src={`${lesson.videoEmbedUrl}${lesson.videoEmbedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1`}
                   className="absolute inset-0 w-full h-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                   title={lesson.title}
-                />
-              ) : lesson.videoPlaybackUrl ? (
-                <video
-                  ref={videoRef}
-                  src={lesson.videoPlaybackUrl}
-                  controls
-                  autoPlay
-                  muted
-                  className="absolute inset-0 w-full h-full"
-                  poster={lesson.videoThumbnailUrl ?? undefined}
-                  onTimeUpdate={handleTimeUpdate}
                 />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900">
