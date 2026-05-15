@@ -126,11 +126,14 @@ export function TrailViewClient({
   }
 
   return (
-    <div className="px-4 md:px-8 lg:px-14 pb-16">
+    <div className="px-4 pb-16 md:px-8 lg:px-14">
       {/* Standalone lessons */}
       {lessons.length > 0 && (
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-6">Aulas independentes</h2>
+        <div className="mb-12 rounded-2xl border border-zinc-800/80 bg-zinc-900/35 p-5 md:p-6">
+          <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold">
+            <span className="inline-block h-6 w-1 rounded-full bg-emerald-400" />
+            Aulas independentes
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {lessons.map((lesson) => (
               <LessonCard key={lesson.id} lesson={lesson} isInModule={true} />
@@ -142,14 +145,14 @@ export function TrailViewClient({
       {/* Modules and their lessons */}
       <div className="space-y-8">
         {modules.map((module) => (
-          <div key={module.id}>
+          <div key={module.id} className="rounded-2xl border border-zinc-800/80 bg-zinc-900/35 p-4 md:p-6">
             {/* Module header */}
             <button
               onClick={() => toggleModule(module.id)}
-              className="w-full flex items-center justify-between mb-4 p-4 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 transition-colors group"
+              className="group mb-4 flex w-full items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900"
             >
               <div className="flex items-center gap-3 text-left">
-                <div className="w-1 h-8 rounded-full bg-cyan-500 group-hover:bg-cyan-400 transition-colors" />
+                <div className="h-8 w-1 rounded-full bg-cyan-500 transition-colors group-hover:bg-cyan-400" />
                 <h2 className="text-xl font-bold text-white">{module.title}</h2>
                 <span className="ml-2 text-sm text-zinc-400">
                   ({module.lessons.length} aulas)
@@ -187,7 +190,7 @@ export function TrailViewClient({
 
       {/* Paywall message if no access */}
       {!courseAccess && !lessons.some((l) => l.isFree) && (
-        <div className="mt-12 p-8 rounded-lg bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 border border-cyan-500/30">
+        <div className="mt-12 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 p-8">
           <h3 className="text-lg font-semibold text-white mb-2">Desbloqueie todas as aulas</h3>
           <p className="text-zinc-300 mb-4">
             Entre para a maior e mais completa plataforma de formação de téncicos em videogames do Brasil
