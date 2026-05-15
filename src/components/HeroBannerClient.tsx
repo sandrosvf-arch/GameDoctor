@@ -173,14 +173,14 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
         <>
           <button
             onClick={prev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-black/40 hover:bg-black/70 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 hidden h-10 w-10 rounded-full border border-white/20 bg-black/40 items-center justify-center backdrop-blur-sm transition-all hover:bg-black/70 md:flex"
             aria-label="Banner anterior"
           >
             <ChevronLeft className="h-5 w-5 text-white" />
           </button>
           <button
             onClick={next}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-black/40 hover:bg-black/70 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 hidden h-10 w-10 rounded-full border border-white/20 bg-black/40 items-center justify-center backdrop-blur-sm transition-all hover:bg-black/70 md:flex"
             aria-label="Proximo banner"
           >
             <ChevronRight className="h-5 w-5 text-white" />
