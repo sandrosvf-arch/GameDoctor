@@ -199,7 +199,7 @@ export function TrailViewClient({
             >
               Ver planos
             </Link>
-            {userHasAccess ? (
+            {!userHasAccess ? (
               <Link
                 href={`/login?callbackUrl=/trilhas/${course.slug}`}
                 className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-white/25 bg-white/5 text-white font-semibold hover:bg-white/10 transition-colors"

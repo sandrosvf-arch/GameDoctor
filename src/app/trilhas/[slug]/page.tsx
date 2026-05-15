@@ -4,13 +4,13 @@ import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
-import { ChevronLeft, Lock, Play } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
 import { TrailViewClient } from "./TrailViewClient"
 
 interface TrailPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 export default async function TrailPage({ params }: TrailPageProps) {
@@ -56,7 +56,7 @@ export default async function TrailPage({ params }: TrailPageProps) {
         },
         select: {
           lessonId: true,
-          progressSeconds: true,
+          watchedSeconds: true,
           completedAt: true,
         },
       })
@@ -90,7 +90,7 @@ export default async function TrailPage({ params }: TrailPageProps) {
     return `${Math.floor(seconds / 60)} min`
   }
 
-  const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
+  const heroImage = course.bannerImage || course.coverImage || "/thumbs/t01.jpg"
 
   return (
     <>
@@ -107,46 +107,47 @@ export default async function TrailPage({ params }: TrailPageProps) {
           </Link>
         </div>
 
-        {/* Course Header */}
+        {/* Course Header - fixed banner style */}
         <div className="px-4 md:px-8 lg:px-14 pb-12">
-          <div className="mb-8">
-            {course.coverImage && (
-              <div className="relative w-full h-[300px] rounded-lg overflow-hidden mb-6">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={course.coverImage}
-                  alt={course.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">{course.title}</h1>
-            {course.shortDescription && (
-              <p className="text-lg text-zinc-300 mb-6 max-w-3xl">{course.shortDescription}</p>
-            )}
+          <div className="relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900 shadow-2xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={heroImage}
+              alt={course.title}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/35" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
 
-            {/* Stats Row */}
-            <div className="flex flex-wrap gap-6 text-sm">
-              <div className="flex flex-col">
-                <span className="text-zinc-500">Total de aulas</span>
-                <span className="text-xl font-semibold text-cyan-400">
-                  {allLessons.length} aulas
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-zinc-500">Duração total</span>
-                <span className="text-xl font-semibold text-cyan-400">
-                  {handleDurationFormat(totalDuration)}
-                </span>
-              </div>
-              {userId && (
-                <div className="flex flex-col">
-                  <span className="text-zinc-500">Seu progresso</span>
-                  <span className="text-xl font-semibold text-emerald-400">
-                    {progressMap.size} de {allLessons.length} assistidas
-                  </span>
-                </div>
+            <div className="relative z-10 p-6 md:p-10 lg:p-12 min-h-[280px] md:min-h-[340px] flex flex-col justify-end">
+              <span className="mb-3 inline-flex w-fit items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-cyan-300 backdrop-blur-sm">
+                Trilha de aprendizado
+              </span>
+
+              <h1 className="text-3xl md:text-5xl font-black leading-tight mb-3 max-w-4xl">{course.title}</h1>
+
+              {course.shortDescription && (
+                <p className="text-sm md:text-base text-zinc-200/95 mb-6 max-w-3xl leading-relaxed">
+                  {course.shortDescription}
+                </p>
               )}
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 max-w-2xl">
+                <div className="rounded-xl border border-white/15 bg-black/35 px-4 py-3 backdrop-blur-sm">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-400">Total de aulas</p>
+                  <p className="mt-1 text-xl font-bold text-cyan-300">{allLessons.length}</p>
+                </div>
+                <div className="rounded-xl border border-white/15 bg-black/35 px-4 py-3 backdrop-blur-sm">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-400">Duração total</p>
+                  <p className="mt-1 text-xl font-bold text-cyan-300">{handleDurationFormat(totalDuration)}</p>
+                </div>
+                {userId && (
+                  <div className="rounded-xl border border-white/15 bg-black/35 px-4 py-3 backdrop-blur-sm col-span-2 md:col-span-1">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-400">Seu progresso</p>
+                    <p className="mt-1 text-xl font-bold text-emerald-300">{progressMap.size}/{allLessons.length}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

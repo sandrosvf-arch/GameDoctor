@@ -157,11 +157,11 @@ const primeiros: CourseCard[] = [
 ]
 
 const rows: CourseRow[] = [
-  { id: "primeiros", title: "Início da Jornada",         platformBadge: "GRÁTIS",     courses: primeiros },
-  { id: "ps5",       title: "PlayStation 5",             platformBadge: "PS5",         courses: ps5 },
-  { id: "xbox",      title: "Xbox Series X|S",           platformBadge: "XBOX",        courses: xbox },
-  { id: "switch",    title: "Nintendo Switch",           platformBadge: "SWITCH",      courses: nintendo },
-  { id: "basics",    title: "Fundamentos de Eletronica", platformBadge: "ELETRONICA",  courses: basics },
+  { id: "primeiros", title: "Início da Jornada",         platformBadge: "GRÁTIS",     courses: primeiros, courseSlug: "inicio-da-jornada" },
+  { id: "ps5",       title: "PlayStation 5",             platformBadge: "PS5",         courses: ps5, courseSlug: "playstation-5" },
+  { id: "xbox",      title: "Xbox Series X|S",           platformBadge: "XBOX",        courses: xbox, courseSlug: "xbox-series-xs" },
+  { id: "switch",    title: "Nintendo Switch",           platformBadge: "SWITCH",      courses: nintendo, courseSlug: "nintendo-switch" },
+  { id: "basics",    title: "Fundamentos de Eletronica", platformBadge: "ELETRONICA",  courses: basics, courseSlug: "fundamentos-de-eletronica" },
 ]
 
 const plans = [
@@ -558,7 +558,7 @@ export default async function HomePage() {
                   )
                 })}
 
-                <Link href="/cursos" className="group/more flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]">
+                <Link href={row.courseSlug ? `/trilhas/${row.courseSlug}` : "/cursos"} className="group/more flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]">
                   <div className="aspect-video rounded-[12px] border border-zinc-800 bg-zinc-900/40 group-hover/more:bg-zinc-800/60 transition-colors flex flex-col items-center justify-center gap-2">
                     <div className="h-9 w-9 rounded-full border border-zinc-700 group-hover/more:border-zinc-500 flex items-center justify-center transition-colors">
                       <ChevronRight className="h-5 w-5 text-zinc-600 group-hover/more:text-zinc-300 transition-colors" />
