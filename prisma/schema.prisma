@@ -2,7 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -250,6 +251,8 @@ model Course {
   instructorId     String?      @map("instructor_id")
   certificateEnabled Boolean    @default(false) @map("certificate_enabled")
   displayOrder     Int          @default(0) @map("display_order")
+  trailColorRgb    String?      @map("trail_color_rgb")
+  badgeTextColorRgb String?     @map("badge_text_color_rgb")
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
 

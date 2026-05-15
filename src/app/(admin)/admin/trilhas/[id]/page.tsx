@@ -34,6 +34,8 @@ interface Trilha {
   shortDescription: string | null
   description: string | null
   status: string
+  trailColorRgb: string | null
+  badgeTextColorRgb: string | null
   modules: { id: string; title: string; lessons: Lesson[] }[]
 }
 
@@ -46,6 +48,73 @@ function formatSecs(s: number | null | undefined) {
 function fmtTime(s: number) {
   const m = Math.floor(s / 60); const sec = s % 60
   return `${m}:${String(sec).padStart(2, "0")}`
+}
+
+function clampColor(n: number) {
+  return Math.max(0, Math.min(255, Math.round(n)))
+}
+
+function rgbStringToHex(value: string): string {
+  const raw = value.trim()
+  const rgbRegex = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i
+  const plainRegex = /^(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})$/
+  const m = raw.match(rgbRegex) ?? raw.match(plainRegex)
+  if (!m) return "#00cfff"
+
+  const r = clampColor(Number(m[1]))
+  const g = clampColor(Number(m[2]))
+  const b = clampColor(Number(m[3]))
+  const toHex = (v: number) => v.toString(16).padStart(2, "0")
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+function hexToRgbString(hex: string): string {
+  const clean = hex.replace("#", "")
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return "rgb(0, 207, 255)"
+  const r = parseInt(clean.slice(0, 2), 16)
+  const g = parseInt(clean.slice(2, 4), 16)
+  const b = parseInt(clean.slice(4, 6), 16)
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+function RgbPickerField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  hint,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  hint: string
+}) {
+  const hexValue = rgbStringToHex(value)
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground block mb-1">{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+        <label className="h-10 w-12 shrink-0 rounded-lg border border-border overflow-hidden cursor-pointer bg-zinc-900 relative">
+          <input
+            type="color"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            value={hexValue}
+            onChange={(e) => onChange(hexToRgbString(e.target.value))}
+            aria-label={label}
+          />
+          <span className="block h-full w-full" style={{ backgroundColor: hexValue }} />
+        </label>
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
+    </div>
+  )
 }
 
 function readImageAsDataUrl(file: File): Promise<string> {
@@ -140,6 +209,8 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   // Trilha edit state
   const [editTitle, setEditTitle] = useState("")
   const [editStatus, setEditStatus] = useState("DRAFT")
+  const [editTrailColorRgb, setEditTrailColorRgb] = useState("")
+  const [editBadgeTextColorRgb, setEditBadgeTextColorRgb] = useState("")
   const [savingTrilha, setSavingTrilha] = useState(false)
 
   // New lesson form
@@ -164,6 +235,8 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       setTrilha(data)
       setEditTitle(data.title)
       setEditStatus(data.status)
+      setEditTrailColorRgb(data.trailColorRgb ?? "")
+      setEditBadgeTextColorRgb(data.badgeTextColorRgb ?? "")
     }
     setLoading(false)
   }, [])
@@ -175,11 +248,22 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   async function saveTrilha(e: React.FormEvent) {
     e.preventDefault()
     setSavingTrilha(true)
-    await fetch(`/api/admin/trilhas/${trilhaId}`, {
+    const res = await fetch(`/api/admin/trilhas/${trilhaId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: editTitle, status: editStatus }),
+      body: JSON.stringify({
+        title: editTitle,
+        status: editStatus,
+        trailColorRgb: editTrailColorRgb,
+        badgeTextColorRgb: editBadgeTextColorRgb,
+      }),
     })
+    if (!res.ok) {
+      const payload = await res.json().catch(() => null)
+      alert(payload?.error ?? "Não foi possível salvar as cores da trilha.")
+      setSavingTrilha(false)
+      return
+    }
     setSavingTrilha(false)
     load(trilhaId)
   }
@@ -286,6 +370,24 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                 <option value="ARCHIVED">Arquivado</option>
               </select>
             </div>
+            <div>
+              <RgbPickerField
+                label="Cor da trilha (RGB)"
+                value={editTrailColorRgb}
+                onChange={setEditTrailColorRgb}
+                placeholder="rgb(16, 124, 16)"
+                hint="Use a paleta ao lado ou digite no formato rgb(r, g, b)."
+              />
+            </div>
+            <div>
+              <RgbPickerField
+                label="Cor do texto do badge (RGB)"
+                value={editBadgeTextColorRgb}
+                onChange={setEditBadgeTextColorRgb}
+                placeholder="rgb(255, 255, 255)"
+                hint="Ex.: branco para badges escuros."
+              />
+            </div>
           </div>
           <Button type="submit" size="sm" disabled={savingTrilha}>
             {savingTrilha ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
@@ -320,7 +422,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                 <label className="text-xs text-muted-foreground block mb-1">Bunny Video ID</label>
                 <input className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  value={newBunnyId} onChange={e => { setNewBunnyId(e.target.value); setNewFramePickerOpen(false); setNewThumbnail("") }} />
+                  value={newBunnyId} onChange={e => { setNewBunnyId(e.target.value); setNewThumbnail("") }} />
               </div>
             </div>
 

@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { HeroBannerClient } from "@/components/HeroBannerClient"
+import { HorizontalCardRail } from "@/components/HorizontalCardRail"
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type BadgeType = "FREE" | "NEW" | "PRO" | "PREMIUM"
@@ -46,6 +47,7 @@ interface CourseCard {
 interface CourseRow {
   id: string
   title: string
+  platformBadge: string
   subtitle?: string
   courses: CourseCard[]
 }
@@ -104,6 +106,49 @@ const rowBrandColor: Record<string, string> = {
   xbox:       "#107c10",
   switch:     "#e4000f",
   primeiros:  "#f59e0b",
+  basics:     "#7c3aed",
+}
+
+const getRowBrandColor = (rowId: string, rowTitle?: string): string => {
+  if (rowBrandColor[rowId]) return rowBrandColor[rowId]
+
+  const probe = `${rowId} ${rowTitle ?? ""}`.toLowerCase()
+  if (probe.includes("xbox")) return rowBrandColor.xbox
+  if (probe.includes("playstation") || probe.includes("ps5")) return rowBrandColor.ps5
+  if (probe.includes("switch")) return rowBrandColor.switch
+  if (probe.includes("jornada") || probe.includes("inicio")) return rowBrandColor.primeiros
+  if (probe.includes("fundamentos") || probe.includes("eletronica")) return rowBrandColor.basics
+
+  return "#00cfff"
+}
+
+const parseRgbCssColor = (value?: string | null): string | null => {
+  if (!value) return null
+  const raw = value.trim()
+  const rgbRegex = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i
+  const plainRegex = /^(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})$/
+  const m = raw.match(rgbRegex) ?? raw.match(plainRegex)
+  if (!m) return null
+  const r = Number(m[1]); const g = Number(m[2]); const b = Number(m[3])
+  const valid = [r, g, b].every((n) => Number.isInteger(n) && n >= 0 && n <= 255)
+  return valid ? `rgb(${r}, ${g}, ${b})` : null
+}
+
+const rgbToHex = (rgbString: string): string => {
+  const match = rgbString.match(/rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)/i)
+  if (!match) return rgbString
+  const r = parseInt(match[1])
+  const g = parseInt(match[2])
+  const b = parseInt(match[3])
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
+
+const rowPlatformBadge: Record<string, string> = {
+  primeiros: "JORNADA",
+  ps5: "PS5",
+  xbox: "XBOX",
+  switch: "SWITCH",
+  basics: "ELETRONICA",
 }
 
 const primeiros: CourseCard[] = [
@@ -111,11 +156,11 @@ const primeiros: CourseCard[] = [
 ]
 
 const rows: CourseRow[] = [
-  { id: "primeiros", title: "Início da Jornada",         courses: primeiros },
-  { id: "ps5",       title: "PlayStation 5",            courses: ps5 },
-  { id: "xbox",      title: "Xbox Series X|S",           courses: xbox },
-  { id: "switch",    title: "Nintendo Switch",           courses: nintendo },
-  { id: "basics",    title: "Fundamentos de Eletronica", courses: basics },
+  { id: "primeiros", title: "Início da Jornada",         platformBadge: "GRÁTIS",     courses: primeiros },
+  { id: "ps5",       title: "PlayStation 5",             platformBadge: "PS5",         courses: ps5 },
+  { id: "xbox",      title: "Xbox Series X|S",           platformBadge: "XBOX",        courses: xbox },
+  { id: "switch",    title: "Nintendo Switch",           platformBadge: "SWITCH",      courses: nintendo },
+  { id: "basics",    title: "Fundamentos de Eletronica", platformBadge: "ELETRONICA",  courses: basics },
 ]
 
 const plans = [
@@ -194,6 +239,7 @@ export default async function HomePage() {
   // Logged-in users: last watched lessons from DB. Fallback: PS5 courses.
   let continueWatchingCourses: CourseCard[] = ps5
   let continueWatchingTitle = "PlayStation 5"
+  let continueWatchingPlatformBadge = "PS5"
   let isLoggedIn = false
 
   try {
@@ -211,6 +257,7 @@ export default async function HomePage() {
       })
       if (recentProgress.length > 0) {
         continueWatchingTitle = "Continue assistindo"
+        continueWatchingPlatformBadge = "CONTINUAR"
         continueWatchingCourses = recentProgress.map((p) => {
           const dur = p.lesson.durationSeconds
           const durStr = dur ? (dur >= 3600 ? `${Math.floor(dur / 3600)}h ${Math.floor((dur % 3600) / 60)}min` : `${Math.floor(dur / 60)} min`) : ""
@@ -235,7 +282,7 @@ export default async function HomePage() {
   }
 
   const continueRow: CourseRow | null = isLoggedIn && continueWatchingTitle === "Continue assistindo"
-    ? { id: "continue", title: "Continue assistindo", courses: continueWatchingCourses }
+    ? { id: "continue", title: "Continue assistindo", platformBadge: continueWatchingPlatformBadge, courses: continueWatchingCourses }
     : null
 
   // ── Course order + lessons from DB ───────────────────────────────────────
@@ -264,6 +311,9 @@ export default async function HomePage() {
     basics:    "text-amber-400",
   }
 
+  let rowColorOverrides: Record<string, string> = {}
+  let badgeTextColorOverrides: Record<string, string> = {}
+
   let orderedRows = rows
   try {
     const dbCourses = await db.course.findMany({
@@ -271,6 +321,8 @@ export default async function HomePage() {
       select: {
         slug: true,
         displayOrder: true,
+        trailColorRgb: true,
+        badgeTextColorRgb: true,
         lessons: {
           where: { moduleId: null },
           orderBy: { order: "asc" },
@@ -301,6 +353,17 @@ export default async function HomePage() {
 
     // Build slug → row id map (reverse of rowSlugMap)
     const slugToRowId = Object.fromEntries(Object.entries(rowSlugMap).map(([k, v]) => [v, k]))
+
+    // Populate color overrides from DB
+    dbCourses.forEach((course) => {
+      const rowId = slugToRowId[course.slug]
+      if (rowId) {
+        const parsedTrailColor = parseRgbCssColor(course.trailColorRgb)
+        const parsedBadgeColor = parseRgbCssColor(course.badgeTextColorRgb)
+        if (parsedTrailColor) rowColorOverrides[rowId] = parsedTrailColor
+        if (parsedBadgeColor) badgeTextColorOverrides[rowId] = parsedBadgeColor
+      }
+    })
     const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
 
     const dbRows: CourseRow[] = dbCourses.map(course => {
@@ -342,6 +405,7 @@ export default async function HomePage() {
       return {
         id: rowId,
         title: staticRow?.title ?? course.slug,
+        platformBadge: staticRow?.platformBadge ?? rowPlatformBadge[rowId] ?? course.slug.toUpperCase(),
         courses: cards.length > 0 ? cards : (staticRow?.courses ?? []),
       }
     })
@@ -373,7 +437,14 @@ export default async function HomePage() {
         {/* CARROSSEIS */}
         <section className="pb-16 space-y-10 pt-2">
           {[...(continueRow ? [continueRow] : []), ...orderedRows].map((row) => {
-            const neonColor = rowBrandColor[row.id] ?? (row.id === "continue" ? "#00cfff" : null)
+            const resolvedRowColor = row.id === "continue"
+              ? "#00cfff"
+              : (rowColorOverrides[row.id] ?? getRowBrandColor(row.id, row.title))
+            const resolvedBadgeTextColor = row.id === "continue"
+              ? "#ffffff"
+              : (badgeTextColorOverrides[row.id] ?? "#ffffff")
+            const neonColor = row.id === "continue" ? "#00cfff" : resolvedRowColor
+            const accentColor = resolvedRowColor.includes("rgb") ? rgbToHex(resolvedRowColor) : resolvedRowColor
             return (
             <div key={row.id} className="relative">
               <div className="px-4 md:px-8 lg:px-14 mb-3 flex items-baseline gap-3">
@@ -392,10 +463,10 @@ export default async function HomePage() {
                   {row.id === "continue" && (
                     <span className="inline-block w-2 h-6 rounded-full bg-cyan-400 shrink-0" />
                   )}
-                  {rowBrandColor[row.id] && (
+                  {row.id !== "continue" && (
                     <span
                       className="inline-block w-2 h-6 rounded-full shrink-0"
-                      style={{ backgroundColor: rowBrandColor[row.id], filter: "brightness(1.4) saturate(1.6)" }}
+                      style={{ backgroundColor: resolvedRowColor }}
                     />
                   )}
                   {row.title}
@@ -403,83 +474,90 @@ export default async function HomePage() {
                 {row.subtitle && (
                   <span className="text-xs text-zinc-600 hidden sm:block">{row.subtitle}</span>
                 )}
-                <Link href="/cursos" className="ml-auto text-xs text-cyan-600 hover:text-cyan-400 flex items-center gap-0.5 whitespace-nowrap transition-colors">
-                  Ver todos <ChevronRight className="h-3 w-3" />
+                <Link href="/cursos" className="ml-auto text-sm font-semibold text-cyan-500 hover:text-cyan-300 flex items-center gap-1 whitespace-nowrap transition-colors">
+                  Ver todos <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>
 
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4 md:px-8 lg:px-14 pb-3">
+              <HorizontalCardRail>
                 {row.courses.map((course) => {
-                  const badgeStyle = course.badge ? badgeStyles[course.badge] : null
-                  const badgeLabel = course.badge ? badgeLabels[course.badge] : null
                   return (
                     <Link
                       key={course.id}
                       href={course.href}
                       className="group/card flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]"
                     >
+                      {/* Gradient border wrapper — strong on left, fades right */}
                       <div
-                        className={cn(
-                          "relative aspect-video rounded-2xl overflow-hidden border border-zinc-800/50",
-                          "transition-all duration-200 ease-out",
-                          "group-hover/card:scale-[1.03] group-hover/card:shadow-xl group-hover/card:shadow-cyan-500/10 group-hover/card:border-zinc-700",
-                        )}
+                        className="relative overflow-hidden rounded-[12px] p-[1.2px] transition-colors duration-200 ease-out"
+                        style={{
+                            background: `radial-gradient(58% 96% at 0% 50%, ${accentColor}ff 0%, ${accentColor}f0 12%, ${accentColor}66 24%, ${accentColor}22 36%, transparent 48%), linear-gradient(to right, ${accentColor}20, ${accentColor}1a)`,
+                            boxShadow: `0 4px 20px rgba(0,0,0,0.45)`,
+                        }}
                       >
-                        {/* Thumbnail — full cover, high quality */}
+                      <div className="relative z-10 aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
+                        {/* Thumbnail */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={course.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
-                        
-                        {/* Subtle overlay for text legibility */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                        
-                        {/* Left neon accent line — heartbeat-inspired */}
-                        {neonColor && (
-                          <div
-                            className="absolute top-0 left-0 bottom-0 w-1 z-10 opacity-80"
-                            style={{ background: `linear-gradient(to bottom, ${neonColor}, ${neonColor}66, transparent)` }}
-                          />
-                        )}
-                        
-                        {/* Badge — top-left, prominent */}
-                        {course.badge && badgeStyle && badgeLabel && (
-                          <span className={cn(
-                            "absolute top-3 left-3 text-[11px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider z-20",
-                            "drop-shadow-lg",
-                            badgeStyle
-                          )}>
-                            {badgeLabel}
-                          </span>
-                        )}
-                        
+                        <img src={course.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+
+                        {/* Bottom shadow — strong, starts at mid-card */}
+                        <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
+
+                        {/* Platform badge — top-left */}
+                        <span
+                          className="absolute left-2.5 top-2.5 z-20 rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
+                          style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
+                        >
+                          {row.platformBadge}
+                        </span>
+
                         {/* Hover overlay with play/lock icon */}
-                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
-                          <div className="h-12 w-12 rounded-full bg-white/15 backdrop-blur border border-white/30 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/15 opacity-0 transition-opacity duration-200 group-hover/card:opacity-100" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-200 group-hover/card:opacity-100">
+                          <div className="flex h-11 w-11 scale-95 items-center justify-center rounded-full border border-white/25 bg-white/15 backdrop-blur-sm transition-transform duration-200 group-hover/card:scale-100">
                             {course.free
-                              ? <Play className="h-6 w-6 text-white fill-white ml-0.5" />
-                              : <Lock className="h-5 w-5 text-white" />
+                              ? <Play className="ml-0.5 h-5 w-5 fill-white text-white" />
+                              : <Lock className="h-4 w-4 text-white" />
                             }
                           </div>
                         </div>
-                        
-                        {/* Bottom content — title hierarchy: image → title → duration */}
-                        <div className="absolute bottom-0 left-0 right-0 px-3 py-3 space-y-1.5">
-                          {/* Title — bold, large, limited to 2 lines */}
-                          <p className="text-[16px] sm:text-[17px] font-black text-white leading-tight line-clamp-2">
+
+                        {/* Bottom content */}
+                        <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 pt-1">
+                          <p className="text-[18px] sm:text-[19px] font-bold leading-tight text-white line-clamp-2">
                             {course.title}
                           </p>
-                          {/* Duration — smaller, secondary */}
-                          <p className="text-[12px] sm:text-[13px] text-zinc-300 font-medium">
-                            {course.duration}
-                          </p>
+                          <div className="mt-1.5 flex items-center">
+                            <span className="text-[11px] text-zinc-400 font-medium">{course.duration}</span>
+                            <svg viewBox="0 0 112 16" className="ml-auto h-[12px] w-28 shrink-0" aria-hidden="true">
+                              <defs>
+                                <linearGradient id={`hb-fade-${course.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                                  <stop offset="0%" stopColor={resolvedRowColor} stopOpacity="0" />
+                                  <stop offset="28%" stopColor={resolvedRowColor} stopOpacity="0.9" />
+                                  <stop offset="50%" stopColor={resolvedRowColor} stopOpacity="1" />
+                                  <stop offset="72%" stopColor={resolvedRowColor} stopOpacity="0.9" />
+                                  <stop offset="100%" stopColor={resolvedRowColor} stopOpacity="0" />
+                                </linearGradient>
+                              </defs>
+                              <path
+                                d="M0 8 H44 L48 11 L54 1 L60 15 L66 8 H112"
+                                fill="none"
+                                stroke={`url(#hb-fade-${course.id})`}
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
                         </div>
+                      </div>
                       </div>
                     </Link>
                   )
                 })}
 
                 <Link href="/cursos" className="group/more flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]">
-                  <div className="aspect-video rounded-lg border border-zinc-800 bg-zinc-900/40 group-hover/more:bg-zinc-800/60 transition-colors flex flex-col items-center justify-center gap-2">
+                  <div className="aspect-video rounded-[12px] border border-zinc-800 bg-zinc-900/40 group-hover/more:bg-zinc-800/60 transition-colors flex flex-col items-center justify-center gap-2">
                     <div className="h-9 w-9 rounded-full border border-zinc-700 group-hover/more:border-zinc-500 flex items-center justify-center transition-colors">
                       <ChevronRight className="h-5 w-5 text-zinc-600 group-hover/more:text-zinc-300 transition-colors" />
                     </div>
@@ -488,7 +566,7 @@ export default async function HomePage() {
                     </span>
                   </div>
                 </Link>
-              </div>
+              </HorizontalCardRail>
             </div>
           )})}
         </section>
