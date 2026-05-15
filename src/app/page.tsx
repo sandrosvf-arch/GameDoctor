@@ -50,6 +50,7 @@ interface CourseRow {
   platformBadge: string
   subtitle?: string
   courses: CourseCard[]
+  courseSlug?: string
 }
 
 // â”€â”€ Badge styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -407,6 +408,7 @@ export default async function HomePage() {
         title: staticRow?.title ?? course.slug,
         platformBadge: staticRow?.platformBadge ?? rowPlatformBadge[rowId] ?? course.slug.toUpperCase(),
         courses: cards.length > 0 ? cards : (staticRow?.courses ?? []),
+        courseSlug: course.slug,
       }
     })
 
@@ -474,7 +476,7 @@ export default async function HomePage() {
                 {row.subtitle && (
                   <span className="text-xs text-zinc-600 hidden sm:block">{row.subtitle}</span>
                 )}
-                <Link href="/cursos" className="ml-auto text-sm font-semibold text-cyan-500 hover:text-cyan-300 flex items-center gap-1 whitespace-nowrap transition-colors">
+                <Link href={row.courseSlug ? `/trilhas/${row.courseSlug}` : "/cursos"} className="ml-auto text-sm font-semibold text-cyan-500 hover:text-cyan-300 flex items-center gap-1 whitespace-nowrap transition-colors">
                   Ver todos <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>
