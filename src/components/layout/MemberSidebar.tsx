@@ -54,7 +54,7 @@ export function MemberSidebar() {
       {/* Collapse toggle — floating button on the right edge */}
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="absolute -right-3 top-[60px] z-20 h-6 w-6 rounded-full border border-border/60 bg-background shadow-md flex items-center justify-center hover:bg-accent transition-colors"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 h-6 w-6 rounded-full border border-border/60 bg-background shadow-md flex items-center justify-center hover:bg-accent transition-colors"
         title={collapsed ? "Expandir painel" : "Recolher painel"}
       >
         {collapsed
