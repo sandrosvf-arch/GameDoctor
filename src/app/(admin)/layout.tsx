@@ -11,6 +11,7 @@ const navItems = [
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/banners", label: "Banners da Home" },
   { href: "/admin/trilhas", label: "Trilhas" },
+  { href: "/admin/aulas", label: "Todas as aulas" },
   { href: "/admin/cursos", label: "Cursos" },
   { href: "/admin/alunos", label: "Alunos" },
   { href: "/admin/acessos", label: "Acessos" },
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/admin/pagamentos", label: "Pagamentos" },
   { href: "/admin/cupons", label: "Cupons" },
   { href: "/admin/relatorios", label: "Relatórios" },
+  { href: "/admin/perfil", label: "Perfil Admin" },
   { href: "/admin/logs", label: "Logs" },
 ]
 

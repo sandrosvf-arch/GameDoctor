@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   Plus, Trash2, Loader2, ChevronLeft, GripVertical,
   Play, Save, ExternalLink, Eye, EyeOff,
+  Paperclip, FileText, FileSpreadsheet, Link2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -15,6 +16,7 @@ const BUNNY_LIBRARY_ID = "659969"
 interface Lesson {
   id: string
   title: string
+  description: string | null
   videoDurationSeconds: number | null
   durationSeconds: number | null
   videoProvider: string | null
@@ -27,6 +29,33 @@ interface Lesson {
   order: number
 }
 
+const MATERIAL_TYPES = [
+  { value: "PDF", label: "PDF" },
+  { value: "SPREADSHEET", label: "Planilha" },
+  { value: "LINK", label: "Link" },
+  { value: "IMAGE", label: "Imagem" },
+  { value: "ARCHIVE", label: "Arquivo" },
+  { value: "OTHER", label: "Outro" },
+]
+
+interface MaterialItem {
+  id: string
+  title: string
+  fileUrl: string | null
+  externalUrl: string | null
+  type: string
+}
+
+type NewMaterialDraft = { title: string; url: string; type: string }
+const INITIAL_DRAFT: NewMaterialDraft = { title: "", url: "", type: "PDF" }
+
+function MaterialTypeIcon({ type }: { type: string }) {
+  if (type === "PDF") return <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+  if (type === "SPREADSHEET") return <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+  if (type === "LINK") return <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+  return <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+}
+
 interface Trilha {
   id: string
   title: string
@@ -34,6 +63,7 @@ interface Trilha {
   shortDescription: string | null
   description: string | null
   status: string
+  coverImage: string | null
   trailColorRgb: string | null
   badgeTextColorRgb: string | null
   modules: { id: string; title: string; lessons: Lesson[] }[]
@@ -209,6 +239,8 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   // Trilha edit state
   const [editTitle, setEditTitle] = useState("")
   const [editStatus, setEditStatus] = useState("DRAFT")
+  const [editShortDescription, setEditShortDescription] = useState("")
+  const [editCoverImage, setEditCoverImage] = useState("")
   const [editTrailColorRgb, setEditTrailColorRgb] = useState("")
   const [editBadgeTextColorRgb, setEditBadgeTextColorRgb] = useState("")
   const [savingTrilha, setSavingTrilha] = useState(false)
@@ -227,6 +259,22 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [savingLesson, setSavingLesson] = useState<string | null>(null)
   const [deletingLesson, setDeletingLesson] = useState<string | null>(null)
 
+  // Materials
+  const [lessonMaterials, setLessonMaterials] = useState<Record<string, MaterialItem[]>>({})
+  const [loadingMaterials, setLoadingMaterials] = useState<string | null>(null)
+  const [deletingMaterial, setDeletingMaterial] = useState<string | null>(null)
+  const [materialDrafts, setMaterialDrafts] = useState<Record<string, NewMaterialDraft>>({})
+  const [addingMaterial, setAddingMaterial] = useState<string | null>(null)
+
+  // Default cover images per trail slug (shown when no DB value is set)
+  const trailDefaultImages: Record<string, string> = {
+    "inicio-da-jornada": "/thumbs/t01.jpg",
+    "playstation-5": "/thumbs/ps5.png",
+    "xbox-series-xs": "/thumbs/t08.jpg",
+    "nintendo-switch": "/thumbs/t13.jpg",
+    "fundamentos-de-eletronica": "/thumbs/t18.jpg",
+  }
+
   const load = useCallback(async (id: string) => {
     setLoading(true)
     const res = await fetch(`/api/admin/trilhas/${id}`)
@@ -235,10 +283,13 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       setTrilha(data)
       setEditTitle(data.title)
       setEditStatus(data.status)
+      setEditShortDescription(data.shortDescription ?? "")
+      setEditCoverImage(data.coverImage ?? trailDefaultImages[data.slug] ?? "")
       setEditTrailColorRgb(data.trailColorRgb ?? "")
       setEditBadgeTextColorRgb(data.badgeTextColorRgb ?? "")
     }
     setLoading(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -254,6 +305,8 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       body: JSON.stringify({
         title: editTitle,
         status: editStatus,
+        shortDescription: editShortDescription || undefined,
+        coverImage: editCoverImage || undefined,
         trailColorRgb: editTrailColorRgb,
         badgeTextColorRgb: editBadgeTextColorRgb,
       }),
@@ -315,12 +368,44 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       ...prev,
       [lesson.id]: {
         title: lesson.title,
+        description: lesson.description ?? "",
         bunnyVideoId: lesson.videoProviderId ?? "",
         thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
         status: lesson.status,
       },
     }))
+    if (!lessonMaterials[lesson.id]) {
+      setLoadingMaterials(lesson.id)
+      fetch(`/api/admin/aulas/${lesson.id}/materials`)
+        .then(r => r.ok ? r.json() : [])
+        .then((data: MaterialItem[]) => setLessonMaterials(prev => ({ ...prev, [lesson.id]: data })))
+        .finally(() => setLoadingMaterials(null))
+    }
+  }
+
+  async function addMaterial(lessonId: string) {
+    const draft = materialDrafts[lessonId] ?? INITIAL_DRAFT
+    if (!draft.title.trim() || !draft.url.trim()) return
+    setAddingMaterial(lessonId)
+    const res = await fetch(`/api/admin/aulas/${lessonId}/materials`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: draft.title.trim(), externalUrl: draft.url.trim(), type: draft.type }),
+    })
+    if (res.ok) {
+      const created: MaterialItem = await res.json()
+      setLessonMaterials(prev => ({ ...prev, [lessonId]: [...(prev[lessonId] ?? []), created] }))
+      setMaterialDrafts(prev => ({ ...prev, [lessonId]: INITIAL_DRAFT }))
+    }
+    setAddingMaterial(null)
+  }
+
+  async function deleteMaterial(lessonId: string, materialId: string) {
+    setDeletingMaterial(materialId)
+    await fetch(`/api/admin/aulas/${lessonId}/materials/${materialId}`, { method: "DELETE" })
+    setLessonMaterials(prev => ({ ...prev, [lessonId]: (prev[lessonId] ?? []).filter(m => m.id !== materialId) }))
+    setDeletingMaterial(null)
   }
 
   function patchEdit(lessonId: string, field: string, value: unknown) {
@@ -389,6 +474,28 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
               />
             </div>
           </div>
+
+          {/* Descrição da capa */}
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Descrição da trilha (aparece na capa)</label>
+            <textarea
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              rows={3}
+              placeholder="Ex.: Aprenda a diagnosticar e reparar o PlayStation 5 do zero ao avançado."
+              value={editShortDescription}
+              onChange={e => setEditShortDescription(e.target.value)}
+            />
+          </div>
+
+          {/* Imagem da capa da trilha */}
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Imagem da capa da trilha</label>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Usada como banner de fundo na página da trilha. Envie uma imagem ou cole a URL.
+            </p>
+            <CoverUploadField value={editCoverImage} onChange={setEditCoverImage} />
+          </div>
+
           <Button type="submit" size="sm" disabled={savingTrilha}>
             {savingTrilha ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
             Salvar alterações
@@ -527,6 +634,17 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                       </div>
                     </div>
 
+                    {/* Descrição */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Descrição</label>
+                      <textarea
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                        rows={2}
+                        value={(edits.description as string) ?? lesson.description ?? ""}
+                        onChange={e => patchEdit(lesson.id, "description", e.target.value)}
+                      />
+                    </div>
+
                     {/* Capa */}
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">
@@ -555,7 +673,66 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                         <option value="DRAFT">Rascunho</option>
                       </select>
                     </div>
-                    <div className="flex gap-2">
+                    {/* Materials section */}
+                    <div className="border-t border-border/40 pt-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-semibold flex items-center gap-1.5">
+                          <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                          Arquivos da aula
+                        </h3>
+                        {loadingMaterials === lesson.id && (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        )}
+                      </div>
+
+                      {(lessonMaterials[lesson.id] ?? []).map(m => (
+                        <div key={m.id} className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
+                          <MaterialTypeIcon type={m.type} />
+                          <span className="flex-1 truncate text-xs">{m.title}</span>
+                          <a href={m.externalUrl ?? m.fileUrl ?? "#"} target="_blank" rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-foreground transition-colors">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                          <button
+                            onClick={() => deleteMaterial(lesson.id, m.id)}
+                            disabled={deletingMaterial === m.id}
+                            className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                          >
+                            {deletingMaterial === m.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <Trash2 className="h-3.5 w-3.5" />
+                            }
+                          </button>
+                        </div>
+                      ))}
+
+                      <div className="flex gap-2 flex-wrap">
+                        <input
+                          className="flex-1 min-w-[140px] bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                          placeholder="Nome do arquivo"
+                          value={(materialDrafts[lesson.id] ?? INITIAL_DRAFT).title}
+                          onChange={ev => setMaterialDrafts(prev => ({ ...prev, [lesson.id]: { ...(prev[lesson.id] ?? INITIAL_DRAFT), title: ev.target.value } }))}
+                        />
+                        <input
+                          className="flex-[2] min-w-[200px] bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
+                          placeholder="URL do arquivo"
+                          value={(materialDrafts[lesson.id] ?? INITIAL_DRAFT).url}
+                          onChange={ev => setMaterialDrafts(prev => ({ ...prev, [lesson.id]: { ...(prev[lesson.id] ?? INITIAL_DRAFT), url: ev.target.value } }))}
+                        />
+                        <select
+                          className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+                          value={(materialDrafts[lesson.id] ?? INITIAL_DRAFT).type}
+                          onChange={ev => setMaterialDrafts(prev => ({ ...prev, [lesson.id]: { ...(prev[lesson.id] ?? INITIAL_DRAFT), type: ev.target.value } }))}
+                        >
+                          {MATERIAL_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                        <Button size="sm" variant="outline" onClick={() => addMaterial(lesson.id)} disabled={addingMaterial === lesson.id}>
+                          {addingMaterial === lesson.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
                       <Button size="sm" onClick={() => saveLesson(lesson.id)} disabled={savingLesson === lesson.id}>
                         {savingLesson === lesson.id ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
                         Salvar

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff, Loader2, Chrome } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import {
 
 export default function CadastroPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -28,6 +29,15 @@ export default function CadastroPage() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const invitedEmail = searchParams.get("email") ?? ""
+  const isAdminInvite = searchParams.get("invite") === "admin"
+
+  useEffect(() => {
+    if (invitedEmail) {
+      setEmail(invitedEmail)
+    }
+  }, [invitedEmail])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,32 +81,46 @@ export default function CadastroPage() {
     <Card className="w-full max-w-md border-border/50 shadow-xl">
       <CardHeader className="space-y-1 text-center">
         <CardTitle className="text-2xl font-bold">Criar conta</CardTitle>
-        <CardDescription>Comece sua jornada com o GameDoctor</CardDescription>
+        <CardDescription>
+          {isAdminInvite
+            ? "Você foi convidado para a equipe administrativa."
+            : "Comece sua jornada com o GameDoctor"}
+        </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogle}
-          disabled={googleLoading || loading}
-        >
-          {googleLoading ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Chrome className="h-4 w-4 mr-2" />
-          )}
-          Cadastrar com Google
-        </Button>
+        {!isAdminInvite && (
+          <>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogle}
+              disabled={googleLoading || loading}
+            >
+              {googleLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Chrome className="h-4 w-4 mr-2" />
+              )}
+              Cadastrar com Google
+            </Button>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border" />
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {isAdminInvite && (
+          <div className="rounded-md border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs text-cyan-300">
+            Convite administrativo detectado. Finalize seu cadastro com nome e senha para ativar o acesso.
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">ou</span>
-          </div>
-        </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -123,7 +147,7 @@ export default function CadastroPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              disabled={loading || googleLoading}
+              disabled={loading || googleLoading || Boolean(invitedEmail)}
             />
           </div>
 

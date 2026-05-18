@@ -1,4 +1,4 @@
-import BunnyAulaClient from "./BunnyAulaClient"
+import BunnyAulaClient, { type CourseLessonInfo, type LessonMaterial } from "./BunnyAulaClient"
 import { auth } from "@/lib/auth"
 import { bunnyPlaybackUrl } from "@/lib/bunny"
 import { hasAccessToCourse } from "@/lib/access"
@@ -53,6 +53,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       isFree: true,
       thumbnail: true,
       videoThumbnailUrl: true,
+      description: true,
       courseId: true,
       course: { select: { title: true } },
     },
@@ -65,10 +66,54 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   const playbackUrl = bunnyPlaybackUrl(videoId)
   const courseTitle = lesson?.course.title ?? "Início da Jornada"
   const previewImage = lesson?.thumbnail ?? lesson?.videoThumbnailUrl ?? null
+  const description = lesson?.description ?? null
+
+  // All published lessons for the same course, ordered by module then lesson
+  let courseLessons: CourseLessonInfo[] = []
+  if (lesson?.courseId) {
+    courseLessons = await db.lesson.findMany({
+      where: { courseId: lesson.courseId, status: "PUBLISHED" },
+      orderBy: [{ module: { order: "asc" } }, { order: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        videoProviderId: true,
+        thumbnail: true,
+        videoThumbnailUrl: true,
+        isFree: true,
+        videoDurationSeconds: true,
+        durationSeconds: true,
+        moduleId: true,
+        module: { select: { id: true, title: true } },
+      },
+    }) as CourseLessonInfo[]
+  }
+
+  const currentIndex = courseLessons.findIndex(l => l.videoProviderId === videoId)
+  const nextLesson = currentIndex >= 0 && currentIndex < courseLessons.length - 1
+    ? courseLessons[currentIndex + 1]
+    : null
+
+  // Materials (files) for this lesson
+  const materials: LessonMaterial[] = lesson?.id ? await db.material.findMany({
+    where: { lessonId: lesson.id, status: "ACTIVE" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, title: true, fileUrl: true, externalUrl: true, type: true },
+  }) as LessonMaterial[] : []
+
+  // Completion status for the current user
+  const completionRecord = userId && lesson?.id
+    ? await db.lessonProgress.findUnique({
+        where: { userId_lessonId: { userId, lessonId: lesson.id } },
+        select: { completed: true },
+      })
+    : null
+  const initialCompleted = completionRecord?.completed ?? false
 
   return (
     <BunnyAulaClient
       videoId={videoId}
+      lessonId={lesson?.id ?? null}
       title={title}
       subtitle={legenda ?? null}
       duration={duration}
@@ -77,6 +122,11 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       isAccessible={isAccessible}
       isFree={lesson?.isFree ?? true}
       courseTitle={courseTitle}
+      description={description}
+      courseLessons={courseLessons}
+      nextLesson={nextLesson}
+      materials={materials}
+      initialCompleted={initialCompleted}
     />
   )
 }

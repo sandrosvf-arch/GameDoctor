@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     email: string
     password: string
   }
+  const normalizedEmail = email.trim().toLowerCase()
 
   // Basic validation
   if (password.length < 8) {
@@ -23,12 +24,33 @@ export async function POST(request: Request) {
     )
   }
 
-  const existing = await db.user.findUnique({ where: { email } })
+  const existing = await db.user.findUnique({ where: { email: normalizedEmail } })
   if (existing) {
-    return NextResponse.json(
-      { error: "Já existe uma conta com este e-mail." },
-      { status: 409 }
-    )
+    const isPendingAdminInvite =
+      (existing.role === "ADMIN" || existing.role === "EDITOR") &&
+      existing.status === "PENDING" &&
+      !existing.passwordHash
+
+    if (!isPendingAdminInvite) {
+      return NextResponse.json(
+        { error: "Já existe uma conta com este e-mail." },
+        { status: 409 }
+      )
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12)
+
+    await db.user.update({
+      where: { id: existing.id },
+      data: {
+        name,
+        passwordHash,
+        authProvider: "EMAIL",
+        status: "ACTIVE",
+      },
+    })
+
+    return NextResponse.json({ ok: true, invited: true }, { status: 200 })
   }
 
   const passwordHash = await bcrypt.hash(password, 12)
@@ -36,7 +58,7 @@ export async function POST(request: Request) {
   await db.user.create({
     data: {
       name,
-      email,
+      email: normalizedEmail,
       passwordHash,
       authProvider: "EMAIL",
       role: "STUDENT",
