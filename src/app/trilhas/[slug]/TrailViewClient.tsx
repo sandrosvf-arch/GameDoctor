@@ -56,6 +56,15 @@ export function TrailViewClient({
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`
   })()
 
+  const badgeTextColor = (() => {
+    const raw = course.badgeTextColorRgb?.trim()
+    if (!raw) return "#000000"
+    const m = raw.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i)
+    if (!m) return raw.startsWith("#") ? raw : "#000000"
+    const r = parseInt(m[1]), g = parseInt(m[2]), b = parseInt(m[3])
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`
+  })()
+
   const LessonCard = ({ lesson }: { lesson: Lesson }) => {
     const progress = progressMap.get(lesson.id)
     const isCompleted = !!progress?.completedAt
@@ -105,7 +114,10 @@ export function TrailViewClient({
                 </span>
               )}
               {course.badgeLabel && (
-                <span className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em] bg-cyan-500 text-zinc-950">
+                <span
+                  className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
+                  style={{ backgroundColor: accentColor, color: badgeTextColor }}
+                >
                   {course.badgeLabel}
                 </span>
               )}

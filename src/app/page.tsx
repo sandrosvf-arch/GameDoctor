@@ -313,6 +313,7 @@ export default async function HomePage() {
 
   let rowColorOverrides: Record<string, string> = {}
   let badgeTextColorOverrides: Record<string, string> = {}
+  let badgeLabelOverrides: Record<string, string | null> = {}
 
   let orderedRows = rows
   try {
@@ -323,6 +324,7 @@ export default async function HomePage() {
         displayOrder: true,
         trailColorRgb: true,
         badgeTextColorRgb: true,
+        badgeLabel: true,
         lessons: {
           where: { moduleId: null },
           orderBy: { order: "asc" },
@@ -362,6 +364,7 @@ export default async function HomePage() {
         const parsedBadgeColor = parseRgbCssColor(course.badgeTextColorRgb)
         if (parsedTrailColor) rowColorOverrides[rowId] = parsedTrailColor
         if (parsedBadgeColor) badgeTextColorOverrides[rowId] = parsedBadgeColor
+        if (course.badgeLabel) badgeLabelOverrides[rowId] = course.badgeLabel
       }
     })
     const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
@@ -504,13 +507,25 @@ export default async function HomePage() {
                         {/* Bottom shadow â€” strong, starts at mid-card */}
                         <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
 
-                        {/* Platform badge â€” top-left */}
-                        <span
-                          className="absolute left-2.5 top-2.5 z-20 rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
-                          style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
-                        >
-                          {row.platformBadge}
-                        </span>
+                        {/* Top-left badges */}
+                        <div className="absolute left-2.5 top-2.5 z-20 flex gap-1.5">
+                          {(row.platformBadge !== "GRÁTIS" || course.free) && (
+                            <span
+                              className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
+                              style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
+                            >
+                              {row.platformBadge}
+                            </span>
+                          )}
+                          {badgeLabelOverrides[row.id] && (
+                            <span
+                              className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
+                              style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
+                            >
+                              {badgeLabelOverrides[row.id]}
+                            </span>
+                          )}
+                        </div>
 
                         {/* Hover overlay with play/lock icon */}
                         <div className="absolute inset-0 bg-black/15 opacity-0 transition-opacity duration-200 group-hover/card:opacity-100" />
