@@ -73,8 +73,8 @@ export function TrailViewClient({
 
     return (
       <Link
-        href={isLocked ? "#" : href}
-        className={`group/card block${isLocked ? " cursor-not-allowed" : ""}`}
+        href={href}
+        className="group/card block"
       >
         {/* Gradient border wrapper — same as home card */}
         <div
