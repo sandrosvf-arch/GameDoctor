@@ -226,31 +226,6 @@ export function TrailViewClient({
         </div>
       )}
 
-      {/* Paywall message if no access */}
-      {!courseAccess && !lessons.some((l) => l.isFree) && (
-        <div className="mt-12 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 p-8">
-          <h3 className="text-lg font-semibold text-white mb-2">Desbloqueie todas as aulas</h3>
-          <p className="text-zinc-300 mb-4">
-            Entre para a maior e mais completa plataforma de formação de téncicos em videogames do Brasil
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/planos"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-400 text-zinc-950 font-semibold hover:from-cyan-400 hover:to-emerald-300 transition-colors"
-            >
-              Ver planos
-            </Link>
-            {!userHasAccess ? (
-              <Link
-                href={`/login?callbackUrl=/trilhas/${course.slug}`}
-                className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-white/25 bg-white/5 text-white font-semibold hover:bg-white/10 transition-colors"
-              >
-                Já tenho acesso
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
