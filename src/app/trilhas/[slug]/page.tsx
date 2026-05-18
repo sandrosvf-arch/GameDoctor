@@ -128,6 +128,16 @@ export default async function TrailPage({ params }: TrailPageProps) {
   )
 
   const firstLesson = allLessons[0]
+  // Resolve accent color (same logic as TrailViewClient)
+  const accentColor = (() => {
+    const raw = (course as { trailColorRgb?: string | null }).trailColorRgb?.trim()
+    if (!raw) return "#00cfff"
+    const m = raw.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i)
+    if (!m) return raw.startsWith("#") ? raw : "#00cfff"
+    const r = parseInt(m[1]), g = parseInt(m[2]), b = parseInt(m[3])
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`
+  })()
+
   const firstLessonHref = firstLesson
     ? firstLesson.videoProviderId
       ? `/aula/bunny/${firstLesson.videoProviderId}?titulo=${encodeURIComponent(firstLesson.title)}${firstLesson.description ? `&legenda=${encodeURIComponent(firstLesson.description)}` : ""}`
@@ -162,7 +172,10 @@ export default async function TrailPage({ params }: TrailPageProps) {
                 Voltar
               </Link>
 
-              <div className="flex w-fit items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-cyan-400 border border-cyan-500/30 bg-zinc-950/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              <div
+                className="flex w-fit items-center gap-2 text-[11px] font-bold uppercase tracking-widest border bg-zinc-950/50 backdrop-blur-sm px-3 py-1.5 rounded-full"
+                style={{ color: accentColor, borderColor: accentColor + "4d" }}
+              >
                 <Gamepad2 className="h-3.5 w-3.5" />
                 Trilha de aprendizado
               </div>
