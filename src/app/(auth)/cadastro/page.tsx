@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -17,7 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-export default function CadastroPage() {
+function CadastroContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -212,5 +212,13 @@ export default function CadastroPage() {
         </p>
       </CardFooter>
     </Card>
+  )
+}
+
+export default function CadastroPage() {
+  return (
+    <Suspense>
+      <CadastroContent />
+    </Suspense>
   )
 }
