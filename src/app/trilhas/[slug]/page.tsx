@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import { existsSync } from "fs"
+import { join } from "path"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { Header } from "@/components/layout/Header"
@@ -92,17 +94,32 @@ export default async function TrailPage({ params }: TrailPageProps) {
 
   const trailHeroImages: Record<string, string> = {
     "inicio-da-jornada": "/thumbs/t01.jpg",
-    "playstation-5": "/thumbs/t02.jpg",
+    "playstation-5": "/thumbs/ps5.jpg",
     "xbox-series-xs": "/thumbs/t08.jpg",
     "nintendo-switch": "/thumbs/t13.jpg",
     "fundamentos-de-eletronica": "/thumbs/t18.jpg",
   }
 
-  const heroImage =
+  // Fallback to t02.jpg if the target image file doesn't exist on disk
+  const trailHeroImagesFallback: Record<string, string> = {
+    "playstation-5": "/thumbs/t02.jpg",
+  }
+
+  const resolveHeroImage = (path: string): string => {
+    const filename = path.replace("/thumbs/", "")
+    const fullPath = join(process.cwd(), "public", "thumbs", filename)
+    if (!existsSync(fullPath)) {
+      return trailHeroImagesFallback[slug] ?? "/thumbs/t01.jpg"
+    }
+    return path
+  }
+
+  const heroImage = resolveHeroImage(
     trailHeroImages[slug] ??
     course.bannerImage ??
     course.coverImage ??
     "/thumbs/t01.jpg"
+  )
 
   const firstLesson = allLessons[0]
   const firstLessonHref = firstLesson
@@ -124,8 +141,8 @@ export default async function TrailPage({ params }: TrailPageProps) {
             alt={course.title}
             className="absolute inset-0 h-full w-full object-cover object-center"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/70 to-black/35" />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/75 to-black/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-black/40 to-black/10" />
 
           <div className="relative z-10 px-4 md:px-8 lg:px-14 h-full min-h-[54vh] md:min-h-[62vh] flex flex-col justify-end pb-10 md:pb-14">
             <Link
@@ -140,10 +157,10 @@ export default async function TrailPage({ params }: TrailPageProps) {
               Trilha de aprendizado
             </span>
 
-            <h1 className="mb-3 max-w-4xl text-3xl font-black leading-tight md:text-5xl">{course.title}</h1>
+            <h1 className="mb-3 max-w-4xl text-3xl font-black leading-tight md:text-5xl [text-shadow:0_2px_12px_rgba(0,0,0,1),0_4px_32px_rgba(0,0,0,0.9)]">{course.title}</h1>
 
             {course.shortDescription && (
-              <p className="mb-6 max-w-3xl text-sm leading-relaxed text-zinc-200/95 md:text-base">
+              <p className="mb-6 max-w-3xl text-sm leading-relaxed text-zinc-200/95 md:text-base [text-shadow:0_1px_8px_rgba(0,0,0,0.9)]">
                 {course.shortDescription}
               </p>
             )}
