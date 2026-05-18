@@ -102,7 +102,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await request.json().catch(() => ({}))
 
-  const { title, slug, shortDescription, description, status, coverImage, trailColorRgb, badgeTextColorRgb } = body as Record<string, string>
+  const { title, slug, shortDescription, description, status, coverImage, trailColorRgb, badgeTextColorRgb, badgeLabel } = body as Record<string, string>
   const normalizedTrailColor = normalizeRgbInput(trailColorRgb)
   const normalizedBadgeTextColor = normalizeRgbInput(badgeTextColorRgb)
 
@@ -124,6 +124,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ...(coverImage !== undefined && { coverImage }),
       ...(normalizedTrailColor !== undefined && { trailColorRgb: normalizedTrailColor }),
       ...(normalizedBadgeTextColor !== undefined && { badgeTextColorRgb: normalizedBadgeTextColor }),
+      ...(badgeLabel !== undefined && { badgeLabel: badgeLabel || null }),
     },
   })
 

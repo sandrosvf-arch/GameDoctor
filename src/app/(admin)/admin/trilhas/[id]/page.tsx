@@ -27,7 +27,6 @@ interface Lesson {
   isFree: boolean
   status: string
   order: number
-  badgeLabel: string | null
 }
 
 const MATERIAL_TYPES = [
@@ -67,6 +66,7 @@ interface Trilha {
   coverImage: string | null
   trailColorRgb: string | null
   badgeTextColorRgb: string | null
+  badgeLabel: string | null
   modules: { id: string; title: string; lessons: Lesson[] }[]
 }
 
@@ -244,6 +244,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [editCoverImage, setEditCoverImage] = useState("")
   const [editTrailColorRgb, setEditTrailColorRgb] = useState("")
   const [editBadgeTextColorRgb, setEditBadgeTextColorRgb] = useState("")
+  const [editBadgeLabel, setEditBadgeLabel] = useState("")
   const [savingTrilha, setSavingTrilha] = useState(false)
 
   // New lesson form
@@ -288,6 +289,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       setEditCoverImage(data.coverImage ?? trailDefaultImages[data.slug] ?? "")
       setEditTrailColorRgb(data.trailColorRgb ?? "")
       setEditBadgeTextColorRgb(data.badgeTextColorRgb ?? "")
+      setEditBadgeLabel(data.badgeLabel ?? "")
     }
     setLoading(false)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -310,6 +312,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
         coverImage: editCoverImage || undefined,
         trailColorRgb: editTrailColorRgb,
         badgeTextColorRgb: editBadgeTextColorRgb,
+        badgeLabel: editBadgeLabel || undefined,
       }),
     })
     if (!res.ok) {
@@ -374,7 +377,6 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
         thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
         status: lesson.status,
-        badgeLabel: lesson.badgeLabel ?? "",
       },
     }))
     if (!lessonMaterials[lesson.id]) {
@@ -498,6 +500,20 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
             <CoverUploadField value={editCoverImage} onChange={setEditCoverImage} />
           </div>
 
+          {/* Badge das aulas */}
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Badge dos cards de aula</label>
+            <input
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="Ex: Grátis, Xbox, PS5, Novo..."
+              value={editBadgeLabel}
+              onChange={e => setEditBadgeLabel(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Texto exibido como badge em todos os cards de aula desta trilha. Deixe vazio para não exibir.
+            </p>
+          </div>
+
           <Button type="submit" size="sm" disabled={savingTrilha}>
             {savingTrilha ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
             Salvar alterações
@@ -597,7 +613,6 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                     <div className="flex items-center gap-2 mt-0.5">
                       {dur && <span className="text-xs text-muted-foreground shrink-0">{dur}</span>}
                       {lesson.isFree && <span className="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 rounded-full shrink-0">Grátis</span>}
-                      {lesson.badgeLabel && <span className="text-xs bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-1.5 rounded-full shrink-0">{lesson.badgeLabel}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -675,17 +690,6 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                         <option value="PUBLISHED">Publicado</option>
                         <option value="DRAFT">Rascunho</option>
                       </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Badge do card</label>
-                      <input
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                        placeholder="Ex: Grátis, Xbox, PS5, Novo..."
-                        value={(edits.badgeLabel as string) ?? lesson.badgeLabel ?? ""}
-                        onChange={e => patchEdit(lesson.id, "badgeLabel", e.target.value)}
-                      />
-                      <p className="text-[11px] text-muted-foreground mt-1">Texto exibido como badge no card da aula. Deixe vazio para não exibir.</p>
                     </div>
                     {/* Materials section */}
                     <div className="border-t border-border/40 pt-3 space-y-2">

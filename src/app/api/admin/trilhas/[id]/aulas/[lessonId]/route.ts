@@ -21,9 +21,9 @@ export async function PATCH(
   const { lessonId } = await params
   const body = await request.json().catch(() => ({}))
 
-  const { title, description, bunnyVideoId, isFree, order, status, thumbnail, badgeLabel } = body as {
+  const { title, description, bunnyVideoId, isFree, order, status, thumbnail } = body as {
     title?: string; description?: string; bunnyVideoId?: string
-    isFree?: boolean; order?: number; status?: string; thumbnail?: string; badgeLabel?: string
+    isFree?: boolean; order?: number; status?: string; thumbnail?: string
   }
 
   const videoFields = bunnyVideoId ? bunnyVideoFields(bunnyVideoId) : {}
@@ -37,7 +37,6 @@ export async function PATCH(
       ...(order !== undefined && { order }),
       ...(status !== undefined && { status: status as never }),
       ...(thumbnail !== undefined && { thumbnail: thumbnail || null }),
-      ...(badgeLabel !== undefined && { badgeLabel: badgeLabel || null }),
       ...videoFields,
     },
   })

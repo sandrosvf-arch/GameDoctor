@@ -104,9 +104,9 @@ export function TrailViewClient({
                   GRÁTIS
                 </span>
               )}
-              {lesson.badgeLabel && (
+              {course.badgeLabel && (
                 <span className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em] bg-cyan-500 text-zinc-950">
-                  {lesson.badgeLabel}
+                  {course.badgeLabel}
                 </span>
               )}
               {isCompleted && (

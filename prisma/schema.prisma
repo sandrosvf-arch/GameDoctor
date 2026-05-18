@@ -253,6 +253,7 @@ model Course {
   displayOrder     Int          @default(0) @map("display_order")
   trailColorRgb    String?      @map("trail_color_rgb")
   badgeTextColorRgb String?     @map("badge_text_color_rgb")
+  badgeLabel        String?      @map("badge_label")
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
 
@@ -335,7 +336,6 @@ model Lesson {
   requiresPlan           Boolean             @default(false) @map("requires_plan")
   requiredPlanId         String?             @map("required_plan_id")
   status                 LessonStatus        @default(DRAFT)
-  badgeLabel             String?             @map("badge_label")
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
 

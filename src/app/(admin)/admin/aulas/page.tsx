@@ -24,7 +24,6 @@ interface LessonWithCourse {
   order: number
   videoDurationSeconds: number | null
   durationSeconds: number | null
-  badgeLabel: string | null
   course: { id: string; title: string; slug: string; trailColorRgb: string | null } | null
   module: { id: string; title: string } | null
 }
@@ -36,7 +35,6 @@ type LessonEdits = {
   thumbnail?: string
   isFree?: boolean
   status?: string
-  badgeLabel?: string
 }
 
 function formatSecs(s: number | null | undefined) {
@@ -158,7 +156,6 @@ export default function TodasAsAulasPage() {
         thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
         status: lesson.status,
-        badgeLabel: lesson.badgeLabel ?? "",
       },
     }))
     // Load materials for this lesson
@@ -337,11 +334,6 @@ export default function TodasAsAulasPage() {
                           Grátis
                         </span>
                       )}
-                      {lesson.badgeLabel && (
-                        <span className="text-[10px] bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-1.5 rounded-full">
-                          {lesson.badgeLabel}
-                        </span>
-                      )}
                       <span className={cn(
                         "text-[10px] border px-1.5 rounded-full",
                         lesson.status === "PUBLISHED"
@@ -456,17 +448,6 @@ export default function TodasAsAulasPage() {
                           Ver trilha <ExternalLink className="h-3 w-3" />
                         </Link>
                       )}
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Badge do card</label>
-                      <input
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                        placeholder="Ex: Grátis, Xbox, PS5, Novo..."
-                        value={(e.badgeLabel as string) ?? lesson.badgeLabel ?? ""}
-                        onChange={ev => patch(lesson.id, "badgeLabel", ev.target.value)}
-                      />
-                      <p className="text-[11px] text-muted-foreground mt-1">Texto exibido como badge no card da aula. Deixe vazio para não exibir.</p>
                     </div>
 
                     {/* Materials section */}
