@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { Play, Lock, CheckCircle2 } from "lucide-react"
+import { Play, CheckCircle2 } from "lucide-react"
 import type { Module, Lesson, Course } from "@prisma/client"
 
 interface TrailViewClientProps {
@@ -112,17 +112,10 @@ export function TrailViewClient({
             </div>
 
             {/* Hover overlay */}
-            <div
-              className={`absolute inset-0 transition-opacity duration-200 ${
-                isLocked ? "opacity-100 bg-black/30" : "opacity-0 group-hover/card:opacity-100 bg-black/15"
-              }`}
-            />
+            <div className="absolute inset-0 opacity-0 group-hover/card:opacity-100 bg-black/15 transition-opacity duration-200" />
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-all duration-200">
               <div className="flex h-11 w-11 scale-95 items-center justify-center rounded-full border border-white/25 bg-white/15 backdrop-blur-sm transition-transform duration-200 group-hover/card:scale-100">
-                {isLocked
-                  ? <Lock className="h-4 w-4 text-white" />
-                  : <Play className="ml-0.5 h-5 w-5 fill-white text-white" />
-                }
+                <Play className="ml-0.5 h-5 w-5 fill-white text-white" />
               </div>
             </div>
 
