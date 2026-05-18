@@ -63,11 +63,11 @@ export function MemberSidebar() {
         }
       </button>
 
-      {/* ── User header (top) ── */}
+      {/* ── User header (top) — same height as navbar (h-16) ── */}
       <div
         className={cn(
-          "border-b border-border/40 p-3 shrink-0",
-          collapsed ? "flex justify-center" : "flex items-center gap-3"
+          "h-16 border-b border-border/40 px-3 shrink-0 flex items-center",
+          collapsed ? "justify-center" : "gap-3"
         )}
       >
         <Avatar className="h-8 w-8 shrink-0">
