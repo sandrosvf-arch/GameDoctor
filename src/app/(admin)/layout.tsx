@@ -6,22 +6,68 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { AdminLogoutButton } from "@/components/layout/AdminLogoutButton"
+import {
+  Home,
+  Users,
+  CreditCard,
+  Image as ImageIcon,
+  BookOpen,
+  Map,
+  GraduationCap,
+  Ticket,
+  HelpCircle,
+  Globe,
+  BarChart2,
+  ShoppingCart,
+  Tag,
+  Shield,
+  Settings,
+  Plug,
+  ScrollText,
+} from "lucide-react"
 
-const navItems = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/banners", label: "Banners da Home" },
-  { href: "/admin/trilhas", label: "Trilhas" },
-  { href: "/admin/aulas", label: "Todas as aulas" },
-  { href: "/admin/cursos", label: "Cursos" },
-  { href: "/admin/alunos", label: "Alunos" },
-  { href: "/admin/acessos", label: "Acessos" },
-  { href: "/admin/planos", label: "Planos" },
-  { href: "/admin/pedidos", label: "Pedidos" },
-  { href: "/admin/pagamentos", label: "Pagamentos" },
-  { href: "/admin/cupons", label: "Cupons" },
-  { href: "/admin/relatorios", label: "Relatórios" },
-  { href: "/admin/perfil", label: "Perfil Admin" },
-  { href: "/admin/logs", label: "Logs" },
+const navGroups = [
+  {
+    items: [
+      { href: "/admin/dashboard", label: "Início", icon: Home },
+    ],
+  },
+  {
+    title: "Gerenciamento",
+    items: [
+      { href: "/admin/alunos",   label: "Usuários",    icon: Users },
+      { href: "/admin/acessos",  label: "Assinaturas", icon: CreditCard },
+      { href: "/admin/banners",  label: "Fullbanner",  icon: ImageIcon },
+      { href: "/admin/aulas",    label: "Conteúdo",    icon: BookOpen },
+      { href: "/admin/trilhas",  label: "Trilhas",     icon: Map },
+      { href: "/admin/cursos",   label: "Cursos",      icon: GraduationCap },
+    ],
+  },
+  {
+    title: "Suporte",
+    items: [
+      { href: "/admin/tickets",   label: "Tickets",         icon: Ticket },
+      { href: "/admin/ajuda",     label: "Central de ajuda", icon: HelpCircle },
+      { href: "/admin/comunidade",label: "Comunidade",       icon: Globe },
+    ],
+  },
+  {
+    title: "Financeiro",
+    items: [
+      { href: "/admin/relatorios", label: "Relatórios", icon: BarChart2 },
+      { href: "/admin/pedidos",    label: "Pedidos",    icon: ShoppingCart },
+      { href: "/admin/cupons",     label: "Cupons",     icon: Tag },
+    ],
+  },
+  {
+    title: "Sistema",
+    items: [
+      { href: "/admin/perfil",        label: "Administradores", icon: Shield },
+      { href: "/admin/configuracoes", label: "Configurações",   icon: Settings },
+      { href: "/admin/integracoes",   label: "Integrações",     icon: Plug },
+      { href: "/admin/logs",          label: "Logs",            icon: ScrollText },
+    ],
+  },
 ]
 
 export default async function AdminLayout({
@@ -49,15 +95,30 @@ export default async function AdminLayout({
           />
           <p className="text-xs text-muted-foreground mt-2">Painel Administrativo</p>
         </div>
-        <nav className="flex-1 space-y-0.5">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center px-3 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            >
-              {item.label}
-            </Link>
+        <nav className="flex-1 overflow-y-auto space-y-4">
+          {navGroups.map((group, gi) => (
+            <div key={gi}>
+              {group.title && (
+                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                  {group.title}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
           ))}
         </nav>
         <div className="border-t border-border pt-3 mt-3">
