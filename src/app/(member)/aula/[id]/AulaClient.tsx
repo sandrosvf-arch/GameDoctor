@@ -181,10 +181,13 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
       if (activeModule) setOpenModules(new Set([activeModule.id]))
 
       if (!json.lesson.isAccessible) {
-        const secs = json.lesson.previewDurationSeconds
-        previewTimerRef.current = setTimeout(() => {
+        const secs = json.lesson.previewDurationSeconds ?? 0
+        if (secs > 0) {
+          previewTimerRef.current = setTimeout(() => setPaywallVisible(true), secs * 1000)
+        } else {
+          // No preview configured — block immediately
           setPaywallVisible(true)
-        }, secs * 1000)
+        }
       }
     } catch {
       setError("ERROR")
@@ -316,18 +319,18 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
             <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-xl" style={{ aspectRatio: "16/9" }}>
               {paywallVisible && <PaywallOverlay lessonId={lessonId} />}
 
-              {lesson.videoPlaybackUrl ? (
+              {!paywallVisible && lesson.videoPlaybackUrl ? (
                 <ReactPlayer
                   src={lesson.videoPlaybackUrl}
-                  playing={!paywallVisible}
-                  controls={!paywallVisible}
+                  playing
+                  controls
                   muted
                   width="100%"
                   height="100%"
                   className="absolute inset-0"
                   onProgress={handleProgress}
                 />
-              ) : lesson.videoEmbedUrl ? (
+              ) : !paywallVisible && lesson.videoEmbedUrl ? (
                 <iframe
                   src={`${lesson.videoEmbedUrl}${lesson.videoEmbedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1`}
                   className="absolute inset-0 w-full h-full"
@@ -335,12 +338,12 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                   allowFullScreen
                   title={lesson.title}
                 />
-              ) : (
+              ) : !paywallVisible ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900">
                   <Play className="h-14 w-14 opacity-20" />
                   <p className="text-zinc-500 text-sm">Vídeo em processamento</p>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Title + actions bar */}

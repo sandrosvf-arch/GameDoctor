@@ -93,15 +93,21 @@ export async function GET(
       title: lesson.title,
       description: lesson.description,
       durationSeconds: lesson.videoDurationSeconds ?? lesson.durationSeconds,
-      // Always expose video URL — preview cutoff is enforced client-side
-      videoEmbedUrl: lesson.videoEmbedUrl,
-      videoPlaybackUrl: lesson.videoPlaybackUrl,
+      // Video URLs are ONLY returned when the user has confirmed access.
+      // Never rely on client-side paywall alone to protect paid content.
+      videoEmbedUrl: isAccessible ? lesson.videoEmbedUrl : null,
+      videoPlaybackUrl: isAccessible ? lesson.videoPlaybackUrl : null,
       videoThumbnailUrl: lesson.videoThumbnailUrl,
       isFree: lesson.isFree,
       isAccessible,
       previewEnabled: lesson.previewEnabled,
-      // Locked lessons show a short 7s preview before the paywall.
-      previewDurationSeconds: isAccessible ? null : 7,
+      // Return actual preview duration only if the lesson is explicitly configured
+      // for preview. Otherwise 0 = immediate paywall on the client.
+      previewDurationSeconds: isAccessible
+        ? null
+        : lesson.previewEnabled && lesson.previewDurationSeconds
+        ? lesson.previewDurationSeconds
+        : 0,
       materials: isAccessible ? lesson.materials : [],
       progress: Array.isArray(lesson.lessonProgress) ? (lesson.lessonProgress[0] ?? null) : null,
     },
