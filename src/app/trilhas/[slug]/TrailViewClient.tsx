@@ -104,6 +104,11 @@ export function TrailViewClient({
                   GRÁTIS
                 </span>
               )}
+              {lesson.badgeLabel && (
+                <span className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em] bg-cyan-500 text-zinc-950">
+                  {lesson.badgeLabel}
+                </span>
+              )}
               {isCompleted && (
                 <span className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em] bg-emerald-600/90 text-white flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" /> CONCLUÍDO

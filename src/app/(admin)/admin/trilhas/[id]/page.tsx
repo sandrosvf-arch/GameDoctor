@@ -27,6 +27,7 @@ interface Lesson {
   isFree: boolean
   status: string
   order: number
+  badgeLabel: string | null
 }
 
 const MATERIAL_TYPES = [
@@ -373,6 +374,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
         thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
         status: lesson.status,
+        badgeLabel: lesson.badgeLabel ?? "",
       },
     }))
     if (!lessonMaterials[lesson.id]) {
@@ -595,6 +597,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                     <div className="flex items-center gap-2 mt-0.5">
                       {dur && <span className="text-xs text-muted-foreground shrink-0">{dur}</span>}
                       {lesson.isFree && <span className="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 rounded-full shrink-0">Grátis</span>}
+                      {lesson.badgeLabel && <span className="text-xs bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-1.5 rounded-full shrink-0">{lesson.badgeLabel}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -672,6 +675,17 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                         <option value="PUBLISHED">Publicado</option>
                         <option value="DRAFT">Rascunho</option>
                       </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Badge do card</label>
+                      <input
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        placeholder="Ex: Grátis, Xbox, PS5, Novo..."
+                        value={(edits.badgeLabel as string) ?? lesson.badgeLabel ?? ""}
+                        onChange={e => patchEdit(lesson.id, "badgeLabel", e.target.value)}
+                      />
+                      <p className="text-[11px] text-muted-foreground mt-1">Texto exibido como badge no card da aula. Deixe vazio para não exibir.</p>
                     </div>
                     {/* Materials section */}
                     <div className="border-t border-border/40 pt-3 space-y-2">

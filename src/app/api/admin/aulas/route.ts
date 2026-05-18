@@ -29,6 +29,7 @@ export async function GET() {
       order: true,
       videoDurationSeconds: true,
       durationSeconds: true,
+      badgeLabel: true,
       course: { select: { id: true, title: true, slug: true, trailColorRgb: true } },
       module: { select: { id: true, title: true } },
     },

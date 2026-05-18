@@ -335,6 +335,7 @@ model Lesson {
   requiresPlan           Boolean             @default(false) @map("requires_plan")
   requiredPlanId         String?             @map("required_plan_id")
   status                 LessonStatus        @default(DRAFT)
+  badgeLabel             String?             @map("badge_label")
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
 
