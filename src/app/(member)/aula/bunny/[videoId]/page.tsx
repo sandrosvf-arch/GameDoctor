@@ -1,6 +1,5 @@
 import BunnyAulaClient, { type CourseLessonInfo, type LessonMaterial } from "./BunnyAulaClient"
 import { auth } from "@/lib/auth"
-import { redirect } from "next/navigation"
 import { bunnyPlaybackUrl } from "@/lib/bunny"
 import { hasAccessToCourse } from "@/lib/access"
 import { db } from "@/lib/db"
@@ -62,16 +61,6 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
 
   const courseAccess = userId && lesson ? await hasAccessToCourse(userId, lesson.courseId) : false
   const isAccessible = lesson ? lesson.isFree || !!courseAccess : true
-
-  // ── Block non-authorized users server-side ──────────────────────────────────
-  // The video URL (playbackUrl) is NEVER sent to the client unless access is confirmed.
-  if (lesson && !isAccessible) {
-    redirect(
-      userId
-        ? "/planos"
-        : `/login?callbackUrl=/aula/bunny/${encodeURIComponent(videoId)}`
-    )
-  }
   const title = titulo ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
   const duration = meta?.length ? formatDuration(meta.length) : null
   const playbackUrl = bunnyPlaybackUrl(videoId)

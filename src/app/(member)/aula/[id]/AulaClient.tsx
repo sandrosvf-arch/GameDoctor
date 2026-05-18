@@ -181,13 +181,8 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
       if (activeModule) setOpenModules(new Set([activeModule.id]))
 
       if (!json.lesson.isAccessible) {
-        const secs = json.lesson.previewDurationSeconds ?? 0
-        if (secs > 0) {
-          previewTimerRef.current = setTimeout(() => setPaywallVisible(true), secs * 1000)
-        } else {
-          // No preview configured — block immediately
-          setPaywallVisible(true)
-        }
+        const secs = json.lesson.previewDurationSeconds ?? 7
+        previewTimerRef.current = setTimeout(() => setPaywallVisible(true), secs * 1000)
       }
     } catch {
       setError("ERROR")
