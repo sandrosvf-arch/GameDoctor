@@ -15,6 +15,8 @@ import {
   Settings,
   LogOut,
   Users,
+  UserCircle,
+  Globe,
   ChevronRight,
   ChevronLeft,
 } from "lucide-react"
@@ -28,10 +30,12 @@ const mainNavItems = [
   { label: "Progresso", href: "/progresso", icon: TrendingUp },
   { label: "Certificados", href: "/certificados", icon: Award },
   { label: "Favoritos", href: "/favoritos", icon: Heart },
+  { label: "Meu Perfil", href: "/perfil", icon: UserCircle },
 ]
 
 const supportNavItems = [
   { label: "Central de Ajuda", href: "/suporte", icon: HeadphonesIcon },
+  { label: "Comunidade", href: "/comunidade", icon: Globe },
   { label: "Configurações", href: "/configuracoes", icon: Settings },
 ]
 
