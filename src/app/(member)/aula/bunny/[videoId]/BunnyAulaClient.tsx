@@ -70,6 +70,7 @@ interface BunnyAulaClientProps {
   isAccessible: boolean
   isFree: boolean
   courseTitle: string
+  courseSlug: string | null
   description: string | null
   courseLessons: CourseLessonInfo[]
   nextLesson: CourseLessonInfo | null
@@ -431,7 +432,7 @@ export default function BunnyAulaClient({
             {/* Header */}
             <div className="border-b border-border bg-muted/50 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Conteúdo do curso
+                Trilha de aprendizado
               </p>
               <p className="mt-0.5 text-sm font-semibold">{courseTitle}</p>
             </div>
@@ -536,17 +537,27 @@ export default function BunnyAulaClient({
             </span>
           )}
 
-          {/* Lista */}
-          <button
-            onClick={() => setListOpen(v => !v)}
-            className={cn(
-              "flex flex-col items-center justify-center gap-0.5 w-[19%] h-full transition-colors active:opacity-70",
-              listOpen ? "text-primary" : "text-zinc-300"
-            )}
-          >
-            <List className="h-[18px] w-[18px]" />
-            <span className="text-[10px] font-medium">Lista</span>
-          </button>
+          {/* Trilha (mobile) */}
+          {courseSlug ? (
+            <Link
+              href={`/trilhas/${courseSlug}`}
+              className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-300 active:text-white transition-colors"
+            >
+              <List className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Trilha</span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => setListOpen(v => !v)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 w-[19%] h-full transition-colors active:opacity-70",
+                listOpen ? "text-primary" : "text-zinc-300"
+              )}
+            >
+              <List className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Lista</span>
+            </button>
+          )}
 
           {/* Perguntar */}
           <button
@@ -594,7 +605,7 @@ export default function BunnyAulaClient({
           <div className="absolute bottom-0 left-0 right-0 flex flex-col bg-zinc-900 rounded-t-2xl max-h-[78vh]">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 shrink-0">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conteúdo do curso</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Trilha de aprendizado</p>
                 <p className="text-sm font-semibold mt-0.5">{courseTitle}</p>
               </div>
               <button onClick={() => setListOpen(false)} className="p-1 text-zinc-400">

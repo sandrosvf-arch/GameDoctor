@@ -51,12 +51,13 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       },
       select: {
         id: true,
+        title: true,
         isFree: true,
         thumbnail: true,
         videoThumbnailUrl: true,
         description: true,
         courseId: true,
-        course: { select: { title: true } },
+        course: { select: { title: true, slug: true } },
       },
     }),
   ])
@@ -100,10 +101,11 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   ])
 
   const isAccessible = lesson ? lesson.isFree || !!courseAccess : true
-  const title = titulo ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
+  const title = titulo ?? lesson?.title ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
   const duration = meta?.length ? formatDuration(meta.length) : null
   const playbackUrl = bunnyPlaybackUrl(videoId)
   const courseTitle = lesson?.course.title ?? "Início da Jornada"
+  const courseSlug = lesson?.course.slug ?? null
   const previewImage = lesson?.thumbnail ?? lesson?.videoThumbnailUrl ?? null
   const description = lesson?.description ?? null
 
@@ -125,6 +127,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       isAccessible={isAccessible}
       isFree={lesson?.isFree ?? true}
       courseTitle={courseTitle}
+      courseSlug={courseSlug}
       description={description}
       courseLessons={courseLessons}
       nextLesson={nextLesson}
