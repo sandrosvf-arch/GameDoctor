@@ -14,6 +14,7 @@ import {
   Link2,
   List,
   Loader2,
+  Lock,
   MessageSquare,
   Paperclip,
   Play,
@@ -359,7 +360,20 @@ export default function BunnyAulaClient({
             )}
 
             {/* Description + Files */}
-            {(description || materials.length > 0) && (
+            {!isAccessible ? (
+              <div className="rounded-xl border border-border bg-muted/20 px-5 py-6 flex flex-col items-center gap-3 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                  <Lock className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Descrição completa da aula</p>
+                  <p className="text-xs text-muted-foreground">Assine um plano para ver a descrição, materiais e conteúdo exclusivo desta aula.</p>
+                </div>
+                <Button size="sm" asChild>
+                  <Link href="/planos">Ver planos</Link>
+                </Button>
+              </div>
+            ) : (description || materials.length > 0) && (
               <div className="rounded-xl border border-border bg-muted/30 px-5 py-4 space-y-4">
                 {description && (
                   <div className="space-y-1.5">
@@ -408,14 +422,25 @@ export default function BunnyAulaClient({
               </h2>
               <div className="rounded-xl border border-border bg-muted/20 px-5 py-6 flex flex-col items-center gap-3 text-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                  <User2 className="h-5 w-5 text-muted-foreground" />
+                  {isAccessible
+                    ? <User2 className="h-5 w-5 text-muted-foreground" />
+                    : <Lock className="h-5 w-5 text-muted-foreground" />
+                  }
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Participe da discussão</p>
-                  <p className="text-xs text-muted-foreground">Faça login para deixar sua dúvida ou comentário nesta aula.</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isAccessible
+                      ? "Faça login para deixar sua dúvida ou comentário nesta aula."
+                      : "Assine um plano para acessar os comentários e participar das discussões."
+                    }
+                  </p>
                 </div>
                 <Button size="sm" asChild>
-                  <Link href="/login">Entrar para comentar</Link>
+                  {isAccessible
+                    ? <Link href="/login">Entrar para comentar</Link>
+                    : <Link href="/planos">Ver planos</Link>
+                  }
                 </Button>
               </div>
             </div>
