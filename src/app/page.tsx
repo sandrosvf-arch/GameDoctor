@@ -318,9 +318,10 @@ export default async function HomePage() {
   let orderedRows = rows
   try {
     const dbCourses = await db.course.findMany({
-      where: { slug: { in: Object.values(rowSlugMap) } },
+      where: { status: "PUBLISHED" },
       select: {
         slug: true,
+        title: true,
         displayOrder: true,
         trailColorRgb: true,
         badgeTextColorRgb: true,
@@ -407,7 +408,7 @@ export default async function HomePage() {
       const staticRow = rows.find(r => r.id === rowId)
       return {
         id: rowId,
-        title: staticRow?.title ?? course.slug,
+        title: staticRow?.title ?? course.title,
         platformBadge: staticRow?.platformBadge ?? rowPlatformBadge[rowId] ?? course.slug.toUpperCase(),
         courses: cards.length > 0 ? cards : (staticRow?.courses ?? []),
         courseSlug: course.slug,
@@ -420,7 +421,7 @@ export default async function HomePage() {
     const allRows = [...dbRows, ...fallbackRows]
 
     // Re-sort by DB displayOrder
-    const slugToOrder = Object.fromEntries(dbCourses.map(c => [slugToRowId[c.slug], c.displayOrder]))
+    const slugToOrder = Object.fromEntries(dbCourses.map(c => [slugToRowId[c.slug] ?? c.slug, c.displayOrder]))
     orderedRows = allRows.sort((a, b) => {
       const oa = slugToOrder[a.id] ?? 99
       const ob = slugToOrder[b.id] ?? 99
