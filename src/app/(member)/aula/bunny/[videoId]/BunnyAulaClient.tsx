@@ -406,11 +406,11 @@ export default function BunnyAulaClient({
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 Comentários
               </h2>
-              <div className="mb-6 flex gap-3">
+              <div className="mb-6 flex flex-col items-center gap-3 md:flex-row md:items-start">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
                   <User2 className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <div className="flex-1">
+                <div className="w-full max-w-md md:max-w-none md:flex-1">
                   <textarea
                     placeholder="Deixe sua dúvida ou comentário..."
                     rows={3}
