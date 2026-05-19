@@ -407,7 +407,7 @@ export default async function HomePage() {
       return {
         id: rowId,
         title: staticRow?.title ?? course.title,
-        platformBadge: staticRow?.platformBadge ?? rowPlatformBadge[rowId] ?? course.slug.toUpperCase(),
+        platformBadge: staticRow?.platformBadge ?? rowPlatformBadge[rowId] ?? "",
         courses: cards.length > 0 ? cards : (staticRow?.courses ?? []),
         courseSlug: course.slug,
       }
@@ -508,7 +508,7 @@ export default async function HomePage() {
 
                         {/* Top-left badges */}
                         <div className="absolute left-2.5 top-2.5 z-20 flex gap-1.5">
-                          {(row.platformBadge !== "GRÁTIS" || course.free) && (
+                          {row.platformBadge && (row.platformBadge !== "GRÁTIS" || course.free) && (
                             <span
                               className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
                               style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
