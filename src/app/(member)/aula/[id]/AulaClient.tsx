@@ -316,7 +316,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
           <div className="flex-1 min-w-0 space-y-6">
 
             {/* Video player */}
-            <div className="relative w-full -mx-8 md:mx-0 rounded-none md:rounded-xl overflow-hidden bg-black shadow-xl" style={{ aspectRatio: "16/9" }}>
+            <div className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 rounded-none md:rounded-xl overflow-hidden bg-black shadow-xl" style={{ aspectRatio: "16/9" }}>
               {paywallVisible && <PaywallOverlay lessonId={lessonId} />}
 
               {!paywallVisible && lesson.videoPlaybackUrl ? (
@@ -326,6 +326,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                   controls={lesson.isAccessible}
                   muted
                   playsInline
+                  config={{ file: { attributes: { playsInline: true, 'webkit-playsinline': true } } }}
                   width="100%"
                   height="100%"
                   className="absolute inset-0"

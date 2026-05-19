@@ -280,7 +280,7 @@ export default function BunnyAulaClient({
         <div className="flex items-start gap-6">
           <div className="flex-1 min-w-0 space-y-6">
             <div
-              className="relative w-full -mx-8 md:mx-0 overflow-hidden rounded-none md:rounded-xl bg-black shadow-xl"
+              className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 overflow-hidden rounded-none md:rounded-xl bg-black shadow-xl"
               style={{ aspectRatio: "16/9" }}
             >
               {paywallVisible && <PaywallOverlay videoId={videoId} />}
@@ -291,6 +291,7 @@ export default function BunnyAulaClient({
                   controls={isAccessible && !paywallVisible}
                   muted
                   playsInline
+                  config={{ file: { attributes: { playsInline: true, 'webkit-playsinline': true } } }}
                   light={previewImage ?? true}
                   playIcon={
                     <button
