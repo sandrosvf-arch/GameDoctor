@@ -528,9 +528,9 @@ export default async function HomePage() {
                         </div>
 
                         {/* Hover overlay with play/lock icon */}
-                        <div className="absolute inset-0 bg-black/15 opacity-0 transition-opacity duration-200 group-hover/card:opacity-100" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-200 group-hover/card:opacity-100">
-                          <div className="flex h-11 w-11 scale-95 items-center justify-center rounded-full border border-white/25 bg-white/15 backdrop-blur-sm transition-transform duration-200 group-hover/card:scale-100">
+                        <div className="absolute inset-0 bg-black/15 opacity-0 transition-opacity duration-200 [@media(hover:hover)]:group-hover/card:opacity-100" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-200 [@media(hover:hover)]:group-hover/card:opacity-100">
+                          <div className="flex h-11 w-11 scale-95 items-center justify-center rounded-full border border-white/25 bg-white/15 backdrop-blur-sm transition-transform duration-200 [@media(hover:hover)]:group-hover/card:scale-100">
                             <Play className="ml-0.5 h-5 w-5 fill-white text-white" />
                           </div>
                         </div>
