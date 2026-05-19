@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Paperclip,
   Play,
+  Repeat,
   SkipBack,
   SkipForward,
   Sparkles,
@@ -299,6 +300,9 @@ export default function BunnyAulaClient({
               Voltar
             </button>
 
+            {/* Title */}
+            <h1 className="text-lg md:text-xl font-bold leading-snug">{title}</h1>
+
             <div
               className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 overflow-hidden rounded-none md:rounded-xl bg-black shadow-xl"
               style={{ aspectRatio: "16/9" }}
@@ -332,28 +336,25 @@ export default function BunnyAulaClient({
               ) : null}
             </div>
 
-            {/* Title + Concluída */}
-            <div className="flex items-center justify-between gap-4">
-              <h1 className="text-xl font-bold leading-snug flex-1 min-w-0 truncate">{title}</h1>
-              {isAccessible && lessonId && (
-                <button
-                  onClick={handleMarkComplete}
-                  disabled={completingLesson}
-                  className={cn(
-                    "hidden md:flex shrink-0 items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors disabled:opacity-60",
-                    completed
-                      ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
-                      : "border-border text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-400"
-                  )}
-                >
-                  {completingLesson
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <CheckCircle2 className="h-4 w-4" />
-                  }
-                  {completed ? "Concluída" : "Marcar como concluída"}
-                </button>
-              )}
-            </div>
+            {/* Concluir */}
+            {isAccessible && lessonId && (
+              <button
+                onClick={handleMarkComplete}
+                disabled={completingLesson}
+                className={cn(
+                  "flex w-full items-center justify-center gap-2 rounded-xl h-11 text-sm font-semibold border transition-colors disabled:opacity-60",
+                  completed
+                    ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                    : "border-border text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-400"
+                )}
+              >
+                {completingLesson
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <CheckCircle2 className="h-4 w-4" />
+                }
+                {completed ? "Aula concluída" : "Concluir aula"}
+              </button>
+            )}
 
             {/* Description + Files */}
             {(description || materials.length > 0) && (
@@ -413,7 +414,7 @@ export default function BunnyAulaClient({
                     rows={3}
                     className="w-full resize-none rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
-                  <div className="mt-2 flex justify-end">
+                  <div className="mt-3 flex justify-center">
                     <Button size="sm" asChild>
                       <Link href="/login">Entrar para comentar</Link>
                     </Button>
@@ -556,20 +557,16 @@ export default function BunnyAulaClient({
             <span className="text-[10px] font-medium">Perguntar</span>
           </button>
 
-          {/* Concluir */}
+          {/* Auto-advance */}
           <button
-            onClick={isAccessible && lessonId ? handleMarkComplete : undefined}
-            disabled={completingLesson || !isAccessible || !lessonId}
+            onClick={toggleAutoAdvance}
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 w-[19%] h-full transition-colors active:opacity-70 disabled:opacity-40",
-              completed ? "text-emerald-400" : "text-zinc-300"
+              "flex flex-col items-center justify-center gap-0.5 w-[19%] h-full transition-colors active:opacity-70",
+              autoAdvance ? "text-primary" : "text-zinc-300"
             )}
           >
-            {completingLesson
-              ? <Loader2 className="h-[18px] w-[18px] animate-spin" />
-              : <CheckCircle2 className="h-[18px] w-[18px]" />
-            }
-            <span className="text-[10px] font-medium">Concluir</span>
+            <Repeat className="h-[18px] w-[18px]" />
+            <span className="text-[10px] font-medium">Auto</span>
           </button>
 
           {/* Próximo */}
