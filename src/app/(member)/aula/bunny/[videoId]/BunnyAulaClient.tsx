@@ -5,6 +5,7 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -12,12 +13,14 @@ import {
   FileSpreadsheet,
   FileText,
   Link2,
+  List,
   Loader2,
   MessageSquare,
   Paperclip,
   Play,
   SkipForward,
   User2,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Header } from "@/components/layout/Header"
@@ -166,6 +169,7 @@ export default function BunnyAulaClient({
   const [autoAdvance, setAutoAdvance] = useState(false)
   const [completed, setCompleted] = useState(initialCompleted)
   const [completingLesson, setCompletingLesson] = useState(false)
+  const [listOpen, setListOpen] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -222,6 +226,12 @@ export default function BunnyAulaClient({
     return groups
   }, [courseLessons])
 
+  const currentIdx = useMemo(
+    () => courseLessons.findIndex(l => l.videoProviderId === videoId),
+    [courseLessons, videoId]
+  )
+  const prevLesson = currentIdx > 0 ? courseLessons[currentIdx - 1] : null
+
   const showPaywall = useCallback(() => {
     const video = document.querySelector("video")
     if (video instanceof HTMLVideoElement) {
@@ -264,7 +274,7 @@ export default function BunnyAulaClient({
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="border-b border-border/50 bg-muted/30">
+      <div className="hidden md:block border-b border-border/50 bg-muted/30">
         <div className="container flex h-10 items-center gap-2 text-sm text-muted-foreground">
           <Link href="/cursos" className="transition-colors hover:text-foreground">
             Cursos
@@ -276,9 +286,18 @@ export default function BunnyAulaClient({
         </div>
       </div>
 
-      <div className="container py-6">
+      <div className="container py-6 pb-24 md:pb-6">
         <div className="flex items-start gap-6">
           <div className="flex-1 min-w-0 space-y-6">
+            {/* Mobile: back button */}
+            <button
+              onClick={() => router.back()}
+              className="flex md:hidden items-center gap-1.5 text-sm text-zinc-400 active:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </button>
+
             <div
               className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 overflow-hidden rounded-none md:rounded-xl bg-black shadow-xl"
               style={{ aspectRatio: "16/9" }}
@@ -312,6 +331,26 @@ export default function BunnyAulaClient({
               ) : null}
             </div>
 
+            {/* Mobile: Concluir button */}
+            {isAccessible && lessonId && (
+              <button
+                onClick={handleMarkComplete}
+                disabled={completingLesson}
+                className={cn(
+                  "flex md:hidden w-full items-center justify-center gap-2 rounded-xl h-11 text-sm font-semibold border transition-colors disabled:opacity-60",
+                  completed
+                    ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
+                    : "border-border text-muted-foreground"
+                )}
+              >
+                {completingLesson
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <CheckCircle2 className="h-4 w-4" />
+                }
+                {completed ? "Aula concluída" : "Concluir aula"}
+              </button>
+            )}
+
             {/* Title + Concluída */}
             <div className="flex items-center justify-between gap-4">
               <h1 className="text-xl font-bold leading-snug flex-1 min-w-0 truncate">{title}</h1>
@@ -320,7 +359,7 @@ export default function BunnyAulaClient({
                   onClick={handleMarkComplete}
                   disabled={completingLesson}
                   className={cn(
-                    "flex shrink-0 items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors disabled:opacity-60",
+                    "hidden md:flex shrink-0 items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors disabled:opacity-60",
                     completed
                       ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
                       : "border-border text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-400"
@@ -494,6 +533,133 @@ export default function BunnyAulaClient({
           </aside>
         </div>
       </div>
+
+      {/* ── Mobile: floating bottom nav ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden border-t border-border/60 bg-zinc-950/95 backdrop-blur-sm">
+        <div className="flex items-center h-14 px-2 gap-1">
+
+          {/* Lesson list toggle */}
+          <button
+            onClick={() => setListOpen(v => !v)}
+            className={cn(
+              "flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-xl transition-colors active:bg-white/10",
+              listOpen ? "text-primary" : "text-zinc-400"
+            )}
+          >
+            <List className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Aulas</span>
+          </button>
+
+          {/* Prev / Next */}
+          <div className="flex flex-1 items-center justify-center gap-3">
+            {prevLesson ? (
+              <Link
+                href={prevLesson.videoProviderId ? `/aula/bunny/${prevLesson.videoProviderId}` : `/aula/${prevLesson.id}`}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/40 text-white active:bg-muted"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Link>
+            ) : (
+              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/20 text-zinc-700 cursor-not-allowed">
+                <ChevronLeft className="h-5 w-5" />
+              </span>
+            )}
+            {nextLesson ? (
+              <Link
+                href={nextLesson.videoProviderId ? `/aula/bunny/${nextLesson.videoProviderId}` : `/aula/${nextLesson.id}`}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/40 text-white active:bg-muted"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Link>
+            ) : (
+              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/20 text-zinc-700 cursor-not-allowed">
+                <ChevronRight className="h-5 w-5" />
+              </span>
+            )}
+          </div>
+
+          {/* Auto-advance toggle */}
+          <button
+            onClick={toggleAutoAdvance}
+            className={cn(
+              "flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-xl transition-colors active:bg-white/10",
+              autoAdvance ? "text-primary" : "text-zinc-400"
+            )}
+          >
+            <SkipForward className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Auto</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Mobile: lesson list sheet ── */}
+      {listOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setListOpen(false)} />
+          <div className="absolute bottom-0 left-0 right-0 flex flex-col bg-zinc-900 rounded-t-2xl max-h-[78vh]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 shrink-0">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conteúdo do curso</p>
+                <p className="text-sm font-semibold mt-0.5">{courseTitle}</p>
+              </div>
+              <button onClick={() => setListOpen(false)} className="p-1 text-zinc-400">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 pb-4">
+              {groupedLessons.length === 0 ? (
+                <p className="px-4 py-4 text-xs text-muted-foreground">Nenhuma aula encontrada.</p>
+              ) : (
+                groupedLessons.map(({ module: mod, lessons: modLessons }) => (
+                  <div key={mod?.id ?? "no-module"}>
+                    {mod && (
+                      <div className="border-b border-border/40 bg-muted/30 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {mod.title}
+                      </div>
+                    )}
+                    {modLessons.map(l => {
+                      const isCurrent = l.videoProviderId === videoId
+                      const dur = formatSecs(l.videoDurationSeconds ?? l.durationSeconds)
+                      const thumb = l.thumbnail
+                        ?? (l.videoProviderId ? `https://${BUNNY_CDN_HOST}/${l.videoProviderId}/thumbnail.jpg` : null)
+                        ?? l.videoThumbnailUrl
+                      return (
+                        <Link
+                          key={l.id}
+                          href={l.videoProviderId ? `/aula/bunny/${l.videoProviderId}` : `/aula/${l.id}`}
+                          onClick={() => setListOpen(false)}
+                          className={cn(
+                            "flex items-center gap-2.5 border-l-2 px-3 py-2.5 transition-colors",
+                            isCurrent
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-transparent text-muted-foreground active:bg-muted/40"
+                          )}
+                        >
+                          <div className="relative shrink-0 w-[72px] aspect-video rounded overflow-hidden bg-zinc-800">
+                            {thumb && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                            )}
+                            {isCurrent && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                <Play className="h-3.5 w-3.5 fill-white text-white" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-2 text-sm leading-snug font-medium">{l.title}</p>
+                            {dur && <p className="mt-0.5 text-xs text-muted-foreground">{dur}</p>}
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
