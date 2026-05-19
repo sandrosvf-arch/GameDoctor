@@ -101,6 +101,7 @@ export default function BunnyAulaClient({
 }: BunnyAulaClientProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [paywallVisible, setPaywallVisible] = useState(false)
   const [started, setStarted] = useState(false)
   const [autoAdvance, setAutoAdvance] = useState(false)
   const [completed, setCompleted] = useState(initialCompleted)
@@ -110,6 +111,7 @@ export default function BunnyAulaClient({
   useEffect(() => {
     setMounted(true)
     setStarted(false)
+    setPaywallVisible(false)
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
     const saved = localStorage.getItem("gamedoctor_autoadvance")
     if (saved === "1") setAutoAdvance(true)
@@ -166,6 +168,12 @@ export default function BunnyAulaClient({
     () => courseLessons.findIndex(l => l.videoProviderId === videoId),
     [courseLessons, videoId]
   )
+  const handleProgress = useCallback((state: { playedSeconds?: number }) => {
+    if ((state.playedSeconds ?? 0) >= 7) {
+      setPaywallVisible(true)
+    }
+  }, [])
+
   const prevLesson = currentIdx > 0 ? courseLessons[currentIdx - 1] : null
 
   return (
@@ -203,8 +211,8 @@ export default function BunnyAulaClient({
               className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 overflow-hidden rounded-none md:rounded-xl bg-black shadow-xl"
               style={{ aspectRatio: "16/9" }}
             >
-              {!isAccessible ? (
-                // Locked state — no <video> element rendered in the DOM
+              {(!isAccessible && paywallVisible) ? (
+                // Paywall — ReactPlayer desmontado, nenhum <video> no DOM
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   {previewImage && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -240,7 +248,7 @@ export default function BunnyAulaClient({
                 <ReactPlayer
                   url={playbackUrl}
                   playing={started}
-                  controls
+                  controls={isAccessible}
                   playsInline
                   config={{ file: { attributes: { playsInline: true, 'webkit-playsinline': true } } }}
                   light={previewImage ?? true}
@@ -257,6 +265,7 @@ export default function BunnyAulaClient({
                   height="100%"
                   className="absolute inset-0"
                   onClickPreview={() => setStarted(true)}
+                  onProgress={!isAccessible ? handleProgress : undefined}
                   onEnded={handleEnded}
                 />
               ) : null}
