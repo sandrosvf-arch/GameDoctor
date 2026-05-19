@@ -178,10 +178,11 @@ export default function BunnyAulaClient({
 
   useEffect(() => {
     setMounted(true)
-    window.scrollTo(0, 0)
+    setStarted(false)
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
     const saved = localStorage.getItem("gamedoctor_autoadvance")
     if (saved === "1") setAutoAdvance(true)
-  }, [])
+  }, [videoId])
 
   const handleMarkComplete = useCallback(async () => {
     if (!lessonId || completingLesson) return
