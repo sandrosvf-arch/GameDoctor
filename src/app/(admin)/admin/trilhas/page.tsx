@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Plus, Pencil, Trash2, Loader2, BookOpen, ChevronRight, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { uploadAdminImage } from "@/lib/admin-image-upload"
 
 interface Trilha {
   id: string
@@ -28,13 +29,138 @@ const statusColor: Record<string, string> = {
   ARCHIVED: "bg-red-500/15 text-red-400 border-red-500/30",
 }
 
+// ── Color helpers ────────────────────────────────────────────────────────────
+
+function clampColor(n: number) {
+  return Math.max(0, Math.min(255, Math.round(n)))
+}
+
+function rgbStringToHex(value: string): string {
+  const raw = value.trim()
+  const rgbRegex = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i
+  const plainRegex = /^(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})$/
+  const m = raw.match(rgbRegex) ?? raw.match(plainRegex)
+  if (!m) return "#00cfff"
+  const r = clampColor(Number(m[1])); const g = clampColor(Number(m[2])); const b = clampColor(Number(m[3]))
+  const toHex = (v: number) => v.toString(16).padStart(2, "0")
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+function hexToRgbString(hex: string): string {
+  const clean = hex.replace("#", "")
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return "rgb(0, 207, 255)"
+  const r = parseInt(clean.slice(0, 2), 16)
+  const g = parseInt(clean.slice(2, 4), 16)
+  const b = parseInt(clean.slice(4, 6), 16)
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+// ── Shared form components ───────────────────────────────────────────────────
+
+function RgbPickerField({
+  label, value, onChange, placeholder, hint,
+}: {
+  label: string; value: string; onChange: (value: string) => void; placeholder: string; hint: string
+}) {
+  const hexValue = rgbStringToHex(value)
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground block mb-1">{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+        <label className="h-10 w-12 shrink-0 rounded-lg border border-border overflow-hidden cursor-pointer bg-zinc-900 relative">
+          <input
+            type="color"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            value={hexValue}
+            onChange={(e) => onChange(hexToRgbString(e.target.value))}
+            aria-label={label}
+          />
+          <span className="block h-full w-full" style={{ backgroundColor: hexValue }} />
+        </label>
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
+    </div>
+  )
+}
+
+function CoverUploadField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [uploading, setUploading] = useState(false)
+  const [fileName, setFileName] = useState("")
+
+  async function handlePickFile(file: File | null) {
+    if (!file) return
+    if (!file.type.startsWith("image/")) { alert("Selecione uma imagem válida."); return }
+    setUploading(true)
+    setFileName(file.name)
+    try {
+      const url = await uploadAdminImage(file, "trails")
+      onChange(url)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível carregar a imagem.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
+          {uploading ? "Enviando..." : "Selecionar imagem"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              void handlePickFile(e.target.files?.[0] ?? null)
+              e.currentTarget.value = ""
+            }}
+          />
+        </label>
+        {fileName && <span className="text-xs text-muted-foreground">{fileName}</span>}
+      </div>
+      <div className="flex gap-2 items-center">
+        <input
+          className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          placeholder="URL da imagem da capa"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        {value && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={value}
+            alt="preview"
+            className="w-20 aspect-video rounded object-cover bg-zinc-800 shrink-0"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
 export default function AdminTrilhasPage() {
   const [trilhas, setTrilhas] = useState<Trilha[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [newTitle, setNewTitle] = useState("")
+  const [newStatus, setNewStatus] = useState("DRAFT")
   const [newDesc, setNewDesc] = useState("")
+  const [newCoverImage, setNewCoverImage] = useState("")
+  const [newTrailColorRgb, setNewTrailColorRgb] = useState("")
+  const [newBadgeTextColorRgb, setNewBadgeTextColorRgb] = useState("")
+  const [newBadgeLabel, setNewBadgeLabel] = useState("")
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [savingOrder, setSavingOrder] = useState(false)
 
@@ -61,11 +187,21 @@ export default function AdminTrilhasPage() {
     const res = await fetch("/api/admin/trilhas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle.trim(), shortDescription: newDesc.trim() || undefined }),
+      body: JSON.stringify({
+        title: newTitle.trim(),
+        status: newStatus,
+        shortDescription: newDesc.trim() || undefined,
+        coverImage: newCoverImage.trim() || undefined,
+        trailColorRgb: newTrailColorRgb.trim() || undefined,
+        badgeTextColorRgb: newBadgeTextColorRgb.trim() || undefined,
+        badgeLabel: newBadgeLabel.trim() || undefined,
+      }),
     })
     setCreating(false)
     if (res.ok) {
-      setNewTitle(""); setNewDesc(""); setShowForm(false)
+      setNewTitle(""); setNewStatus("DRAFT"); setNewDesc("")
+      setNewCoverImage(""); setNewTrailColorRgb(""); setNewBadgeTextColorRgb(""); setNewBadgeLabel("")
+      setShowForm(false)
       load()
     }
   }
@@ -131,27 +267,84 @@ export default function AdminTrilhasPage() {
 
       {/* Create form */}
       {showForm && (
-        <form onSubmit={createTrilha} className="mb-8 rounded-xl border border-border bg-muted/30 p-5 space-y-3">
+        <form onSubmit={createTrilha} className="mb-8 rounded-xl border border-border bg-muted/30 p-5 space-y-4">
           <h2 className="font-semibold text-sm">Nova trilha</h2>
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Título *</label>
-            <input
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              placeholder="ex: PlayStation 5 — Do básico ao avançado"
-              value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
-              required
-            />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Título *</label>
+              <input
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                placeholder="ex: PlayStation 5 — Do básico ao avançado"
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Status</label>
+              <select
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                value={newStatus}
+                onChange={e => setNewStatus(e.target.value)}
+              >
+                <option value="DRAFT">Rascunho</option>
+                <option value="PUBLISHED">Publicado</option>
+                <option value="ARCHIVED">Arquivado</option>
+              </select>
+            </div>
+            <div>
+              <RgbPickerField
+                label="Cor da trilha (RGB)"
+                value={newTrailColorRgb}
+                onChange={setNewTrailColorRgb}
+                placeholder="rgb(16, 124, 16)"
+                hint="Use a paleta ao lado ou digite no formato rgb(r, g, b)."
+              />
+            </div>
+            <div>
+              <RgbPickerField
+                label="Cor do texto do badge (RGB)"
+                value={newBadgeTextColorRgb}
+                onChange={setNewBadgeTextColorRgb}
+                placeholder="rgb(255, 255, 255)"
+                hint="Ex.: branco para badges escuros."
+              />
+            </div>
           </div>
+
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Descrição curta</label>
-            <input
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              placeholder="Uma linha descrevendo a trilha"
+            <label className="text-xs text-muted-foreground block mb-1">Descrição da trilha (aparece na capa)</label>
+            <textarea
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              rows={3}
+              placeholder="Ex.: Aprenda a diagnosticar e reparar o PlayStation 5 do zero ao avançado."
               value={newDesc}
               onChange={e => setNewDesc(e.target.value)}
             />
           </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Imagem da capa da trilha</label>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Usada como banner de fundo na página da trilha. Envie uma imagem ou cole a URL.
+            </p>
+            <CoverUploadField value={newCoverImage} onChange={setNewCoverImage} />
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Badge dos cards de aula</label>
+            <input
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="Ex: Grátis, Xbox, PS5, Novo..."
+              value={newBadgeLabel}
+              onChange={e => setNewBadgeLabel(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Texto exibido como badge em todos os cards de aula desta trilha. Deixe vazio para não exibir.
+            </p>
+          </div>
+
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={creating}>
               {creating && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
