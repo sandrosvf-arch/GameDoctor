@@ -6,8 +6,6 @@ import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
   CheckCircle2,
   Download,
   FileSpreadsheet,
@@ -18,7 +16,9 @@ import {
   MessageSquare,
   Paperclip,
   Play,
+  SkipBack,
   SkipForward,
+  Sparkles,
   User2,
   X,
 } from "lucide-react"
@@ -331,26 +331,6 @@ export default function BunnyAulaClient({
               ) : null}
             </div>
 
-            {/* Mobile: Concluir button */}
-            {isAccessible && lessonId && (
-              <button
-                onClick={handleMarkComplete}
-                disabled={completingLesson}
-                className={cn(
-                  "flex md:hidden w-full items-center justify-center gap-2 rounded-xl h-11 text-sm font-semibold border transition-colors disabled:opacity-60",
-                  completed
-                    ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
-                    : "border-border text-muted-foreground"
-                )}
-              >
-                {completingLesson
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <CheckCircle2 className="h-4 w-4" />
-                }
-                {completed ? "Aula concluída" : "Concluir aula"}
-              </button>
-            )}
-
             {/* Title + Concluída */}
             <div className="flex items-center justify-between gap-4">
               <h1 className="text-xl font-bold leading-snug flex-1 min-w-0 truncate">{title}</h1>
@@ -418,7 +398,7 @@ export default function BunnyAulaClient({
             )}
 
             <div>
-              <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+              <h2 id="aula-comments" className="mb-4 flex items-center gap-2 text-sm font-semibold">
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 Comentários
               </h2>
@@ -534,61 +514,78 @@ export default function BunnyAulaClient({
         </div>
       </div>
 
-      {/* ── Mobile: floating bottom nav ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden border-t border-border/60 bg-zinc-950/95 backdrop-blur-sm">
-        <div className="flex items-center h-14 px-2 gap-1">
+      {/* ── Mobile: floating pill navbar ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden pointer-events-none">
+        <div className="pointer-events-auto mx-4 mb-5 flex items-center justify-around rounded-2xl bg-zinc-900 border border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.6)] h-[60px] px-1">
 
-          {/* Lesson list toggle */}
+          {/* Anterior */}
+          {prevLesson ? (
+            <Link
+              href={prevLesson.videoProviderId ? `/aula/bunny/${prevLesson.videoProviderId}` : `/aula/${prevLesson.id}`}
+              className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-300 active:text-white transition-colors"
+            >
+              <SkipBack className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Anterior</span>
+            </Link>
+          ) : (
+            <span className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-700 cursor-not-allowed select-none">
+              <SkipBack className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Anterior</span>
+            </span>
+          )}
+
+          {/* Lista */}
           <button
             onClick={() => setListOpen(v => !v)}
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-xl transition-colors active:bg-white/10",
-              listOpen ? "text-primary" : "text-zinc-400"
+              "flex flex-col items-center justify-center gap-0.5 w-[19%] h-full transition-colors active:opacity-70",
+              listOpen ? "text-primary" : "text-zinc-300"
             )}
           >
-            <List className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Aulas</span>
+            <List className="h-[18px] w-[18px]" />
+            <span className="text-[10px] font-medium">Lista</span>
           </button>
 
-          {/* Prev / Next */}
-          <div className="flex flex-1 items-center justify-center gap-3">
-            {prevLesson ? (
-              <Link
-                href={prevLesson.videoProviderId ? `/aula/bunny/${prevLesson.videoProviderId}` : `/aula/${prevLesson.id}`}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/40 text-white active:bg-muted"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Link>
-            ) : (
-              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/20 text-zinc-700 cursor-not-allowed">
-                <ChevronLeft className="h-5 w-5" />
-              </span>
-            )}
-            {nextLesson ? (
-              <Link
-                href={nextLesson.videoProviderId ? `/aula/bunny/${nextLesson.videoProviderId}` : `/aula/${nextLesson.id}`}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/40 text-white active:bg-muted"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Link>
-            ) : (
-              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/20 text-zinc-700 cursor-not-allowed">
-                <ChevronRight className="h-5 w-5" />
-              </span>
-            )}
-          </div>
-
-          {/* Auto-advance toggle */}
+          {/* Perguntar */}
           <button
-            onClick={toggleAutoAdvance}
+            onClick={() => document.getElementById('aula-comments')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-300 active:text-white transition-colors"
+          >
+            <Sparkles className="h-[18px] w-[18px]" />
+            <span className="text-[10px] font-medium">Perguntar</span>
+          </button>
+
+          {/* Concluir */}
+          <button
+            onClick={isAccessible && lessonId ? handleMarkComplete : undefined}
+            disabled={completingLesson || !isAccessible || !lessonId}
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-xl transition-colors active:bg-white/10",
-              autoAdvance ? "text-primary" : "text-zinc-400"
+              "flex flex-col items-center justify-center gap-0.5 w-[19%] h-full transition-colors active:opacity-70 disabled:opacity-40",
+              completed ? "text-emerald-400" : "text-zinc-300"
             )}
           >
-            <SkipForward className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Auto</span>
+            {completingLesson
+              ? <Loader2 className="h-[18px] w-[18px] animate-spin" />
+              : <CheckCircle2 className="h-[18px] w-[18px]" />
+            }
+            <span className="text-[10px] font-medium">Concluir</span>
           </button>
+
+          {/* Próximo */}
+          {nextLesson ? (
+            <Link
+              href={nextLesson.videoProviderId ? `/aula/bunny/${nextLesson.videoProviderId}` : `/aula/${nextLesson.id}`}
+              className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-300 active:text-white transition-colors"
+            >
+              <SkipForward className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Próximo</span>
+            </Link>
+          ) : (
+            <span className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-700 cursor-not-allowed select-none">
+              <SkipForward className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Próximo</span>
+            </span>
+          )}
         </div>
       </div>
 
