@@ -150,7 +150,7 @@ export default async function TrailPage({ params }: TrailPageProps) {
       <main className="bg-zinc-950 text-white overflow-x-hidden">
 
         {/* Course Header — same layout as home hero banner */}
-        <section className="relative min-h-[60vh] md:min-h-[92vh] flex items-center overflow-hidden">
+        <section className="relative min-h-[60vh] md:min-h-[92vh] flex items-start md:items-center overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={heroImage}
@@ -162,7 +162,7 @@ export default async function TrailPage({ params }: TrailPageProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 from-[0%] via-zinc-950/30 via-[15%] to-transparent to-[35%]" />
 
           {/* Content */}
-          <div className="relative z-10 w-full pt-10 px-10 md:pt-0 md:px-0 md:pl-44 lg:pl-64">
+          <div className="relative z-10 w-full pt-5 px-10 md:pt-0 md:px-0 md:pl-44 lg:pl-64">
             <div className="max-w-[520px] space-y-4">
               <Link
                 href="/"
