@@ -489,7 +489,7 @@ export default async function HomePage() {
                     <Link
                       key={course.id}
                       href={course.href}
-                      className="group/card flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]"
+                      className="group/card flex-shrink-0 w-[260px] sm:w-[280px] md:w-[320px] lg:w-[360px]"
                     >
                       {/* Gradient border wrapper â€” strong on left, fades right */}
                       <div
