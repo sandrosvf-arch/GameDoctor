@@ -359,14 +359,12 @@ export default async function HomePage() {
 
     // Populate color overrides from DB
     dbCourses.forEach((course) => {
-      const rowId = slugToRowId[course.slug]
-      if (rowId) {
-        const parsedTrailColor = parseRgbCssColor(course.trailColorRgb)
-        const parsedBadgeColor = parseRgbCssColor(course.badgeTextColorRgb)
-        if (parsedTrailColor) rowColorOverrides[rowId] = parsedTrailColor
-        if (parsedBadgeColor) badgeTextColorOverrides[rowId] = parsedBadgeColor
-        if (course.badgeLabel) badgeLabelOverrides[rowId] = course.badgeLabel
-      }
+      const rowId = slugToRowId[course.slug] ?? course.slug
+      const parsedTrailColor = parseRgbCssColor(course.trailColorRgb)
+      const parsedBadgeColor = parseRgbCssColor(course.badgeTextColorRgb)
+      if (parsedTrailColor) rowColorOverrides[rowId] = parsedTrailColor
+      if (parsedBadgeColor) badgeTextColorOverrides[rowId] = parsedBadgeColor
+      if (course.badgeLabel) badgeLabelOverrides[rowId] = course.badgeLabel
     })
     const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
 
