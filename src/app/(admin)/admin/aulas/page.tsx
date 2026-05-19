@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { uploadAdminImage } from "@/lib/admin-image-upload"
 
 const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
 
@@ -44,18 +45,6 @@ function formatSecs(s: number | null | undefined) {
   return r > 0 ? `${m}min ${r}s` : `${m}min`
 }
 
-function readImageAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result)
-      else reject(new Error("Não foi possível ler a imagem."))
-    }
-    reader.onerror = () => reject(new Error("Não foi possível ler a imagem."))
-    reader.readAsDataURL(file)
-  })
-}
-
 function ThumbnailField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [uploading, setUploading] = useState(false)
 
@@ -63,7 +52,7 @@ function ThumbnailField({ value, onChange }: { value: string; onChange: (v: stri
     if (!file) return
     if (!file.type.startsWith("image/")) { alert("Selecione uma imagem válida."); return }
     setUploading(true)
-    try { onChange(await readImageAsDataUrl(file)) } catch { /* noop */ } finally { setUploading(false) }
+    try { onChange(await uploadAdminImage(file, "lessons")) } catch (error) { alert(error instanceof Error ? error.message : "Não foi possível enviar a imagem.") } finally { setUploading(false) }
   }
 
   return (
@@ -76,7 +65,7 @@ function ThumbnailField({ value, onChange }: { value: string; onChange: (v: stri
         </label>
         <input
           className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
-          placeholder="URL ou data:image/..."
+          placeholder="URL da imagem ou upload"
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />

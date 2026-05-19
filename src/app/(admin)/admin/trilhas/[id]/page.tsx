@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { uploadAdminImage } from "@/lib/admin-image-upload"
 
 const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
 const BUNNY_LIBRARY_ID = "659969"
@@ -148,21 +149,6 @@ function RgbPickerField({
   )
 }
 
-function readImageAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result)
-      } else {
-        reject(new Error("Não foi possível ler a imagem."))
-      }
-    }
-    reader.onerror = () => reject(new Error("Não foi possível ler a imagem."))
-    reader.readAsDataURL(file)
-  })
-}
-
 function CoverUploadField({
   value,
   onChange,
@@ -182,8 +168,8 @@ function CoverUploadField({
     setUploading(true)
     setFileName(file.name)
     try {
-      const dataUrl = await readImageAsDataUrl(file)
-      onChange(dataUrl)
+      const url = await uploadAdminImage(file, "trails")
+      onChange(url)
     } catch (error) {
       alert(error instanceof Error ? error.message : "Não foi possível carregar a imagem.")
     } finally {
