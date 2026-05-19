@@ -170,6 +170,7 @@ export default function BunnyAulaClient({
 
   useEffect(() => {
     setMounted(true)
+    window.scrollTo(0, 0)
     const saved = localStorage.getItem("gamedoctor_autoadvance")
     if (saved === "1") setAutoAdvance(true)
   }, [])
@@ -279,7 +280,7 @@ export default function BunnyAulaClient({
         <div className="flex items-start gap-6">
           <div className="flex-1 min-w-0 space-y-6">
             <div
-              className="relative w-full overflow-hidden rounded-xl bg-black shadow-xl"
+              className="relative w-full -mx-8 md:mx-0 overflow-hidden rounded-none md:rounded-xl bg-black shadow-xl"
               style={{ aspectRatio: "16/9" }}
             >
               {paywallVisible && <PaywallOverlay videoId={videoId} />}
@@ -287,8 +288,9 @@ export default function BunnyAulaClient({
                 <ReactPlayer
                   url={playbackUrl}
                   playing={started && !paywallVisible}
-                  controls={!paywallVisible}
+                  controls={isAccessible && !paywallVisible}
                   muted
+                  playsInline
                   light={previewImage ?? true}
                   playIcon={
                     <button

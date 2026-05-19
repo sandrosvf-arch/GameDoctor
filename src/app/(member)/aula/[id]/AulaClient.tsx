@@ -194,6 +194,8 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     }
   }, [lessonId])
 
+  useEffect(() => { window.scrollTo(0, 0) }, [])
+
   useEffect(() => {
     load()
     return () => { if (previewTimerRef.current) clearTimeout(previewTimerRef.current) }
@@ -314,15 +316,16 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
           <div className="flex-1 min-w-0 space-y-6">
 
             {/* Video player */}
-            <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-xl" style={{ aspectRatio: "16/9" }}>
+            <div className="relative w-full -mx-8 md:mx-0 rounded-none md:rounded-xl overflow-hidden bg-black shadow-xl" style={{ aspectRatio: "16/9" }}>
               {paywallVisible && <PaywallOverlay lessonId={lessonId} />}
 
               {!paywallVisible && lesson.videoPlaybackUrl ? (
                 <ReactPlayer
                   src={lesson.videoPlaybackUrl}
                   playing
-                  controls
+                  controls={lesson.isAccessible}
                   muted
+                  playsInline
                   width="100%"
                   height="100%"
                   className="absolute inset-0"
@@ -333,7 +336,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                   src={`${lesson.videoEmbedUrl}${lesson.videoEmbedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1`}
                   className="absolute inset-0 w-full h-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
+                  allowFullScreen={lesson.isAccessible}
                   title={lesson.title}
                 />
               ) : !paywallVisible ? (
