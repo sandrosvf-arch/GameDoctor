@@ -162,7 +162,7 @@ export default async function TrailPage({ params }: TrailPageProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 from-[0%] via-zinc-950/30 via-[15%] to-transparent to-[35%]" />
 
           {/* Content */}
-          <div className="relative z-10 w-full pt-5 px-10 md:pt-0 md:px-0 md:pl-44 lg:pl-64">
+          <div className="relative z-10 w-full pt-16 px-10 md:pt-0 md:px-0 md:pl-44 lg:pl-64">
             <div className="max-w-[520px] space-y-4">
               <Link
                 href="/"
@@ -204,7 +204,7 @@ export default async function TrailPage({ params }: TrailPageProps) {
         </section>
 
         {/* Content — negative margin pulls the section up to overlap the banner bottom */}
-        <div className="relative z-10 -mt-10 md:-mt-32">
+        <div className="relative z-10 -mt-36 md:-mt-32">
           <TrailViewClient
             course={course}
             modules={course.modules}
