@@ -204,7 +204,7 @@ export default async function TrailPage({ params }: TrailPageProps) {
         </section>
 
         {/* Content — negative margin pulls the section up to overlap the banner bottom */}
-        <div className="relative z-10 -mt-32">
+        <div className="relative z-10 mt-6 md:-mt-32">
           <TrailViewClient
             course={course}
             modules={course.modules}
