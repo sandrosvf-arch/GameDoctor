@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth"
 
 const LIBRARY_ID = process.env.BUNNY_LIBRARY_ID
 const API_KEY = process.env.BUNNY_STREAM_API_KEY
-const CDN_HOST = process.env.BUNNY_CDN_HOSTNAME ?? "vz-38444944-922.b-cdn.net"
+import { BUNNY_CDN_HOST } from "@/lib/constants"
 
 const VIDEO_ID_RE = /^[0-9a-f-]{32,36}$/i
 
@@ -46,6 +46,6 @@ export async function POST(request: Request) {
   }
 
   // Add cache-busting version so browser/CDN serves the newly-set thumbnail
-  const thumbnailUrl = `https://${CDN_HOST}/${videoId}/thumbnail.jpg?v=${Date.now()}`
+  const thumbnailUrl = `https://${BUNNY_CDN_HOST}/${videoId}/thumbnail.jpg?v=${Date.now()}`
   return NextResponse.json({ thumbnailUrl })
 }

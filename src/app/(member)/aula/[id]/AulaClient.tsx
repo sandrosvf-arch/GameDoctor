@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
-import ReactPlayer from "react-player"
+import dynamic from "next/dynamic"
 import {
   ChevronLeft,
   ChevronRight,
@@ -89,6 +89,8 @@ function formatDuration(seconds: number | null | undefined): string {
   return `${m}:${s.toString().padStart(2, "0")}`
 }
 
+const ReactPlayer = dynamic(() => import("react-player"), { ssr: false })
+
 const materialIcon: Record<string, React.ReactNode> = {
   PDF: <FileText className="h-4 w-4 text-red-400" />,
   SPREADSHEET: <FileText className="h-4 w-4 text-green-400" />,
@@ -152,6 +154,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
 
   const [comments, setComments] = useState<CommentItem[]>([])
   const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentsVisible, setCommentsVisible] = useState(false)
   const [commentText, setCommentText] = useState("")
   const [submittingComment, setSubmittingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
@@ -234,7 +237,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     }
   }, [lessonId])
 
-  useEffect(() => { loadComments() }, [loadComments])
+  useEffect(() => { if (commentsVisible) loadComments() }, [commentsVisible, loadComments])
 
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -466,6 +469,15 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                 )}
               </h2>
 
+              {!commentsVisible ? (
+                <div className="flex justify-center py-6">
+                  <Button variant="outline" size="sm" onClick={() => setCommentsVisible(true)}>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Carregar comentários
+                  </Button>
+                </div>
+              ) : (
+                <>
               {/* Comment form */}
               <form onSubmit={submitComment} className="mb-6">
                 <div className="flex gap-3">
@@ -543,6 +555,8 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     </div>
                   ))}
                 </div>
+              )}
+                </>
               )}
             </div>
           </div>

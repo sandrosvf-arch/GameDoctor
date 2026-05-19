@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
+import { BUNNY_CDN_HOST } from "@/lib/constants"
 
 export interface LessonMaterial {
   id: string
@@ -451,7 +452,7 @@ export default function BunnyAulaClient({
                         : `/aula/${l.id}`
                       const dur = formatSecs(l.videoDurationSeconds ?? l.durationSeconds)
                       const thumb = l.thumbnail
-                        ?? (l.videoProviderId ? `https://vz-38444944-922.b-cdn.net/${l.videoProviderId}/thumbnail.jpg` : null)
+                        ?? (l.videoProviderId ? `https://${BUNNY_CDN_HOST}/${l.videoProviderId}/thumbnail.jpg` : null)
                         ?? l.videoThumbnailUrl
                       return (
                         <Link
