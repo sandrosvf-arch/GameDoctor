@@ -159,6 +159,7 @@ export default function BunnyAulaClient({
   isAccessible,
   isFree,
   courseTitle,
+  courseSlug,
   description,
   courseLessons,
   nextLesson,
