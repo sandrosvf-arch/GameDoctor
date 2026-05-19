@@ -315,7 +315,6 @@ export default function BunnyAulaClient({
                   url={playbackUrl}
                   playing={started && !paywallVisible}
                   controls={isAccessible && !paywallVisible}
-                  muted
                   playsInline
                   config={{ file: { attributes: { playsInline: true, 'webkit-playsinline': true } } }}
                   light={previewImage ?? true}
@@ -406,26 +405,18 @@ export default function BunnyAulaClient({
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 Comentários
               </h2>
-              <div className="mb-6 flex flex-col items-center gap-3 md:flex-row md:items-start">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
-                  <User2 className="h-4 w-4 text-muted-foreground" />
+              <div className="rounded-xl border border-border bg-muted/20 px-5 py-6 flex flex-col items-center gap-3 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                  <User2 className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <div className="w-full max-w-md md:max-w-none md:flex-1">
-                  <textarea
-                    placeholder="Deixe sua dúvida ou comentário..."
-                    rows={3}
-                    className="w-full resize-none rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                  <div className="mt-3 flex justify-center">
-                    <Button size="sm" asChild>
-                      <Link href="/login">Entrar para comentar</Link>
-                    </Button>
-                  </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Participe da discussão</p>
+                  <p className="text-xs text-muted-foreground">Faça login para deixar sua dúvida ou comentário nesta aula.</p>
                 </div>
+                <Button size="sm" asChild>
+                  <Link href="/login">Entrar para comentar</Link>
+                </Button>
               </div>
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                Seja o primeiro a comentar nesta aula.
-              </p>
             </div>
           </div>
 
