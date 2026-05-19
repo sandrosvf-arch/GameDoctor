@@ -95,3 +95,21 @@
   background: linear-gradient(90deg, hsl(var(--gd-primary)), hsl(var(--gd-secondary)));
   box-shadow: 0 0 8px hsl(var(--gd-primary) / 0.5);
 }
+
+/* ── CTA shine animation (paywall overlay) ── */
+.cta-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.cta-shine-pass {
+  animation: cta-shine-pass 2.2s ease-in-out infinite;
+}
+
+@keyframes cta-shine-pass {
+  0%   { left: -60%; opacity: 0; }
+  15%  { opacity: 0.9; }
+  45%  { left: 110%; opacity: 0; }
+  100% { left: 110%; opacity: 0; }
+}

@@ -213,34 +213,43 @@ export default function BunnyAulaClient({
             >
               {(!isAccessible && paywallVisible) ? (
                 // Paywall — ReactPlayer desmontado, nenhum <video> no DOM
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="absolute inset-0">
                   {previewImage && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={previewImage}
                       alt={title}
-                      className="absolute inset-0 h-full w-full object-cover brightness-50 blur-sm scale-110"
+                      className="absolute inset-0 h-full w-full object-cover"
                       draggable={false}
                     />
                   )}
-                  <div className="relative z-10 flex flex-col items-center gap-4 px-6 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/50 backdrop-blur-sm">
-                      <Lock className="h-6 w-6 text-white" />
-                    </div>
-                    <p className="text-sm font-semibold text-white">Conteúdo exclusivo para assinantes</p>
-                    <div className="flex gap-2 flex-wrap justify-center">
-                      <Link
-                        href="/planos"
-                        className="inline-flex items-center rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-zinc-950"
-                      >
-                        Ver planos
-                      </Link>
-                      <Link
-                        href={`/login?callbackUrl=/aula/bunny/${videoId}`}
-                        className="inline-flex items-center rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm"
-                      >
-                        Já tenho acesso
-                      </Link>
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 px-6 text-center backdrop-blur-[1px] animate-in fade-in duration-500">
+                    <div className="w-full max-w-xl rounded-2xl border border-white/15 bg-zinc-950/70 p-5 shadow-2xl backdrop-blur-xl">
+                      <div className="flex items-center justify-center gap-2 text-white">
+                        <Play className="h-4 w-4 fill-white" />
+                        <p className="text-base font-semibold">Continue assistindo</p>
+                      </div>
+                      <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+                        Entre para a maior e mais completa plataforma de formação de técnicos em videogames do Brasil
+                      </p>
+                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <Link
+                          href="/planos"
+                          className="cta-shine inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-zinc-950 shadow-[0_8px_24px_rgba(16,185,129,0.28)]"
+                        >
+                          <span className="relative z-10">Continuar assistindo</span>
+                          <span
+                            aria-hidden
+                            className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]"
+                          />
+                        </Link>
+                        <Link
+                          href={`/login?callbackUrl=/aula/bunny/${videoId}`}
+                          className="inline-flex items-center justify-center rounded-xl border border-white/25 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                        >
+                          Já tenho acesso
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
