@@ -58,15 +58,15 @@ export function HorizontalCardRail({ children, className = "" }: HorizontalCardR
         {children}
       </div>
 
-      <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-20 hidden items-center justify-between px-2 md:flex md:px-4 lg:px-10">
+      <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-20 hidden items-center justify-between px-1 md:flex md:px-2 lg:px-6">
         <button
           type="button"
           onClick={() => scrollByAmount("left")}
           aria-label="Anterior"
           disabled={!canScrollLeft}
-          className={`pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-700/80 bg-zinc-950/80 text-white shadow-xl backdrop-blur transition-all hover:border-cyan-400 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40 ${hasAdvancedRight ? "visible" : "invisible"}`}
+          className={`pointer-events-auto group/btn relative inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-[0_0_20px_rgba(0,0,0,0.6)] backdrop-blur-sm transition-all duration-200 hover:border-cyan-400/80 hover:bg-zinc-900/90 hover:shadow-[0_0_24px_rgba(0,207,255,0.35)] hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-0 ${hasAdvancedRight ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         >
-          <ChevronLeft className="h-5 w-5" />
+          <ChevronLeft className="h-6 w-6 transition-transform duration-150 group-hover/btn:-translate-x-0.5" />
         </button>
 
         <button
@@ -74,9 +74,9 @@ export function HorizontalCardRail({ children, className = "" }: HorizontalCardR
           onClick={() => scrollByAmount("right")}
           aria-label="Próximo"
           disabled={!canScrollRight}
-          className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-700/80 bg-zinc-950/80 text-white shadow-xl backdrop-blur transition-all hover:border-cyan-400 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
+          className="pointer-events-auto group/btn relative inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-[0_0_20px_rgba(0,0,0,0.6)] backdrop-blur-sm transition-all duration-200 hover:border-cyan-400/80 hover:bg-zinc-900/90 hover:shadow-[0_0_24px_rgba(0,207,255,0.35)] hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-0"
         >
-          <ChevronRight className="h-5 w-5" />
+          <ChevronRight className="h-6 w-6 transition-transform duration-150 group-hover/btn:translate-x-0.5" />
         </button>
       </div>
     </div>
