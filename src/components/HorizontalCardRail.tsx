@@ -6,10 +6,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 interface HorizontalCardRailProps {
   children: ReactNode
   className?: string
-  accentColor?: string
 }
 
-export function HorizontalCardRail({ children, className = "", accentColor = "#00cfff" }: HorizontalCardRailProps) {
+export function HorizontalCardRail({ children, className = "" }: HorizontalCardRailProps) {
   const railRef = useRef<HTMLDivElement | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -65,11 +64,7 @@ export function HorizontalCardRail({ children, className = "", accentColor = "#0
           onClick={() => scrollByAmount("left")}
           aria-label="Anterior"
           disabled={!canScrollLeft}
-          style={{
-            borderColor: accentColor + "99",
-            boxShadow: `0 0 14px ${accentColor}55, 0 4px 16px rgba(0,0,0,0.5)`,
-          }}
-          className={`pointer-events-auto group/btn inline-flex h-11 w-11 items-center justify-center rounded-full border bg-zinc-950/85 text-white backdrop-blur transition-all duration-200 hover:scale-110 hover:brightness-125 active:scale-95 disabled:cursor-not-allowed disabled:opacity-0 ${hasAdvancedRight ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+          className={`pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-500/70 bg-zinc-950/85 text-cyan-400 shadow-[0_0_14px_rgba(0,207,255,0.4)] backdrop-blur transition-all duration-200 hover:scale-110 hover:border-cyan-400 hover:shadow-[0_0_22px_rgba(0,207,255,0.65)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-0 ${hasAdvancedRight ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -79,11 +74,7 @@ export function HorizontalCardRail({ children, className = "", accentColor = "#0
           onClick={() => scrollByAmount("right")}
           aria-label="Próximo"
           disabled={!canScrollRight}
-          style={{
-            borderColor: accentColor + "99",
-            boxShadow: `0 0 14px ${accentColor}55, 0 4px 16px rgba(0,0,0,0.5)`,
-          }}
-          className="pointer-events-auto group/btn inline-flex h-11 w-11 items-center justify-center rounded-full border bg-zinc-950/85 text-white backdrop-blur transition-all duration-200 hover:scale-110 hover:brightness-125 active:scale-95 disabled:cursor-not-allowed disabled:opacity-0"
+          className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-500/70 bg-zinc-950/85 text-cyan-400 shadow-[0_0_14px_rgba(0,207,255,0.4)] backdrop-blur transition-all duration-200 hover:scale-110 hover:border-cyan-400 hover:shadow-[0_0_22px_rgba(0,207,255,0.65)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-0"
         >
           <ChevronRight className="h-5 w-5" />
         </button>

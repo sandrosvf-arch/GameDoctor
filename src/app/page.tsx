@@ -482,7 +482,7 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              <HorizontalCardRail accentColor={accentColor}>
+              <HorizontalCardRail>
                 {row.courses.map((course) => {
                   return (
                     <Link
