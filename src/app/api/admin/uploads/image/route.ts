@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error("[admin/uploads/image] Supabase upload failed", error)
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 })
+    return NextResponse.json({ error: `Upload falhou: ${error.message}` }, { status: 500 })
   }
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(filePath)
