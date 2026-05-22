@@ -238,7 +238,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [newLessonTitle, setNewLessonTitle] = useState("")
   const [newBunnyId, setNewBunnyId] = useState("")
   const [newThumbnail, setNewThumbnail] = useState("")
-  const [newIsFree, setNewIsFree] = useState(true)
+  const [newIsFree, setNewIsFree] = useState(false)
   const [creatingLesson, setCreatingLesson] = useState(false)
 
   // Lesson inline edit
@@ -333,7 +333,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       }),
     })
     setCreatingLesson(false)
-    setNewLessonTitle(""); setNewBunnyId(""); setNewThumbnail(""); setNewIsFree(true)
+    setNewLessonTitle(""); setNewBunnyId(""); setNewThumbnail(""); setNewIsFree(false)
     setShowLessonForm(false)
     load(trilhaId)
   }
