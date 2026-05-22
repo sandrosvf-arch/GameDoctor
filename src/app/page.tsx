@@ -402,11 +402,11 @@ export default async function HomePage() {
         }
       })
 
-      // Find the original static row to keep its title
+      // Find the original static row to keep its platformBadge and fallback courses
       const staticRow = rows.find(r => r.id === rowId)
       return {
         id: rowId,
-        title: staticRow?.title ?? course.title,
+        title: course.title,
         platformBadge: staticRow?.platformBadge ?? rowPlatformBadge[rowId] ?? "",
         courses: cards.length > 0 ? cards : (staticRow?.courses ?? []),
         courseSlug: course.slug,
@@ -488,7 +488,7 @@ export default async function HomePage() {
                     <Link
                       key={course.id}
                       href={course.href}
-                      className="group/card flex-shrink-0 w-[280px] sm:w-[280px] md:w-[320px] lg:w-[360px]"
+                      className="group/card flex-shrink-0 w-[280px] sm:w-[280px] md:w-[320px] lg:w-[360px] xl:w-[380px] 2xl:w-[460px]"
                     >
                       {/* Gradient border wrapper â€” strong on left, fades right */}
                       <div
@@ -508,22 +508,21 @@ export default async function HomePage() {
 
                         {/* Top-left badges */}
                         <div className="absolute left-2.5 top-2.5 z-20 flex gap-1.5">
-                          {row.platformBadge && (row.platformBadge !== "GRÁTIS" || course.free) && (
-                            <span
-                              className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
-                              style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
-                            >
-                              {row.platformBadge}
-                            </span>
-                          )}
-                          {badgeLabelOverrides[row.id] && (
+                          {badgeLabelOverrides[row.id] ? (
                             <span
                               className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
                               style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
                             >
                               {badgeLabelOverrides[row.id]}
                             </span>
-                          )}
+                          ) : row.platformBadge && (row.platformBadge !== "GRÁTIS" || course.free) ? (
+                            <span
+                              className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
+                              style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
+                            >
+                              {row.platformBadge}
+                            </span>
+                          ) : null}
                         </div>
 
                         {/* Hover overlay with play/lock icon */}
