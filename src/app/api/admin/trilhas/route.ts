@@ -85,12 +85,17 @@ export async function POST(request: Request) {
 
   const finalSlug = slug?.trim() || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
 
+  // Assign displayOrder = max existing + 1 so the new trail appears last
+  const agg = await db.course.aggregate({ _max: { displayOrder: true } })
+  const nextOrder = (agg._max.displayOrder ?? -1) + 1
+
   const course = await db.course.create({
     data: {
       title: title.trim(),
       slug: finalSlug,
       shortDescription: shortDescription?.trim(),
       status: status as never,
+      displayOrder: nextOrder,
       ...(coverImage?.trim() && { coverImage: coverImage.trim() }),
       ...(normalizedTrailColor != null && { trailColorRgb: normalizedTrailColor }),
       ...(normalizedBadgeTextColor != null && { badgeTextColorRgb: normalizedBadgeTextColor }),

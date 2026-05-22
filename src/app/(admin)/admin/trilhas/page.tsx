@@ -155,7 +155,7 @@ export default function AdminTrilhasPage() {
   const [creating, setCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [newTitle, setNewTitle] = useState("")
-  const [newStatus, setNewStatus] = useState("DRAFT")
+  const [newStatus, setNewStatus] = useState("PUBLISHED")
   const [newDesc, setNewDesc] = useState("")
   const [newCoverImage, setNewCoverImage] = useState("")
   const [newTrailColorRgb, setNewTrailColorRgb] = useState("")
@@ -199,7 +199,7 @@ export default function AdminTrilhasPage() {
     })
     setCreating(false)
     if (res.ok) {
-      setNewTitle(""); setNewStatus("DRAFT"); setNewDesc("")
+      setNewTitle(""); setNewStatus("PUBLISHED"); setNewDesc("")
       setNewCoverImage(""); setNewTrailColorRgb(""); setNewBadgeTextColorRgb(""); setNewBadgeLabel("")
       setShowForm(false)
       load()
