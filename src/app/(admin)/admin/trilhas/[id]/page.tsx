@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
 import {
   Plus, Trash2, Loader2, ChevronLeft, GripVertical,
@@ -247,6 +247,12 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [savingLesson, setSavingLesson] = useState<string | null>(null)
   const [deletingLesson, setDeletingLesson] = useState<string | null>(null)
 
+  // Drag-to-reorder
+  const dragIndex = useRef<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
+  const [savingOrder, setSavingOrder] = useState(false)
+  const [localLessons, setLocalLessons] = useState<Lesson[]>([])
+
   // Materials
   const [lessonMaterials, setLessonMaterials] = useState<Record<string, MaterialItem[]>>({})
   const [loadingMaterials, setLoadingMaterials] = useState<string | null>(null)
@@ -269,6 +275,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     if (res.ok) {
       const data: Trilha = await res.json()
       setTrilha(data)
+      setLocalLessons(data.modules.flatMap(m => m.lessons))
       setEditTitle(data.title)
       setEditStatus(data.status)
       setEditShortDescription(data.shortDescription ?? "")
@@ -402,6 +409,26 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     setLessonEdits(prev => ({ ...prev, [lessonId]: { ...prev[lessonId], [field]: value } }))
   }
 
+  function handleDragStart(i: number) { dragIndex.current = i }
+  function handleDragOver(e: React.DragEvent, i: number) { e.preventDefault(); setDragOver(i) }
+  function handleDragEnd() { dragIndex.current = null; setDragOver(null) }
+  async function handleDrop(targetIndex: number) {
+    setDragOver(null)
+    const from = dragIndex.current; dragIndex.current = null
+    if (from === null || from === targetIndex) return
+    const reordered = [...localLessons]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(targetIndex, 0, moved)
+    setLocalLessons(reordered)
+    setSavingOrder(true)
+    await fetch(`/api/admin/trilhas/${trilhaId}/aulas/reorder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reordered.map((l, idx) => ({ id: l.id, order: idx }))),
+    })
+    setSavingOrder(false)
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -412,7 +439,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     <div className="p-8 text-muted-foreground">Trilha não encontrada.</div>
   )
 
-  const allLessons = trilha.modules.flatMap(m => m.lessons)
+  const allLessons = localLessons
 
   return (
     <div className="p-6 md:p-8 max-w-4xl space-y-8">
@@ -512,6 +539,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
             Aulas ({allLessons.length})
+            {savingOrder && <span className="ml-2 normal-case font-normal text-primary animate-pulse">Salvando...</span>}
           </h2>
           <Button size="sm" onClick={() => setShowLessonForm(!showLessonForm)}>
             <Plus className="h-4 w-4 mr-1.5" /> Nova aula
@@ -582,13 +610,24 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
             const editDuration = lesson.videoDurationSeconds ?? lesson.durationSeconds ?? 300
 
             return (
-              <div key={lesson.id} className={cn(
-                "rounded-xl border transition-colors",
-                isEditing ? "border-primary/40 bg-primary/5" : "border-border bg-muted/20 hover:bg-muted/40"
-              )}>
+              <div key={lesson.id}
+              draggable={!isEditing}
+              onDragStart={() => !isEditing && handleDragStart(i)}
+              onDragOver={e => !isEditing && handleDragOver(e, i)}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={() => !isEditing && handleDrop(i)}
+              onDragEnd={handleDragEnd}
+              className={cn(
+              "rounded-xl border transition-all select-none",
+              isEditing ? "border-primary/40 bg-primary/5" : "border-border bg-muted/20 hover:bg-muted/40",
+              !isEditing && dragOver === i && dragIndex.current !== i ? "border-primary/60 bg-primary/5 shadow-md" : "",
+              !isEditing && dragIndex.current === i ? "opacity-40" : "opacity-100",
+            )}>
                 {/* Row header */}
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 opacity-30" />
+                  <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0 transition-colors">
+                    <GripVertical className="h-4 w-4" />
+                  </div>
                   <span className="text-xs text-muted-foreground w-5 shrink-0">{i + 1}</span>
                   {displayThumb
                     ? <img src={displayThumb} alt="" className="w-16 aspect-video rounded object-cover shrink-0 bg-zinc-800" />
