@@ -25,7 +25,9 @@ import { cn } from "@/lib/utils"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { HeroBannerClient } from "@/components/HeroBannerClient"
-import { HorizontalCardRail } from "@/components/HorizontalCardRail"
+import { TrailRowView } from "@/components/TrailRowView"
+import { LazyMoreRows } from "@/components/LazyMoreRows"
+import { fetchHomeRows, type HomeRowDto } from "@/lib/home-rows"
 
 // â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type BadgeType = "FREE" | "NEW" | "PRO" | "PREMIUM"
@@ -204,14 +206,7 @@ export default async function HomePage() {
       ctaHref: "/cursos",
       secondaryCtaText: "Ver planos",
       secondaryCtaHref: "/planos",
-      consoles: [
-        "PlayStation 5",
-        "PlayStation 4",
-        "Xbox Series X|S",
-        "Xbox One",
-        "Nintendo Switch",
-        "Switch OLED",
-      ],
+      consoles: ["PlayStation 5", "PlayStation 4", "Xbox Series X|S", "Xbox One", "Nintendo Switch", "Switch OLED"],
     },
     {
       id: "default-2",
@@ -225,21 +220,15 @@ export default async function HomePage() {
       ctaHref: "/aula/demo-lesson-ps5-01",
       secondaryCtaText: "Todos os cursos",
       secondaryCtaHref: "/cursos",
-      consoles: [
-        "PlayStation 5",
-        "Xbox Series X|S",
-        "Nintendo Switch",
-      ],
+      consoles: ["PlayStation 5", "Xbox Series X|S", "Nintendo Switch"],
     },
   ]
 
   const banners = dbBanners.length > 0 ? dbBanners : fallbackBanners
 
-  // â”€â”€ "Continue assistindo" row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // Logged-in users: last watched lessons from DB. Fallback: PS5 courses.
+  // ── "Continue assistindo" row ──────────────────────────────────────────
   let continueWatchingCourses: CourseCard[] = ps5
   let continueWatchingTitle = "PlayStation 5"
-  let continueWatchingPlatformBadge = "PS5"
   let isLoggedIn = false
 
   try {
@@ -257,7 +246,6 @@ export default async function HomePage() {
       })
       if (recentProgress.length > 0) {
         continueWatchingTitle = "Continue assistindo"
-        continueWatchingPlatformBadge = "CONTINUAR"
         continueWatchingCourses = recentProgress.map((p) => {
           const dur = p.lesson.durationSeconds
           const durStr = dur ? (dur >= 3600 ? `${Math.floor(dur / 3600)}h ${Math.floor((dur % 3600) / 60)}min` : `${Math.floor(dur / 60)} min`) : ""
@@ -278,308 +266,80 @@ export default async function HomePage() {
       }
     }
   } catch {
-    // DB unreachable or unauthenticated - use PS5 fallback
+    // DB unreachable or unauthenticated
   }
 
-  const continueRow: CourseRow | null = isLoggedIn && continueWatchingTitle === "Continue assistindo"
-    ? { id: "continue", title: "Continue assistindo", platformBadge: continueWatchingPlatformBadge, courses: continueWatchingCourses }
-    : null
-
-  // â”€â”€ Course order + lessons from DB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // Map static row id â†’ DB slug
-  const rowSlugMap: Record<string, string> = {
-    primeiros: "inicio-da-jornada",
-    ps5:       "playstation-5",
-    xbox:      "xbox-series-xs",
-    switch:    "nintendo-switch",
-    basics:    "fundamentos-de-eletronica",
-  }
-
-  // Row brand colors and default gradients per row id
-  const rowGradients: Record<string, string> = {
-    primeiros: "from-amber-950 to-yellow-950",
-    ps5:       "from-blue-950 via-blue-900 to-indigo-950",
-    xbox:      "from-green-950 via-emerald-950 to-green-950",
-    switch:    "from-red-950 via-rose-950 to-red-950",
-    basics:    "from-amber-950 via-orange-950 to-amber-950",
-  }
-  const rowIconColors: Record<string, string> = {
-    primeiros: "text-amber-400",
-    ps5:       "text-blue-400",
-    xbox:      "text-green-400",
-    switch:    "text-red-400",
-    basics:    "text-amber-400",
-  }
-
-  let rowColorOverrides: Record<string, string> = {}
-  let badgeTextColorOverrides: Record<string, string> = {}
-  let badgeLabelOverrides: Record<string, string | null> = {}
-
-  let orderedRows = rows
-  try {
-    const dbCourses = await db.course.findMany({
-      where: { status: "PUBLISHED" },
-      select: {
-        slug: true,
-        title: true,
-        displayOrder: true,
-        trailColorRgb: true,
-        badgeTextColorRgb: true,
-        badgeLabel: true,
-        lessons: {
-          where: { moduleId: null },
-          orderBy: { order: "asc" },
-          select: {
-            id: true, title: true, description: true,
-            durationSeconds: true, videoDurationSeconds: true,
-            videoProviderId: true, videoThumbnailUrl: true, thumbnail: true,
-            isFree: true, status: true,
-          },
-        },
-        modules: {
-          orderBy: { order: "asc" },
-          include: {
-            lessons: {
-              orderBy: { order: "asc" },
-              select: {
-                id: true, title: true, description: true,
-                durationSeconds: true, videoDurationSeconds: true,
-                videoProviderId: true, videoThumbnailUrl: true, thumbnail: true,
-                isFree: true, status: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { displayOrder: "asc" },
-    })
-
-    // Build slug â†’ row id map (reverse of rowSlugMap)
-    const slugToRowId = Object.fromEntries(Object.entries(rowSlugMap).map(([k, v]) => [v, k]))
-
-    // Populate color overrides from DB
-    dbCourses.forEach((course) => {
-      const rowId = slugToRowId[course.slug] ?? course.slug
-      const parsedTrailColor = parseRgbCssColor(course.trailColorRgb)
-      const parsedBadgeColor = parseRgbCssColor(course.badgeTextColorRgb)
-      if (parsedTrailColor) rowColorOverrides[rowId] = parsedTrailColor
-      if (parsedBadgeColor) badgeTextColorOverrides[rowId] = parsedBadgeColor
-      if (course.badgeLabel) badgeLabelOverrides[rowId] = course.badgeLabel
-    })
-    const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
-
-    const dbRows: CourseRow[] = dbCourses.map(course => {
-      const rowId = slugToRowId[course.slug] ?? course.slug
-      const allLessons = [
-        ...course.lessons,
-        ...course.modules.flatMap(m => m.lessons),
-      ]
-      const cards: CourseCard[] = allLessons.map(l => {
-        const dur = l.videoDurationSeconds ?? l.durationSeconds
-        const durStr = dur
-          ? dur >= 3600
-            ? `${Math.floor(dur / 3600)}h ${Math.floor((dur % 3600) / 60)}min`
-            : `${Math.floor(dur / 60)} min`
-          : ""
-        const href = l.videoProviderId
-          ? `/aula/bunny/${l.videoProviderId}?titulo=${encodeURIComponent(l.title)}${l.description ? `&legenda=${encodeURIComponent(l.description)}` : ""}`
-          : `/aula/${l.id}`
-        const thumbnail = l.thumbnail
-          ?? (l.videoProviderId ? `https://${BUNNY_CDN}/${l.videoProviderId}/thumbnail.jpg` : null)
-          ?? l.videoThumbnailUrl
-          ?? "/thumbs/t01.jpg"
-        return {
-          id: l.id,
-          title: l.title,
-          duration: durStr,
-          badge: l.isFree ? "FREE" as BadgeType : undefined,
-          gradient: rowGradients[rowId] ?? "from-zinc-900 to-zinc-800",
-          iconColor: rowIconColors[rowId] ?? "text-zinc-400",
-          Icon: Play,
-          free: l.isFree,
-          href,
-          thumbnail,
+  const continueHomeRow: HomeRowDto | null =
+    isLoggedIn && continueWatchingTitle === "Continue assistindo"
+      ? {
+          id: "continue",
+          title: "Continue assistindo",
+          platformBadge: "CONTINUAR",
+          courseSlug: "",
+          brandColor: "#00cfff",
+          badgeTextColor: "#ffffff",
+          badgeLabel: null,
+          cards: continueWatchingCourses.map((c) => ({
+            id: c.id,
+            title: c.title,
+            duration: c.duration,
+            isFree: c.free,
+            href: c.href,
+            thumbnail: c.thumbnail,
+          })),
         }
-      })
+      : null
 
-      // Find the original static row to keep its platformBadge and fallback courses
-      const staticRow = rows.find(r => r.id === rowId)
-      return {
-        id: rowId,
-        title: course.title,
-        platformBadge: staticRow?.platformBadge ?? rowPlatformBadge[rowId] ?? "",
-        courses: cards.length > 0 ? cards : (staticRow?.courses ?? []),
-        courseSlug: course.slug,
-      }
-    })
-
-    // Sort by displayOrder and fill in any rows missing from DB with static fallback
-    const dbRowIds = new Set(dbRows.map(r => r.id))
-    const fallbackRows = rows.filter(r => !dbRowIds.has(r.id))
-    const allRows = [...dbRows, ...fallbackRows]
-
-    // Re-sort by DB displayOrder
-    const slugToOrder = Object.fromEntries(dbCourses.map(c => [slugToRowId[c.slug] ?? c.slug, c.displayOrder]))
-    orderedRows = allRows.sort((a, b) => {
-      const oa = slugToOrder[a.id] ?? 99
-      const ob = slugToOrder[b.id] ?? 99
-      return oa - ob
-    })
+  // ── Course rows (first 2 from DB; rest load lazily on scroll) ───────────
+  let initialHomeRows: HomeRowDto[] = []
+  let totalDbRows = 0
+  try {
+    const result = await fetchHomeRows(0, 2)
+    initialHomeRows = result.rows
+    totalDbRows = result.total
   } catch {
-    // fallback to static lessons
+    // DB unreachable – static fallback rendered below
   }
+
+  // Static fallback rows (shown when DB is unreachable)
+  const staticHomeRows: HomeRowDto[] = rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    platformBadge: row.platformBadge,
+    courseSlug: row.courseSlug ?? "",
+    brandColor: getRowBrandColor(row.id, row.title),
+    badgeTextColor: "#ffffff",
+    badgeLabel: null,
+    cards: row.courses.map((c) => ({
+      id: c.id,
+      title: c.title,
+      duration: c.duration,
+      isFree: c.free,
+      href: c.href,
+      thumbnail: c.thumbnail,
+    })),
+  }))
 
   return (
     <>
       <Header />
       <main className="bg-zinc-950 text-white overflow-x-hidden">
 
-        {/* HERO â€” rotating banner */}
+        {/* HERO – rotating banner */}
         <HeroBannerClient banners={banners} />
 
-        {/* CARROSSEIS */}
+        {/* CARROSSÉIS */}
         <section className="pb-16 space-y-10 pt-2">
-          {[...(continueRow ? [continueRow] : []), ...orderedRows].map((row) => {
-            const resolvedRowColor = row.id === "continue"
-              ? "#00cfff"
-              : (rowColorOverrides[row.id] ?? getRowBrandColor(row.id, row.title))
-            const resolvedBadgeTextColor = row.id === "continue"
-              ? "#ffffff"
-              : (badgeTextColorOverrides[row.id] ?? "#ffffff")
-            const neonColor = row.id === "continue" ? "#00cfff" : resolvedRowColor
-            const accentColor = resolvedRowColor.includes("rgb") ? rgbToHex(resolvedRowColor) : resolvedRowColor
-            return (
-            <div key={row.id} className="relative">
-              <div className="px-4 md:px-8 lg:px-14 mb-3 flex items-baseline gap-3">
-                {/* Soft neon glow on left edge â€” no hard bar */}
-                {neonColor && (
-                  <div
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[28px] h-[40%] pointer-events-none rounded-full"
-                    style={{
-                      background: neonColor,
-                      filter: "blur(28px)",
-                      opacity: 0.75,
-                    }}
-                  />
-                )}
-                <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2.5">
-                  {row.id === "continue" && (
-                    <span className="inline-block w-2 h-6 rounded-full bg-cyan-400 shrink-0" />
-                  )}
-                  {row.id !== "continue" && (
-                    <span
-                      className="inline-block w-2 h-6 rounded-full shrink-0"
-                      style={{ backgroundColor: resolvedRowColor }}
-                    />
-                  )}
-                  {row.title}
-                </h2>
-                {row.subtitle && (
-                  <span className="text-xs text-zinc-600 hidden sm:block">{row.subtitle}</span>
-                )}
-                <Link href={row.courseSlug ? `/trilhas/${row.courseSlug}` : "/cursos"} className="ml-auto text-sm font-semibold text-cyan-500 hover:text-cyan-300 flex items-center gap-1 whitespace-nowrap transition-colors">
-                  Ver todos <ChevronRight className="h-4 w-4" />
-                </Link>
-              </div>
-
-              <HorizontalCardRail>
-                {row.courses.map((course) => {
-                  return (
-                    <Link
-                      key={course.id}
-                      href={course.href}
-                      className="group/card flex-shrink-0 w-[280px] sm:w-[280px] md:w-[320px] lg:w-[360px] xl:w-[380px] 2xl:w-[460px]"
-                    >
-                      {/* Gradient border wrapper â€” strong on left, fades right */}
-                      <div
-                        className="relative overflow-hidden rounded-[12px] p-[1.2px] transition-colors duration-200 ease-out"
-                        style={{
-                            background: `radial-gradient(58% 96% at 0% 50%, ${accentColor}ff 0%, ${accentColor}f0 12%, ${accentColor}66 24%, ${accentColor}22 36%, transparent 48%), linear-gradient(to right, ${accentColor}20, ${accentColor}1a)`,
-                            boxShadow: `0 4px 20px rgba(0,0,0,0.45)`,
-                        }}
-                      >
-                      <div className="relative z-10 aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
-                        {/* Thumbnail */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={course.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
-
-                        {/* Bottom shadow â€” strong, starts at mid-card */}
-                        <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
-
-                        {/* Top-left badges */}
-                        <div className="absolute left-2.5 top-2.5 z-20 flex gap-1.5">
-                          {badgeLabelOverrides[row.id] ? (
-                            <span
-                              className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
-                              style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
-                            >
-                              {badgeLabelOverrides[row.id]}
-                            </span>
-                          ) : row.platformBadge && (row.platformBadge !== "GRÁTIS" || course.free) ? (
-                            <span
-                              className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
-                              style={{ backgroundColor: resolvedRowColor, color: resolvedBadgeTextColor }}
-                            >
-                              {row.platformBadge}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        {/* Hover overlay with play/lock icon */}
-                        <div className="absolute inset-0 bg-black/15 opacity-0 transition-opacity duration-200 [@media(hover:hover)]:group-hover/card:opacity-100" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-200 [@media(hover:hover)]:group-hover/card:opacity-100">
-                          <div className="flex h-11 w-11 scale-95 items-center justify-center rounded-full border border-white/25 bg-white/15 backdrop-blur-sm transition-transform duration-200 [@media(hover:hover)]:group-hover/card:scale-100">
-                            <Play className="ml-0.5 h-5 w-5 fill-white text-white" />
-                          </div>
-                        </div>
-
-                        {/* Bottom content */}
-                        <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 pt-1">
-                          <p className="text-[18px] sm:text-[19px] font-bold leading-tight text-white line-clamp-2">
-                            {course.title}
-                          </p>
-                          <div className="mt-1.5 flex items-center">
-                            <span className="text-[11px] text-zinc-400 font-medium">{course.duration}</span>
-                            <svg viewBox="0 0 112 16" className="ml-auto h-[12px] w-28 shrink-0" aria-hidden="true">
-                              <defs>
-                                <linearGradient id={`hb-fade-${course.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                                  <stop offset="0%" stopColor={resolvedRowColor} stopOpacity="0" />
-                                  <stop offset="28%" stopColor={resolvedRowColor} stopOpacity="0.9" />
-                                  <stop offset="50%" stopColor={resolvedRowColor} stopOpacity="1" />
-                                  <stop offset="72%" stopColor={resolvedRowColor} stopOpacity="0.9" />
-                                  <stop offset="100%" stopColor={resolvedRowColor} stopOpacity="0" />
-                                </linearGradient>
-                              </defs>
-                              <path
-                                d="M0 8 H44 L48 11 L54 1 L60 15 L66 8 H112"
-                                fill="none"
-                                stroke={`url(#hb-fade-${course.id})`}
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      </div>
-                    </Link>
-                  )
-                })}
-
-                <Link href={row.courseSlug ? `/trilhas/${row.courseSlug}` : "/cursos"} className="group/more flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]">
-                  <div className="aspect-video rounded-[12px] border border-zinc-800 bg-zinc-900/40 group-hover/more:bg-zinc-800/60 transition-colors flex flex-col items-center justify-center gap-2">
-                    <div className="h-9 w-9 rounded-full border border-zinc-700 group-hover/more:border-zinc-500 flex items-center justify-center transition-colors">
-                      <ChevronRight className="h-5 w-5 text-zinc-600 group-hover/more:text-zinc-300 transition-colors" />
-                    </div>
-                    <span className="text-[11px] text-zinc-600 group-hover/more:text-zinc-300 transition-colors font-medium">
-                      Ver todos
-                    </span>
-                  </div>
-                </Link>
-              </HorizontalCardRail>
-            </div>
-          )})}
+          {initialHomeRows.length > 0 || continueHomeRow ? (
+            <>
+              {[...(continueHomeRow ? [continueHomeRow] : []), ...initialHomeRows].map((row) => (
+                <TrailRowView key={row.id} row={row} />
+              ))}
+              <LazyMoreRows skipCount={initialHomeRows.length} total={totalDbRows} />
+            </>
+          ) : (
+            staticHomeRows.map((row) => <TrailRowView key={row.id} row={row} />)
+          )}
         </section>
 
         {/* PLANOS */}
@@ -664,4 +424,3 @@ export default async function HomePage() {
     </>
   )
 }
-
