@@ -1,6 +1,9 @@
-import { auth } from "@/lib/auth"
+import NextAuth from "next-auth"
+import { authConfig } from "@/lib/auth/config"
 import { NextResponse } from "next/server"
 import type { NextAuthRequest } from "next-auth"
+
+const { auth } = NextAuth(authConfig)
 
 // Routes that require authentication (member area)
 // /aula e /curso são públicas — o paywall é feito dentro do player via preview
