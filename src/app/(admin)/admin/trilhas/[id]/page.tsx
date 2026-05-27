@@ -188,6 +188,7 @@ function CoverUploadField({
             className="hidden"
             disabled={uploading}
             onChange={(e) => {
+              e.stopPropagation()
               void handlePickFile(e.target.files?.[0] ?? null)
               e.currentTarget.value = ""
             }}
@@ -204,6 +205,7 @@ function CoverUploadField({
           placeholder="URL da imagem da capa"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
         />
         {value && (
           <img
@@ -236,6 +238,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   // New lesson form
   const [showLessonForm, setShowLessonForm] = useState(false)
   const [newLessonTitle, setNewLessonTitle] = useState("")
+  const [newLessonDescription, setNewLessonDescription] = useState("")
   const [newBunnyId, setNewBunnyId] = useState("")
   const [newThumbnail, setNewThumbnail] = useState("")
   const [newIsFree, setNewIsFree] = useState(false)
@@ -327,13 +330,14 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: newLessonTitle.trim(),
+        description: newLessonDescription.trim() || undefined,
         bunnyVideoId: newBunnyId.trim() || undefined,
         thumbnail: newThumbnail.trim() || undefined,
         isFree: newIsFree,
       }),
     })
     setCreatingLesson(false)
-    setNewLessonTitle(""); setNewBunnyId(""); setNewThumbnail(""); setNewIsFree(false)
+    setNewLessonTitle(""); setNewLessonDescription(""); setNewBunnyId(""); setNewThumbnail(""); setNewIsFree(false)
     setShowLessonForm(false)
     load(trilhaId)
   }
@@ -406,7 +410,10 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   }
 
   function patchEdit(lessonId: string, field: string, value: unknown) {
-    setLessonEdits(prev => ({ ...prev, [lessonId]: { ...prev[lessonId], [field]: value } }))
+    setLessonEdits(prev => {
+      if (!prev[lessonId]) return prev
+      return { ...prev, [lessonId]: { ...prev[lessonId], [field]: value } }
+    })
   }
 
   function handleDragStart(i: number) { dragIndex.current = i }
@@ -561,8 +568,20 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                 <label className="text-xs text-muted-foreground block mb-1">Bunny Video ID</label>
                 <input className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  value={newBunnyId} onChange={e => { setNewBunnyId(e.target.value); setNewThumbnail("") }} />
+                  value={newBunnyId} onChange={e => setNewBunnyId(e.target.value)} />
               </div>
+            </div>
+
+            {/* Descrição */}
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Descrição</label>
+              <textarea
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                rows={2}
+                placeholder="Descreva o conteúdo da aula..."
+                value={newLessonDescription}
+                onChange={e => setNewLessonDescription(e.target.value)}
+              />
             </div>
 
             {/* Capa */}

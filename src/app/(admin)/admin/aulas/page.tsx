@@ -61,7 +61,7 @@ function ThumbnailField({ value, onChange }: { value: string; onChange: (v: stri
         <label className="inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3 border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
           {uploading ? "Enviando..." : "Imagem"}
           <input type="file" accept="image/*" className="hidden" disabled={uploading}
-            onChange={(e) => { void handleFile(e.target.files?.[0] ?? null); e.currentTarget.value = "" }} />
+            onChange={(e) => { e.stopPropagation(); void handleFile(e.target.files?.[0] ?? null); e.currentTarget.value = "" }} />
         </label>
         <input
           className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
@@ -182,7 +182,10 @@ export default function TodasAsAulasPage() {
   }
 
   function patch(id: string, field: keyof LessonEdits, value: unknown) {
-    setEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
+    setEdits(prev => {
+      if (!prev[id]) return prev
+      return { ...prev, [id]: { ...prev[id], [field]: value } }
+    })
   }
 
   async function save(id: string) {
