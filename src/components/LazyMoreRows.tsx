@@ -11,19 +11,32 @@ interface LazyMoreRowsProps {
   total: number
 }
 
+function CardSkeleton() {
+  return (
+    <div className="flex-shrink-0 w-[280px] sm:w-[280px] md:w-[320px] lg:w-[360px] xl:w-[380px] 2xl:w-[460px]">
+      <div className="rounded-[12px] p-[1.2px] bg-zinc-800/80">
+        <div className="aspect-video rounded-[11px] bg-zinc-800 overflow-hidden relative">
+          {/* shimmer sweep */}
+          <div className="card-shimmer absolute inset-0 w-[60%] bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function RowSkeleton() {
   return (
-    <div className="relative animate-pulse">
-      <div className="px-4 md:px-8 lg:px-14 mb-3 flex items-center gap-3">
-        <div className="w-2 h-6 rounded-full bg-zinc-800 shrink-0" />
-        <div className="h-5 w-44 bg-zinc-800 rounded" />
+    <div className="relative">
+      {/* Header */}
+      <div className="px-4 md:px-8 lg:px-14 mb-3 flex items-baseline gap-3">
+        <div className="w-2 h-6 rounded-full bg-zinc-800 shrink-0 animate-pulse" />
+        <div className="h-5 w-40 bg-zinc-800 rounded animate-pulse" />
+        <div className="ml-auto h-4 w-16 bg-zinc-800/60 rounded animate-pulse" />
       </div>
+      {/* Cards rail */}
       <div className="flex gap-3 overflow-hidden px-4 md:px-8 lg:px-14 pb-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[360px] aspect-video rounded-[12px] bg-zinc-800"
-          />
+        {Array.from({ length: 5 }).map((_, i) => (
+          <CardSkeleton key={i} />
         ))}
       </div>
     </div>

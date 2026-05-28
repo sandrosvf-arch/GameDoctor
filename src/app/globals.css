@@ -113,3 +113,12 @@
   45%  { left: 110%; opacity: 0; }
   100% { left: 110%; opacity: 0; }
 }
+
+/* ── Card skeleton shimmer ── */
+@keyframes card-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.card-shimmer {
+  animation: card-shimmer 1.6s ease-in-out infinite;
+}
