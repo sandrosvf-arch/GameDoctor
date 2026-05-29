@@ -116,6 +116,12 @@
   100% { left: 110%; opacity: 0; }
 }
 
+/* ── Suppress hover transitions during scroll ── */
+.is-scrolling * {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
 /* ── Card skeleton shimmer ── */
 @keyframes card-shimmer {
   0%   { transform: translateX(-100%); }

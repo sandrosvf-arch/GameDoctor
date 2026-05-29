@@ -20,6 +20,8 @@ export function HorizontalCardRail({ children, className = "" }: HorizontalCardR
     if (!rail || !leftBtn || !rightBtn) return
 
     // Direct DOM mutation — zero React re-renders on scroll
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null
+
     const sync = () => {
       const maxScroll = rail.scrollWidth - rail.clientWidth
       const atStart = rail.scrollLeft <= 4
@@ -32,6 +34,12 @@ export function HorizontalCardRail({ children, className = "" }: HorizontalCardR
       rightBtn.disabled = atEnd
       rightBtn.style.opacity = atEnd ? "0" : "1"
       rightBtn.style.pointerEvents = atEnd ? "none" : ""
+
+      // Suppress hover transitions while scrolling (prevents GPU-intensive
+      // backdrop-blur + opacity animations firing on every card the cursor passes over)
+      rail.classList.add("is-scrolling")
+      if (scrollTimer) clearTimeout(scrollTimer)
+      scrollTimer = setTimeout(() => rail.classList.remove("is-scrolling"), 200)
     }
 
     sync()
