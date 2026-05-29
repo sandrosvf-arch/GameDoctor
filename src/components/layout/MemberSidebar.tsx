@@ -51,7 +51,7 @@ export function MemberSidebar() {
   return (
     <aside
       className={cn(
-        "relative flex flex-col h-screen border-r border-border/40 bg-card/20 sticky top-0 transition-all duration-300 ease-in-out",
+        "relative flex flex-col h-[calc(100vh-4rem)] border-r border-border/40 bg-card/20 sticky top-16 transition-all duration-300 ease-in-out",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -80,19 +80,10 @@ export function MemberSidebar() {
         </Avatar>
 
         {!collapsed && (
-          <>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">{session?.user?.name}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{session?.user?.email}</p>
-            </div>
-            <button
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-              title="Sair"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium truncate">{session?.user?.name}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{session?.user?.email}</p>
+          </div>
         )}
       </div>
 
@@ -180,24 +171,24 @@ export function MemberSidebar() {
         </div>
       )}
 
-      {/* ── Logo (bottom) ── */}
-      <div className="border-t border-border/40 p-3 shrink-0 flex items-center justify-center">
+      {/* ── Logout (bottom) ── */}
+      <div className="border-t border-border/40 p-3 shrink-0">
         {collapsed ? (
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="text-muted-foreground hover:text-destructive transition-colors"
-            title="Sair"
+            className="w-full flex justify-center py-1.5 text-muted-foreground hover:text-destructive transition-colors"
+            title="Sair da conta"
           >
             <LogOut className="h-4 w-4" />
           </button>
         ) : (
-          <Link href="/" className="block w-full">
-            <img
-              src="/doctor-oficial.png"
-              alt="GameDoctor"
-              className="h-8 w-auto max-w-full object-contain"
-            />
-          </Link>
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            Sair da conta
+          </button>
         )}
       </div>
     </aside>
