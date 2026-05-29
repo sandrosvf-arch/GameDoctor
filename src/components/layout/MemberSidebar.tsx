@@ -67,30 +67,7 @@ export function MemberSidebar() {
         }
       </button>
 
-      {/* ── User header (top) — same height as navbar (h-16) ── */}
-      <div
-        className={cn(
-          "h-16 border-b border-border/40 px-3 shrink-0 flex items-center",
-          collapsed ? "justify-center" : "gap-3"
-        )}
-      >
-        <Avatar className="h-8 w-8 shrink-0">
-          <AvatarImage src={session?.user?.image ?? ""} />
-          <AvatarFallback className="bg-primary/20 text-primary text-xs">{initials}</AvatarFallback>
-        </Avatar>
-
-        {!collapsed && (
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="ml-auto text-muted-foreground hover:text-destructive transition-colors shrink-0"
-            title="Sair"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* ── Main Nav ── */}
+      {/* ── Main Nav ── */
       <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
         {mainNavItems.map((item) => {
           const Icon = item.icon
@@ -174,24 +151,36 @@ export function MemberSidebar() {
         </div>
       )}
 
-      {/* ── Logo (bottom) ── */}
-      <div className="border-t border-border/40 p-3 shrink-0 flex items-center justify-center">
+      {/* ── User / Logout (bottom) ── */}
+      <div className="border-t border-border/40 px-3 py-3 shrink-0">
         {collapsed ? (
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="text-muted-foreground hover:text-destructive transition-colors"
-            title="Sair"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+          <div className="flex justify-center">
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="text-muted-foreground hover:text-destructive transition-colors"
+              title="Sair"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         ) : (
-          <Link href="/" className="block w-full">
-            <img
-              src="/doctor-oficial.png"
-              alt="GameDoctor"
-              className="h-8 w-auto max-w-full object-contain"
-            />
-          </Link>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarImage src={session?.user?.image ?? ""} />
+              <AvatarFallback className="bg-primary/20 text-primary text-xs">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate">{session?.user?.name}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{session?.user?.email}</p>
+            </div>
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+              title="Sair"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         )}
       </div>
     </aside>
