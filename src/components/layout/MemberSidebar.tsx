@@ -67,7 +67,7 @@ export function MemberSidebar() {
         }
       </button>
 
-      {/* ── Main Nav ── */
+      {/* ── Main Nav ── */}
       <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
         {mainNavItems.map((item) => {
           const Icon = item.icon
