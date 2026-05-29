@@ -1,6 +1,12 @@
+import { Loader2 } from "lucide-react"
+
 export default function DashboardLoading() {
   return (
-    <div className="p-5 md:p-7 space-y-6 max-w-[1400px] animate-pulse">
+    <div className="flex items-center justify-center h-[60vh]">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  )
+}
 
       {/* Greeting */}
       <div className="flex flex-wrap items-start justify-between gap-3">
