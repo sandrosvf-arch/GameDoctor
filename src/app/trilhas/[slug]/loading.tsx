@@ -41,19 +41,83 @@ export default function TrailLoading() {
         </div>
       </section>
 
-      {/* Cards grid skeleton */}
-      <div className="relative z-10 -mt-36 md:-mt-32 px-6 md:px-10 lg:px-14 pb-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 animate-pulse">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="rounded-[12px] overflow-hidden bg-zinc-900">
-              <div className="aspect-video bg-zinc-800" />
-              <div className="p-3 space-y-2">
-                <div className="h-3.5 w-4/5 rounded bg-zinc-700" />
-                <div className="h-3 w-2/5 rounded bg-zinc-700" />
-              </div>
+      {/* Content section — matches TrailViewClient: px-4 pb-16 md:px-8 lg:px-14 */}
+      <div className="px-4 pb-16 md:px-8 lg:px-14 space-y-8 animate-pulse">
+
+        {/* Module container 1 */}
+        <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/35 p-4 md:p-6">
+          {/* Module header button */}
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-1 rounded-full bg-zinc-700 shrink-0" />
+              <div className="h-5 w-48 rounded bg-zinc-800" />
+              <div className="h-4 w-16 rounded bg-zinc-800" />
             </div>
-          ))}
+            <div className="h-5 w-5 rounded bg-zinc-800" />
+          </div>
+          {/* Lesson cards grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-[12px] overflow-hidden bg-zinc-900 p-[1.2px]">
+                <div className="relative aspect-video rounded-[11px] overflow-hidden bg-zinc-800">
+                  <div className="absolute inset-x-0 bottom-0 p-2.5 space-y-1">
+                    <div className="h-4 w-4/5 rounded bg-zinc-700" />
+                    <div className="h-3 w-2/5 rounded bg-zinc-700" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* Module container 2 */}
+        <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/35 p-4 md:p-6">
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-1 rounded-full bg-zinc-700 shrink-0" />
+              <div className="h-5 w-56 rounded bg-zinc-800" />
+              <div className="h-4 w-14 rounded bg-zinc-800" />
+            </div>
+            <div className="h-5 w-5 rounded bg-zinc-800" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-[12px] overflow-hidden bg-zinc-900 p-[1.2px]">
+                <div className="relative aspect-video rounded-[11px] overflow-hidden bg-zinc-800">
+                  <div className="absolute inset-x-0 bottom-0 p-2.5 space-y-1">
+                    <div className="h-4 w-3/4 rounded bg-zinc-700" />
+                    <div className="h-3 w-1/3 rounded bg-zinc-700" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Module container 3 */}
+        <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/35 p-4 md:p-6">
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-1 rounded-full bg-zinc-700 shrink-0" />
+              <div className="h-5 w-40 rounded bg-zinc-800" />
+              <div className="h-4 w-18 rounded bg-zinc-800" />
+            </div>
+            <div className="h-5 w-5 rounded bg-zinc-800" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-[12px] overflow-hidden bg-zinc-900 p-[1.2px]">
+                <div className="relative aspect-video rounded-[11px] overflow-hidden bg-zinc-800">
+                  <div className="absolute inset-x-0 bottom-0 p-2.5 space-y-1">
+                    <div className="h-4 w-4/5 rounded bg-zinc-700" />
+                    <div className="h-3 w-2/5 rounded bg-zinc-700" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   )
