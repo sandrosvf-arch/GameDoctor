@@ -26,7 +26,6 @@ import {
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { BUNNY_CDN_HOST } from "@/lib/constants"
 
@@ -178,8 +177,6 @@ export default function BunnyAulaClient({
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
-
       <div className="hidden md:block border-b border-border/50 bg-muted/30">
         <div className="container flex h-10 items-center gap-2 text-sm text-muted-foreground">
           <Link href="/cursos" className="transition-colors hover:text-foreground">

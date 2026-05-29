@@ -23,7 +23,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Header } from "@/components/layout/Header"
 import { cn } from "@/lib/utils"
 
 interface Material {
@@ -265,27 +264,21 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex items-center justify-center h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center px-4">
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center px-4">
           <AlertCircle className="h-10 w-10 text-destructive" />
           <p className="text-muted-foreground">Aula não encontrada ou indisponível.</p>
           <Button variant="outline" asChild>
             <Link href="/cursos">Ver cursos</Link>
           </Button>
         </div>
-      </div>
     )
   }
 
@@ -294,8 +287,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
-
       {/* Breadcrumb */}
       <div className="border-b border-border/50 bg-muted/30">
         <div className="container flex items-center gap-2 h-10 text-sm text-muted-foreground">
