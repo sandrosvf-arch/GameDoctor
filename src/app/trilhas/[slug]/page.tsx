@@ -16,11 +16,10 @@ interface TrailPageProps {
 }
 
 export default async function TrailPage({ params }: TrailPageProps) {
-  const session = await auth()
+  // Phase 1 – session + route params run in parallel
+  const [session, { slug }] = await Promise.all([auth(), params])
   const userId = session?.user?.id
 
-  // Find course by slug
-  const { slug } = await params
   const course = await db.course.findUnique({
     where: { slug },
     include: {
@@ -47,22 +46,21 @@ export default async function TrailPage({ params }: TrailPageProps) {
     notFound()
   }
 
-  // Get user's progress for this course
-  const userProgress = userId
-    ? await db.lessonProgress.findMany({
-        where: {
-          userId,
-          lesson: {
-            courseId: course.id,
-          },
-        },
-        select: {
-          lessonId: true,
-          watchedSeconds: true,
-          completedAt: true,
-        },
-      })
-    : []
+  // Determine free access before async work (pure computation)
+  const hasFree = course.lessons.some((l) => l.isFree) || course.modules.some((m) => m.lessons.some((l) => l.isFree))
+
+  // Phase 2 – progress + access check run in parallel (both depend on course)
+  const [userProgress, courseAccess] = await Promise.all([
+    userId
+      ? db.lessonProgress.findMany({
+          where: { userId, lesson: { courseId: course.id } },
+          select: { lessonId: true, watchedSeconds: true, completedAt: true },
+        })
+      : Promise.resolve([] as Awaited<ReturnType<typeof db.lessonProgress.findMany<{ select: { lessonId: true; watchedSeconds: true; completedAt: true } }>>>),
+    hasFree || !userId
+      ? Promise.resolve(hasFree)
+      : import("@/lib/access").then(({ hasAccessToCourse }) => hasAccessToCourse(userId!, course.id)),
+  ])
 
   // Calculate stats
   const allLessons = [
@@ -74,15 +72,6 @@ export default async function TrailPage({ params }: TrailPageProps) {
     0
   )
   const progressMap = new Map(userProgress.map((p) => [p.lessonId, p]))
-
-  // Check access to course
-  let courseAccess = false
-  if (course.lessons.some((l) => l.isFree) || course.modules.some((m) => m.lessons.some((l) => l.isFree))) {
-    courseAccess = true
-  } else if (userId) {
-    const { hasAccessToCourse } = await import("@/lib/access")
-    courseAccess = await hasAccessToCourse(userId, course.id)
-  }
 
   const handleDurationFormat = (seconds: number | null | undefined): string => {
     if (!seconds) return "Sem duração"

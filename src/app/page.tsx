@@ -28,6 +28,20 @@ import { HeroBannerClient } from "@/components/HeroBannerClient"
 import { TrailRowView } from "@/components/TrailRowView"
 import { LazyMoreRows } from "@/components/LazyMoreRows"
 import { fetchHomeRows, type HomeRowDto } from "@/lib/home-rows"
+import { unstable_cache } from "next/cache"
+
+// ── Server-side data cache (works even with force-dynamic) ─────────────────
+const getCachedBanners = unstable_cache(
+  () => db.heroBanner.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
+  ["home-banners"],
+  { revalidate: 60 }
+)
+
+const getCachedHomeRows = unstable_cache(
+  (skip: number, take: number) => fetchHomeRows(skip, take),
+  ["home-rows"],
+  { revalidate: 60 }
+)
 
 // â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type BadgeType = "FREE" | "NEW" | "PRO" | "PREMIUM"
@@ -181,16 +195,15 @@ const faqs = [
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export default async function HomePage() {
-  // Fetch active banners from DB; fall back to a static default if none exist or DB unreachable
-  let dbBanners: Awaited<ReturnType<typeof db.heroBanner.findMany>> = []
-  try {
-    dbBanners = await db.heroBanner.findMany({
-      where: { isActive: true },
-      orderBy: { order: "asc" },
-    })
-  } catch {
-    // fallback to static banners
-  }
+  // Phase 1 – independent queries run in parallel (cached banners, session, cached rows)
+  const [dbBanners, session, homeRowsResult] = await Promise.all([
+    getCachedBanners().catch(() => [] as Awaited<ReturnType<typeof db.heroBanner.findMany>>),
+    auth().catch(() => null),
+    getCachedHomeRows(0, 2).catch(() => ({ rows: [] as HomeRowDto[], total: 0 })),
+  ])
+
+  let initialHomeRows = homeRowsResult.rows
+  let totalDbRows = homeRowsResult.total
 
   // Static fallback shown before any banner is created via admin
   const fallbackBanners = [
@@ -231,8 +244,8 @@ export default async function HomePage() {
   let continueWatchingTitle = "PlayStation 5"
   let isLoggedIn = false
 
+  // Phase 2 – progress query depends on session from Phase 1
   try {
-    const session = await auth()
     if (session?.user?.id) {
       isLoggedIn = true
       const recentProgress = await db.lessonProgress.findMany({
@@ -289,17 +302,6 @@ export default async function HomePage() {
           })),
         }
       : null
-
-  // ── Course rows (first 2 from DB; rest load lazily on scroll) ───────────
-  let initialHomeRows: HomeRowDto[] = []
-  let totalDbRows = 0
-  try {
-    const result = await fetchHomeRows(0, 2)
-    initialHomeRows = result.rows
-    totalDbRows = result.total
-  } catch {
-    // DB unreachable – static fallback rendered below
-  }
 
   // Static fallback rows (shown when DB is unreachable)
   const staticHomeRows: HomeRowDto[] = rows.map((row) => ({
