@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Play, ChevronRight } from "lucide-react"
 import { HorizontalCardRail } from "@/components/HorizontalCardRail"
 import type { HomeRowDto } from "@/lib/home-rows"
@@ -45,6 +46,7 @@ export function TrailRowView({ row }: TrailRowViewProps) {
           <Link
             key={card.id}
             href={card.href}
+            prefetch={false}
             className="group/card flex-shrink-0 w-[280px] sm:w-[280px] md:w-[320px] lg:w-[360px] xl:w-[380px] 2xl:w-[460px]"
           >
             <div
@@ -56,14 +58,17 @@ export function TrailRowView({ row }: TrailRowViewProps) {
             >
               <div className="relative z-10 aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
                 {/* Thumbnail */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={card.thumbnail}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
-                  draggable={false}
-                  loading="lazy"
-                />
+                {card.thumbnail ? (
+                  <Image
+                    src={card.thumbnail}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 280px, (max-width: 1024px) 320px, (max-width: 1280px) 360px, (max-width: 1536px) 380px, 460px"
+                    className="object-cover"
+                    draggable={false}
+                    loading="lazy"
+                  />
+                ) : null}
 
                 {/* Bottom shadow */}
                 <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
