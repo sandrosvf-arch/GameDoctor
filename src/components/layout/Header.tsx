@@ -183,10 +183,10 @@ export function Header() {
           <form onSubmit={handleSearch} className="flex-1 max-w-sm mx-4">
             {/* Border wrapper — static blue at rest, spinning when searching */}
             <div className={cn(
-              "p-px rounded-lg",
+              "p-px rounded-xl",
               isSearching ? "search-spinning" : "search-static"
             )}>
-              <div className="relative rounded-[7px]">
+              <div className="relative rounded-[11px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70 pointer-events-none z-10" />
                 <input
                   ref={searchRef}
@@ -194,7 +194,7 @@ export function Header() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="O que você quer consertar?"
-                  className="h-9 w-full rounded-[7px] bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none transition-all"
+                  className="h-9 w-full rounded-[11px] bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none transition-all"
                 />
               </div>
             </div>

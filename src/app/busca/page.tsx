@@ -127,8 +127,8 @@ export default function BuscaPage() {
           <h1 className="text-2xl font-bold">Buscar</h1>
 
           {/* Search input with animated border */}
-          <div className={cn("p-px rounded-lg", loading ? "search-spinning" : "search-static")}>
-            <div className="relative rounded-[7px]">
+          <div className={cn("p-px rounded-xl", loading ? "search-spinning" : "search-static")}>
+            <div className="relative rounded-[11px]">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60 pointer-events-none" />
               <input
                 ref={inputRef}
@@ -136,7 +136,7 @@ export default function BuscaPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="O que você quer consertar?"
-                className="h-12 w-full rounded-[7px] bg-background pl-12 pr-10 text-base placeholder:text-muted-foreground/40 focus:outline-none"
+                className="h-12 w-full rounded-[11px] bg-background pl-12 pr-10 text-base placeholder:text-muted-foreground/40 focus:outline-none"
               />
               {query && (
                 <button
