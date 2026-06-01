@@ -116,7 +116,7 @@ export default function BuscaPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      {/* Search hero bar */}}
+      {/* Search hero bar */}
       <div className="border-b border-border/40 bg-card/30 py-8">
         <div className="container max-w-3xl space-y-3">
           <Link
