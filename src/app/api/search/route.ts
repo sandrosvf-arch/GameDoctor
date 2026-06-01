@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      take: 30,
+      take: 50,
     }),
   ])
 
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
         scoreText(l.course.title, q, terms) * 0.5,
     }))
     .sort((a, b) => b._score - a._score)
-    .slice(0, 15)
+    .slice(0, 50)
 
   return NextResponse.json({
     query: q,

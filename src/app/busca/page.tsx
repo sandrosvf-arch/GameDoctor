@@ -192,7 +192,7 @@ export default function BuscaPage() {
               <BookOpen className="h-4 w-4" />
               Trilhas / Cursos ({courses.length})
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {courses.map((course) => {
                 const accent = course.trailColorRgb ? `rgb(${course.trailColorRgb})` : "#06b6d4"
                 const thumb = course.bannerImage ?? course.coverImage
@@ -269,7 +269,7 @@ export default function BuscaPage() {
               <Play className="h-4 w-4" />
               Aulas ({lessons.length})
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {lessons.map((lesson) => {
                 const accent = lesson.course.trailColorRgb ? `rgb(${lesson.course.trailColorRgb})` : "#06b6d4"
                 const thumb = lesson.videoThumbnailUrl ?? lesson.thumbnail
