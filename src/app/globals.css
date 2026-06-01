@@ -130,3 +130,32 @@
 .card-shimmer {
   animation: card-shimmer 1.6s ease-in-out infinite;
 }
+
+/* ── Search bar spinning aurora border ── */
+@property --search-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes search-spin-angle {
+  to { --search-angle: 360deg; }
+}
+
+.search-spinning {
+  background: conic-gradient(
+    from var(--search-angle),
+    transparent 0%,
+    #06b6d4 20%,
+    #8b5cf6 50%,
+    #06b6d4 80%,
+    transparent 100%
+  );
+  animation: search-spin-angle 1.2s linear infinite;
+  filter: blur(0px);
+}
+
+/* Visible default glow on search bar */
+.search-bar-default {
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 1px 3px rgba(0,0,0,0.3);
+}
