@@ -90,6 +90,15 @@ export default function BuscaPage() {
     }
   }, [])
 
+  // Sync query state when URL param changes (e.g. new search from Header)
+  useEffect(() => {
+    const urlQ = searchParams.get("q") ?? ""
+    if (urlQ && urlQ !== query) {
+      setQuery(urlQ)
+      setDebouncedQ(urlQ)
+    }
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Debounce: run search 400ms after user stops typing
   useEffect(() => {
     clearTimeout(debounceRef.current)
