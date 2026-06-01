@@ -6,6 +6,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Search, BookOpen, Play, Clock, Tag, Loader2, X, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Header } from "@/components/layout/Header"
 
 interface CourseResult {
   id: string
@@ -114,7 +115,8 @@ export default function BuscaPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Search hero bar */}
+      <Header />
+      {/* Search hero bar */}}
       <div className="border-b border-border/40 bg-card/30 py-8">
         <div className="container max-w-3xl space-y-3">
           <Link
@@ -132,11 +134,11 @@ export default function BuscaPage() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60 pointer-events-none" />
               <input
                 ref={inputRef}
-                type="search"
+                type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="O que você procura?"
-                className="h-12 w-full rounded-[11px] bg-background pl-12 pr-10 text-base placeholder:text-muted-foreground/40 focus:outline-none"
+                className="h-12 w-full rounded-[11px] bg-background pl-12 pr-10 text-base placeholder:text-muted-foreground/40 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
               />
               {query && (
                 <button
