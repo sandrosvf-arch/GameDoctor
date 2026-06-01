@@ -312,6 +312,24 @@ export default function BuscaPage() {
             </div>
           </section>
         )}
+
+        {/* CTA — always visible after a search attempt */}
+        {searched && (
+          <div className="mt-6 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 px-8 py-10 text-center space-y-4">
+            <p className="text-lg font-semibold">Não encontrou o conteúdo que procura?</p>
+            <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
+              Essa plataforma é viva — subimos aulas novas toda semana. Qual aula você gostaria de ver por aqui?
+            </p>
+            <a
+              href="https://wa.me/5511999999999?text=Olá!%20Gostaria%20de%20sugerir%20uma%20aula%20na%20plataforma%20GameDoctor."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              Sugerir uma aula
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )
