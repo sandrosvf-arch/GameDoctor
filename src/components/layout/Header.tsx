@@ -141,62 +141,66 @@ export function Header() {
         </div>
 
         {/* Desktop nav — center, grows */}
-        <nav className="hidden md:flex flex-1 items-center gap-1">
+        <nav className="hidden md:flex flex-1 items-center justify-between gap-2 mx-4">
 
           {/* Categorias dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-                <LayoutGrid className="h-4 w-4" />
-                Categorias
-                <ChevronDown className="h-3 w-3" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52">
-              <DropdownMenuItem asChild>
-                <Link href="/cursos">Ver todos os cursos</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/cursos?categoria=hardware">Hardware</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/cursos?categoria=software">Software</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/cursos?categoria=consoles">Consoles</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/cursos?categoria=negocios">Negócios</Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                  <LayoutGrid className="h-4 w-4" />
+                  Categorias
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                <DropdownMenuItem asChild>
+                  <Link href="/cursos">Ver todos os cursos</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/cursos?categoria=hardware">Hardware</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/cursos?categoria=software">Software</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/cursos?categoria=consoles">Consoles</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/cursos?categoria=negocios">Negócios</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-          {/* Search bar */}
-          <form onSubmit={handleSearch} className="flex items-center mx-2">
+          {/* Search bar — grows to fill available space */}
+          <form onSubmit={handleSearch} className="flex-1 max-w-sm mx-4">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70 pointer-events-none" />
               <input
                 ref={searchRef}
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar cursos..."
-                className="h-8 w-44 xl:w-56 rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                className="h-9 w-full rounded-lg border border-border bg-muted/60 pl-9 pr-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 focus:bg-muted/80 transition-all"
               />
             </div>
           </form>
 
           {/* Nav links */}
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
-            >
-              {link.label}
-            </Link>
-          ))}
+          <div className="flex items-center gap-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors whitespace-nowrap"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
         </nav>
 
         {/* Desktop auth */}
