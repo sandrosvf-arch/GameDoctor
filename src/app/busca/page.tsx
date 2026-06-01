@@ -127,8 +127,8 @@ export default function BuscaPage() {
           <h1 className="text-2xl font-bold">Buscar</h1>
 
           {/* Search input with animated border */}
-          <div className={cn("p-[1.5px] rounded-xl", loading ? "search-spinning" : "search-static")}>
-            <div className="relative rounded-[10px]">
+          <div className={cn("p-[1.5px] rounded-full", loading ? "search-spinning" : "search-static")}>
+            <div className="relative rounded-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60 pointer-events-none" />
               <input
                 ref={inputRef}
@@ -136,7 +136,7 @@ export default function BuscaPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="O que você quer consertar?"
-                className="h-12 w-full rounded-[10px] bg-background pl-12 pr-10 text-base placeholder:text-muted-foreground/40 focus:outline-none"
+                className="h-12 w-full rounded-full bg-background pl-12 pr-10 text-base placeholder:text-muted-foreground/40 focus:outline-none"
               />
               {query && (
                 <button
@@ -262,7 +262,7 @@ export default function BuscaPage() {
               <Play className="h-4 w-4" />
               Aulas ({lessons.length})
             </h2>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {lessons.map((lesson) => {
                 const accent = lesson.course.trailColorRgb ? `rgb(${lesson.course.trailColorRgb})` : "#06b6d4"
                 const thumb = lesson.videoThumbnailUrl ?? lesson.thumbnail
@@ -274,44 +274,36 @@ export default function BuscaPage() {
                   <Link
                     key={lesson.id}
                     href={href}
-                    className="group flex items-center gap-4 rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-3 hover:border-zinc-700 hover:bg-zinc-900/60 transition-all"
+                    className="group rounded-xl border border-zinc-800/80 bg-zinc-900/40 overflow-hidden hover:border-zinc-700 transition-all"
                   >
                     {/* Thumbnail */}
                     <div
-                      className="relative h-14 w-24 shrink-0 rounded-lg overflow-hidden bg-zinc-900"
-                      style={{ border: `1.5px solid ${accent}40` }}
+                      className="relative aspect-video overflow-hidden bg-zinc-900"
                     >
                       {thumb ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={thumb} alt={lesson.title} className="h-full w-full object-cover" />
+                        <img src={thumb} alt={lesson.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <Play className="h-5 w-5 text-zinc-600" />
+                        <div className="flex h-full w-full items-center justify-center" style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}08)` }}>
+                          <Play className="h-8 w-8 text-zinc-600" />
                         </div>
+                      )}
+                      {dur && (
+                        <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white/80">{dur}</span>
+                      )}
+                      {lesson.isFree && (
+                        <span className="absolute top-1.5 left-1.5 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest bg-emerald-500/90 text-white">
+                          Grátis
+                        </span>
                       )}
                     </div>
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0 space-y-0.5">
-                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                    <div className="p-3 space-y-1">
+                      <p className="text-xs font-semibold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                         {highlight(lesson.title, debouncedQ)}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">{lesson.course.title}</p>
-                      {lesson.description && (
-                        <p className="text-[11px] text-muted-foreground/60 line-clamp-1">
-                          {highlight(lesson.description, debouncedQ)}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Meta */}
-                    <div className="shrink-0 flex flex-col items-end gap-1">
-                      {dur && <span className="text-[11px] text-muted-foreground/60">{dur}</span>}
-                      {lesson.isFree && (
-                        <span className="rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-400">
-                          Grátis
-                        </span>
-                      )}
+                      <p className="text-[11px] text-muted-foreground/70 truncate">{lesson.course.title}</p>
                     </div>
                   </Link>
                 )
