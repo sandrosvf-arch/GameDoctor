@@ -624,3 +624,14 @@ model HeroBanner {
 
   @@map("hero_banners")
 }
+
+model LessonSuggestion {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  lesson    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("lesson_suggestions")
+}

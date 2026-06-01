@@ -71,6 +71,13 @@ export default function BuscaPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+  // Suggestion form state
+  const [showForm, setShowForm] = useState(false)
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", lesson: "" })
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim() || q.trim().length < 2) {
       setCourses([])
@@ -119,6 +126,34 @@ export default function BuscaPage() {
     inputRef.current?.focus()
     if (initialQ) doSearch(initialQ)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleSuggest(e: React.FormEvent) {
+    e.preventDefault()
+    setFormError(null)
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/sugestoes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || null,
+          lesson: formData.lesson || debouncedQ,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setFormError(data.error ?? "Erro ao enviar. Tente novamente.")
+      } else {
+        setSubmitted(true)
+      }
+    } catch {
+      setFormError("Erro de conexão. Tente novamente.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const total = courses.length + lessons.length
 
@@ -318,16 +353,94 @@ export default function BuscaPage() {
           <div className="mt-6 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 px-8 py-10 text-center space-y-4">
             <p className="text-lg font-semibold">Não encontrou o conteúdo que procura?</p>
             <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
-              Essa plataforma é viva — subimos aulas novas toda semana. Qual aula você gostaria de ver por aqui?
+              Essa plataforma é viva! Subimos aulas novas toda semana. Qual aula você gostaria de ver por aqui?
             </p>
-            <a
-              href="https://wa.me/5511999999999?text=Olá!%20Gostaria%20de%20sugerir%20uma%20aula%20na%20plataforma%20GameDoctor."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-            >
-              Sugerir uma aula
-            </a>
+
+            {!showForm && !submitted && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                Sugerir uma aula
+              </button>
+            )}
+
+            {showForm && !submitted && (
+              <form
+                onSubmit={handleSuggest}
+                className="mt-4 mx-auto max-w-md space-y-3 text-left"
+              >
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Nome *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Seu nome"
+                    value={formData.name}
+                    onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">E-mail *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="seu@email.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData((f) => ({ ...f, email: e.target.value }))}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Telefone (opcional)</label>
+                  <input
+                    type="tel"
+                    placeholder="(11) 9 0000-0000"
+                    value={formData.phone}
+                    onChange={(e) => setFormData((f) => ({ ...f, phone: e.target.value }))}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Aula que você quer ver *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: como consertar joystick drift PS5"
+                    value={formData.lesson || debouncedQ}
+                    onChange={(e) => setFormData((f) => ({ ...f, lesson: e.target.value }))}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                {formError && (
+                  <p className="text-xs text-red-400">{formError}</p>
+                )}
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
+                  >
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {submitting ? "Enviando…" : "Enviar sugestão"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="rounded-lg border border-zinc-700 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {submitted && (
+              <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-5 py-3 text-sm font-medium text-emerald-400">
+                Sugestão enviada! Obrigado — vamos analisar em breve.
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -24,6 +24,7 @@ import {
   Settings,
   Plug,
   ScrollText,
+  MessageSquarePlus,
 } from "lucide-react"
 
 const navGroups = [
@@ -46,9 +47,10 @@ const navGroups = [
   {
     title: "Suporte",
     items: [
-      { href: "/admin/tickets",   label: "Tickets",         icon: Ticket },
-      { href: "/admin/ajuda",     label: "Central de ajuda", icon: HelpCircle },
-      { href: "/admin/comunidade",label: "Comunidade",       icon: Globe },
+      { href: "/admin/tickets",    label: "Tickets",          icon: Ticket },
+      { href: "/admin/ajuda",      label: "Central de ajuda", icon: HelpCircle },
+      { href: "/admin/comunidade", label: "Comunidade",       icon: Globe },
+      { href: "/admin/sugestoes",  label: "Sugestões de aula", icon: MessageSquarePlus },
     ],
   },
   {
