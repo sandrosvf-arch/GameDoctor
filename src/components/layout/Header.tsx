@@ -181,10 +181,10 @@ export function Header() {
 
           {/* Search bar — grows to fill available space */}
           <form onSubmit={handleSearch} className="flex-1 max-w-sm mx-4">
-            {/* Spinning border wrapper — idle slow, fast when searching */}
+            {/* Border wrapper — static blue at rest, spinning when searching */}
             <div className={cn(
               "p-[1.5px] rounded-lg",
-              isSearching ? "search-spinning" : "search-idle"
+              isSearching ? "search-spinning" : "search-static"
             )}>
               <div className="relative rounded-[6px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70 pointer-events-none z-10" />
@@ -193,7 +193,7 @@ export function Header() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar cursos..."
+                  placeholder="O que você quer consertar?"
                   className="h-9 w-full rounded-[6px] bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none transition-all"
                 />
               </div>
@@ -295,7 +295,7 @@ export function Header() {
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar cursos..."
+                    placeholder="O que você quer consertar?"
                     className="h-9 w-full rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
                   />
                 </form>

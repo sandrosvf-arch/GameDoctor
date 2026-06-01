@@ -142,17 +142,9 @@
   to { --search-angle: 360deg; }
 }
 
-/* Always-on subtle spin (idle) */
-.search-idle {
-  background: conic-gradient(
-    from var(--search-angle),
-    transparent 0%,
-    rgba(6,182,212,0.55) 18%,
-    rgba(139,92,246,0.35) 50%,
-    rgba(6,182,212,0.55) 82%,
-    transparent 100%
-  );
-  animation: search-spin-angle 3.5s linear infinite;
+/* Static cyan border (idle — no animation) */
+.search-static {
+  background: rgba(6,182,212,0.35);
 }
 
 /* Active spin when searching */
