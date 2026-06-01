@@ -3,7 +3,8 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useSession, signOut } from "next-auth/react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 
 // ── ECG / Heartbeat line (continuous, slow) ───────────────────────────────────
 function HeartbeatLine() {
@@ -80,7 +81,7 @@ function HeartbeatLine() {
   )
 }
 // ─────────────────────────────────────────────────────────────────────────────
-import { Menu, X, ChevronDown } from "lucide-react"
+import { Menu, X, ChevronDown, Search, LayoutGrid } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -96,13 +97,22 @@ import { cn } from "@/lib/utils"
 const navLinks = [
   { label: "Cursos", href: "/cursos" },
   { label: "Planos", href: "/planos" },
-  { label: "Sobre", href: "/#sobre" },
-  { label: "Suporte", href: "/#suporte" },
+  { label: "Quem somos", href: "/#sobre" },
+  { label: "FAQ", href: "/#faq" },
 ]
 
 export function Header() {
   const { data: session, status } = useSession()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const router = useRouter()
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const q = search.trim()
+    if (q) router.push(`/busca?q=${encodeURIComponent(q)}`)
+  }
 
   const initials = session?.user?.name
     ? session.user.name
@@ -115,9 +125,9 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container flex h-16 items-center gap-3">
         {/* Logo + heartbeat */}
-        <div className="flex items-center">
+        <div className="flex items-center shrink-0">
           <Link href="/" className="flex items-center">
             <Image
               src="/doctor-oficial.png"
@@ -130,13 +140,59 @@ export function Header() {
           <HeartbeatLine />
         </div>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6">
+        {/* Desktop nav — center, grows */}
+        <nav className="hidden md:flex flex-1 items-center gap-1">
+
+          {/* Categorias dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                <LayoutGrid className="h-4 w-4" />
+                Categorias
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52">
+              <DropdownMenuItem asChild>
+                <Link href="/cursos">Ver todos os cursos</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/cursos?categoria=hardware">Hardware</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/cursos?categoria=software">Software</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/cursos?categoria=consoles">Consoles</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/cursos?categoria=negocios">Negócios</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Search bar */}
+          <form onSubmit={handleSearch} className="flex items-center mx-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                ref={searchRef}
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar cursos..."
+                className="h-8 w-44 xl:w-56 rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all"
+              />
+            </div>
+          </form>
+
+          {/* Nav links */}
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
             >
               {link.label}
             </Link>
@@ -144,7 +200,7 @@ export function Header() {
         </nav>
 
         {/* Desktop auth */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-3 ml-auto shrink-0">
           {status === "loading" ? null : session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -217,6 +273,24 @@ export function Header() {
                 <Image src="/doctor-oficial.png" alt="GameDoctor" width={180} height={36} className="h-8 w-auto" />
               </Link>
               <nav className="flex flex-col gap-1">
+                {/* Mobile search */}
+                <form onSubmit={handleSearch} className="relative mb-2">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar cursos..."
+                    className="h-9 w-full rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                </form>
+                <Link
+                  href="/cursos"
+                  onClick={() => setMobileOpen(false)}
+                  className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                >
+                  Categorias
+                </Link>
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
