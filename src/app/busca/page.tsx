@@ -135,7 +135,7 @@ export default function BuscaPage() {
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="O que você quer consertar?"
+                placeholder="O que você procura?"
                 className="h-12 w-full rounded-[11px] bg-background pl-12 pr-10 text-base placeholder:text-muted-foreground/40 focus:outline-none"
               />
               {query && (
@@ -192,7 +192,7 @@ export default function BuscaPage() {
               <BookOpen className="h-4 w-4" />
               Trilhas / Cursos ({courses.length})
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => {
                 const accent = course.trailColorRgb ? `rgb(${course.trailColorRgb})` : "#06b6d4"
                 const thumb = course.bannerImage ?? course.coverImage
@@ -200,53 +200,60 @@ export default function BuscaPage() {
                   <Link
                     key={course.id}
                     href={`/trilhas/${course.slug}`}
-                    className="group rounded-xl border border-zinc-800/80 bg-zinc-900/40 overflow-hidden hover:border-zinc-700 transition-all"
+                    className="group flex-shrink-0 w-full"
                   >
-                    {/* Thumbnail */}
-                    <div className="relative aspect-video overflow-hidden bg-zinc-900">
-                      {thumb ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={thumb} alt={course.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      ) : (
-                        <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}08)` }} />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                      {course.badgeLabel && (
-                        <span
-                          className="absolute top-2 left-2 rounded px-2 py-0.5 text-[10px] font-black uppercase tracking-widest"
-                          style={{ backgroundColor: accent, color: "#000" }}
-                        >
-                          {course.badgeLabel}
-                        </span>
-                      )}
-                    </div>
-                    <div className="p-4 space-y-1.5">
-                      <p className="font-semibold text-sm leading-snug group-hover:text-primary transition-colors">
-                        {highlight(course.title, debouncedQ)}
-                      </p>
-                      {course.shortDescription && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {highlight(course.shortDescription, debouncedQ)}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-3 pt-1 text-[11px] text-muted-foreground/70">
-                        {course.category && (
-                          <span className="flex items-center gap-1">
-                            <Tag className="h-3 w-3" />
-                            {course.category.name}
-                          </span>
+                    <div
+                      className="relative overflow-hidden rounded-[12px] p-[1.2px]"
+                      style={{
+                        background: `radial-gradient(58% 96% at 0% 50%, ${accent}ff 0%, ${accent}f0 12%, ${accent}66 24%, ${accent}22 36%, transparent 48%), linear-gradient(to right, ${accent}20, ${accent}1a)`,
+                        boxShadow: `0 4px 20px rgba(0,0,0,0.45)`,
+                      }}
+                    >
+                      <div className="relative z-10 aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={thumb} alt={course.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        ) : (
+                          <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}08)` }} />
                         )}
-                        <span className="flex items-center gap-1">
-                          <Play className="h-3 w-3" />
-                          {course._count.lessons} aula{course._count.lessons !== 1 ? "s" : ""}
-                        </span>
-                        {course.workloadHours && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {course.workloadHours}h
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <p className="text-sm font-bold text-white leading-snug line-clamp-2 drop-shadow">
+                            {highlight(course.title, debouncedQ)}
+                          </p>
+                          {course.shortDescription && (
+                            <p className="mt-1 text-[11px] text-white/60 line-clamp-1">
+                              {highlight(course.shortDescription, debouncedQ)}
+                            </p>
+                          )}
+                        </div>
+                        {course.badgeLabel && (
+                          <span
+                            className="absolute top-2.5 left-2.5 rounded px-2 py-0.5 text-[10px] font-black uppercase tracking-widest"
+                            style={{ backgroundColor: accent, color: "#000" }}
+                          >
+                            {course.badgeLabel}
                           </span>
                         )}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-3 px-1 pt-2 pb-1 text-[11px] text-muted-foreground/70">
+                      {course.category && (
+                        <span className="flex items-center gap-1">
+                          <Tag className="h-3 w-3" />
+                          {course.category.name}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Play className="h-3 w-3" />
+                        {course._count.lessons} aula{course._count.lessons !== 1 ? "s" : ""}
+                      </span>
+                      {course.workloadHours && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {course.workloadHours}h
+                        </span>
+                      )}
                     </div>
                   </Link>
                 )
@@ -262,7 +269,7 @@ export default function BuscaPage() {
               <Play className="h-4 w-4" />
               Aulas ({lessons.length})
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {lessons.map((lesson) => {
                 const accent = lesson.course.trailColorRgb ? `rgb(${lesson.course.trailColorRgb})` : "#06b6d4"
                 const thumb = lesson.videoThumbnailUrl ?? lesson.thumbnail

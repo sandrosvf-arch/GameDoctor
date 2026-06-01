@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
     OR: terms.flatMap((t) => [
       { title: { contains: t, mode: "insensitive" as const } },
       { description: { contains: t, mode: "insensitive" as const } },
+      { searchKeywords: { contains: t, mode: "insensitive" as const } },
     ]),
   }
 
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest) {
         durationSeconds: true,
         videoDurationSeconds: true,
         videoProviderId: true,
+        searchKeywords: true,
         course: {
           select: {
             id: true,
@@ -109,6 +111,7 @@ export async function GET(req: NextRequest) {
       _score:
         scoreText(l.title, q, terms) * 2 +
         scoreText(l.description, q, terms) +
+        scoreText(l.searchKeywords, q, terms) * 1.5 +
         scoreText(l.course.title, q, terms) * 0.5,
     }))
     .sort((a, b) => b._score - a._score)

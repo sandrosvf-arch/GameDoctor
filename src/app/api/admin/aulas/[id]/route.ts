@@ -20,9 +20,10 @@ export async function PATCH(
   const { id } = await params
   const body = await request.json().catch(() => ({}))
 
-  const { title, description, bunnyVideoId, isFree, status, thumbnail } = body as {
+  const { title, description, searchKeywords, bunnyVideoId, isFree, status, thumbnail } = body as {
     title?: string
     description?: string
+    searchKeywords?: string
     bunnyVideoId?: string
     isFree?: boolean
     status?: string
@@ -36,6 +37,7 @@ export async function PATCH(
     data: {
       ...(title !== undefined && { title }),
       ...(description !== undefined && { description }),
+      ...(searchKeywords !== undefined && { searchKeywords: searchKeywords || null }),
       ...(isFree !== undefined && { isFree }),
       ...(status !== undefined && { status: status as never }),
       ...(thumbnail !== undefined && { thumbnail: thumbnail || null }),

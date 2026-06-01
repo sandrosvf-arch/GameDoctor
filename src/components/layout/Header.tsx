@@ -152,7 +152,7 @@ export function Header() {
           <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
                   <LayoutGrid className="h-4 w-4" />
                   Categorias
                   <ChevronDown className="h-3 w-3" />
@@ -193,7 +193,7 @@ export function Header() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="O que você quer consertar?"
+                  placeholder="O que você procura?"
                   className="h-9 w-full rounded-[11px] bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none transition-all"
                 />
               </div>
@@ -206,7 +206,7 @@ export function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors whitespace-nowrap"
+                className="rounded-lg px-3 py-1.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap"
               >
                 {link.label}
               </Link>
@@ -295,7 +295,7 @@ export function Header() {
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="O que você quer consertar?"
+                    placeholder="O que você procura?"
                     className="h-9 w-full rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
                   />
                 </form>

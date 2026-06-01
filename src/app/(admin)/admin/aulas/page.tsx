@@ -17,6 +17,7 @@ interface LessonWithCourse {
   id: string
   title: string
   description: string | null
+  searchKeywords: string | null
   videoProviderId: string | null
   videoThumbnailUrl: string | null
   thumbnail: string | null
@@ -32,6 +33,7 @@ interface LessonWithCourse {
 type LessonEdits = {
   title?: string
   description?: string
+  searchKeywords?: string
   bunnyVideoId?: string
   thumbnail?: string
   isFree?: boolean
@@ -141,6 +143,7 @@ export default function TodasAsAulasPage() {
       [lesson.id]: {
         title: lesson.title,
         description: lesson.description ?? "",
+        searchKeywords: lesson.searchKeywords ?? "",
         bunnyVideoId: lesson.videoProviderId ?? "",
         thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
@@ -402,6 +405,19 @@ export default function TodasAsAulasPage() {
                         rows={2}
                         value={(e.description as string) ?? lesson.description ?? ""}
                         onChange={ev => patch(lesson.id, "description", ev.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">
+                        Palavras-chave para busca
+                        <span className="ml-1.5 text-muted-foreground/50 font-normal">(separadas por vírgula)</span>
+                      </label>
+                      <input
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        placeholder="ps4, erro ce-34878-0, não liga, tela azul"
+                        value={(e.searchKeywords as string) ?? lesson.searchKeywords ?? ""}
+                        onChange={ev => patch(lesson.id, "searchKeywords", ev.target.value)}
                       />
                     </div>
 

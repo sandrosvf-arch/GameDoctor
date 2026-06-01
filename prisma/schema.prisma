@@ -330,6 +330,7 @@ model Lesson {
   durationSeconds        Int?                @map("duration_seconds")
   order                  Int                 @default(0)
   isFree                 Boolean             @default(false) @map("is_free")
+  searchKeywords         String?             @map("search_keywords")
   previewEnabled         Boolean             @default(false) @map("preview_enabled")
   previewDurationSeconds Int?                @map("preview_duration_seconds")
   previewPercentage      Int?                @map("preview_percentage")
