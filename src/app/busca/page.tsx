@@ -116,9 +116,9 @@ export default function BuscaPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      {/* Search hero bar */}
-      <div className="border-b border-border/40 bg-card/30 py-8">
-        <div className="container max-w-3xl space-y-3">
+      {/* Page header — back link + result count */}
+      <div className="border-b border-border/40 bg-card/30 py-4">
+        <div className="container max-w-7xl flex items-center gap-4">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -126,38 +126,21 @@ export default function BuscaPage() {
             <ArrowLeft className="h-3.5 w-3.5" />
             Voltar
           </Link>
-          <h1 className="text-2xl font-bold">Buscar</h1>
-
-          {/* Search input with animated border */}
-          <div className={cn("p-px rounded-xl", loading ? "search-spinning" : "search-static")}>
-            <div className="relative rounded-[11px]">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60 pointer-events-none" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="O que você procura?"
-                className="h-12 w-full rounded-[11px] bg-background pl-12 pr-10 text-base placeholder:text-muted-foreground/40 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
-              />
-              {query && (
-                <button
-                  onClick={() => { setQuery(""); setDebouncedQ(""); inputRef.current?.focus() }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {searched && !loading && (
-            <p className="text-sm text-muted-foreground">
-              {total === 0
-                ? `Nenhum resultado para "${debouncedQ}"`
-                : `${total} resultado${total !== 1 ? "s" : ""} para "${debouncedQ}"`}
-            </p>
+          {searched && !loading && total > 0 && (
+            <>
+              <span className="text-muted-foreground/40">·</span>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{total}</span> conteúdo{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""} para &ldquo;{debouncedQ}&rdquo;
+              </p>
+            </>
           )}
+          {searched && !loading && total === 0 && (
+            <>
+              <span className="text-muted-foreground/40">·</span>
+              <p className="text-sm text-muted-foreground">Nenhum resultado para &ldquo;{debouncedQ}&rdquo;</p>
+            </>
+          )}
+          {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
       </div>
 
