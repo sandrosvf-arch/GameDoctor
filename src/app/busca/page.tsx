@@ -160,7 +160,7 @@ export default function BuscaPage() {
       </div>
 
       {/* Results */}
-      <div className="container max-w-5xl py-8 space-y-10">
+      <div className="container max-w-7xl py-8 space-y-10">
         {loading && (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
