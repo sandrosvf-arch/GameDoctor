@@ -146,9 +146,8 @@ export function Header() {
         .join("")
         .toUpperCase()
     : "U"
-  const memberHome = ["ADMIN", "EDITOR"].includes((session?.user as { role?: string } | undefined)?.role ?? "")
-    ? "/admin/dashboard"
-    : "/dashboard"
+  const isAdminUser = ["ADMIN", "EDITOR"].includes((session?.user as { role?: string } | undefined)?.role ?? "")
+  const memberHome = isAdminUser ? "/admin/dashboard" : "/dashboard"
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -190,7 +189,7 @@ export function Header() {
                     <button
                       type="button"
                       onClick={() => setOpenDesktopCategoryId((current) => current === root.id ? null : root.id)}
-                      className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm hover:bg-accent"
+                      className="flex w-full cursor-pointer items-center justify-between rounded-md px-2.5 py-2 text-left text-sm hover:bg-accent"
                     >
                       <Link href={`/cursos?categoria=${root.slug}`} className="flex-1" onClick={(e) => e.stopPropagation()}>
                         {root.name}
@@ -259,7 +258,7 @@ export function Header() {
           {status === "loading" ? null : session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-full pr-1 hover:bg-secondary/50 transition-colors">
+                <button className="flex cursor-pointer items-center gap-2 rounded-full pr-1 hover:bg-secondary/50 transition-colors">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={session.user?.image ?? ""} />
                     <AvatarFallback className="bg-primary/20 text-primary text-xs">
@@ -273,23 +272,19 @@ export function Header() {
                 </button>
               </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
+                  {!isAdminUser && (
+                    <DropdownMenuItem asChild>
+                      <Link href={memberHome}>Minha área</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
-                    <Link href={memberHome}>Minha área</Link>
+                    <Link href="/minha-conta">Minha conta</Link>
                   </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/meus-cursos">Meus cursos</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/minha-conta">Minha conta</Link>
-                </DropdownMenuItem>
-                {["ADMIN", "EDITOR"].includes((session.user as { role?: string })?.role ?? "") && (
-                  <>
-                    <DropdownMenuSeparator />
+                  {isAdminUser && (
                     <DropdownMenuItem asChild>
                       <Link href="/admin/dashboard">Painel Admin</Link>
                     </DropdownMenuItem>
-                  </>
-                )}
+                  )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -360,7 +355,7 @@ export function Header() {
                         <button
                           type="button"
                           onClick={() => setOpenMobileCategoryId((current) => current === root.id ? null : root.id)}
-                          className="px-3 py-2 text-muted-foreground"
+                          className="cursor-pointer px-3 py-2 text-muted-foreground"
                         >
                           <ChevronDown className={`h-4 w-4 transition-transform ${openMobileCategoryId === root.id ? "rotate-180" : ""}`} />
                         </button>
@@ -397,16 +392,34 @@ export function Header() {
               <div className="flex flex-col gap-2 border-t border-border pt-4">
                 {session ? (
                   <>
+                    {!isAdminUser && (
+                      <Link
+                        href={memberHome}
+                        onClick={() => setMobileOpen(false)}
+                        className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                      >
+                        Minha área
+                      </Link>
+                    )}
                     <Link
-                      href={memberHome}
+                      href="/minha-conta"
                       onClick={() => setMobileOpen(false)}
                       className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
                     >
-                      Minha área
+                      Minha conta
                     </Link>
+                    {isAdminUser && (
+                      <Link
+                        href="/admin/dashboard"
+                        onClick={() => setMobileOpen(false)}
+                        className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                      >
+                        Painel Admin
+                      </Link>
+                    )}
                     <button
                       onClick={() => signOut({ callbackUrl: "/" })}
-                      className="px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 text-left transition-colors"
+                      className="cursor-pointer px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 text-left transition-colors"
                     >
                       Sair
                     </button>

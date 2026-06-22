@@ -12,8 +12,9 @@ const MEMBER_PREFIXES = [
   "/meus-cursos",
   "/materiais",
   "/certificados",
-  "/minha-conta",
 ]
+
+const SHARED_AUTH_PREFIXES = ["/minha-conta"]
 
 // Routes that require ADMIN role
 const ADMIN_PREFIXES = ["/admin"]
@@ -35,6 +36,7 @@ export default auth((req: NextAuthRequest) => {
   const isMemberRoute = MEMBER_PREFIXES.some((p) => pathname.startsWith(p))
   const isAdminRoute = ADMIN_PREFIXES.some((p) => pathname.startsWith(p))
   const isAuthRoute = AUTH_ONLY_PREFIXES.some((p) => pathname.startsWith(p))
+  const isSharedAuthRoute = SHARED_AUTH_PREFIXES.some((p) => pathname.startsWith(p))
 
   if (isMemberRoute && !isLoggedIn) {
     const url = new URL("/login", nextUrl)
@@ -44,6 +46,12 @@ export default auth((req: NextAuthRequest) => {
 
   if (isMemberRoute && isAdmin) {
     return NextResponse.redirect(new URL(ADMIN_HOME, nextUrl))
+  }
+
+  if (isSharedAuthRoute && !isLoggedIn) {
+    const url = new URL("/login", nextUrl)
+    url.searchParams.set("callbackUrl", pathname)
+    return NextResponse.redirect(url)
   }
 
   if (isAdminRoute) {
