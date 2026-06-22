@@ -67,9 +67,6 @@ export default function AdminCategoriasPage() {
     if (res.ok) {
       const data: CatalogCategoryNode[] = await res.json()
       setCategories(data)
-      setExpandedIds((current) =>
-        current.length > 0 ? current : data.filter((item) => item.children.length > 0).map((item) => item.id)
-      )
     }
     setLoading(false)
   }
@@ -381,34 +378,40 @@ function CategoryGroup({
         />
       )}
 
-      {expanded && category.children.map((child) => {
-        const isEditingChild = editingId === child.id
-        return (
-          <div key={child.id} className="border-t border-border/60">
-            <CategoryListRow
-              category={child}
-              level={1}
-              expanded={false}
-              canExpand={false}
-              onToggleExpanded={onToggleExpanded}
-              onEdit={onStartEditing}
-              onDelete={onDelete}
-              deletingId={deletingId}
-            />
-            {isEditingChild && (
-              <EditPanel
-                category={child}
-                values={editing[child.id]}
-                rootOptions={rootOptions}
-                savingId={savingId}
-                onCancel={onCancelEditing}
-                onChange={onChange}
-                onSave={onSave}
-              />
-            )}
+      {expanded && (
+        <div className="border-t border-border/60 bg-zinc-950/45">
+          <div className="ml-10 border-l border-cyan-500/20">
+            {category.children.map((child) => {
+              const isEditingChild = editingId === child.id
+              return (
+                <div key={child.id} className="border-b border-border/50 last:border-b-0">
+                  <CategoryListRow
+                    category={child}
+                    level={1}
+                    expanded={false}
+                    canExpand={false}
+                    onToggleExpanded={onToggleExpanded}
+                    onEdit={onStartEditing}
+                    onDelete={onDelete}
+                    deletingId={deletingId}
+                  />
+                  {isEditingChild && (
+                    <EditPanel
+                      category={child}
+                      values={editing[child.id]}
+                      rootOptions={rootOptions}
+                      savingId={savingId}
+                      onCancel={onCancelEditing}
+                      onChange={onChange}
+                      onSave={onSave}
+                    />
+                  )}
+                </div>
+              )
+            })}
           </div>
-        )
-      })}
+        </div>
+      )}
     </div>
   )
 }
@@ -435,12 +438,15 @@ function CategoryListRow({
   return (
     <div className={cn(
       "grid grid-cols-[minmax(0,1fr)_140px_140px_180px] gap-4 px-4 py-4 items-center",
-      level === 1 ? "bg-background/20" : "bg-transparent"
+      level === 1 ? "bg-cyan-500/[0.04]" : "bg-transparent"
     )}>
       <div className="flex min-w-0 items-center gap-3">
-        <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/55" />
+        <GripVertical className={cn(
+          "h-4 w-4 shrink-0",
+          level === 1 ? "text-cyan-300/35" : "text-muted-foreground/55"
+        )} />
         {level === 1 ? (
-          <span className="shrink-0 text-muted-foreground">└</span>
+          <span className="shrink-0 text-cyan-300/60">└</span>
         ) : (
           <button
             type="button"
@@ -458,8 +464,18 @@ function CategoryListRow({
           </button>
         )}
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{category.name}</p>
-          <p className="truncate text-xs text-muted-foreground">{category.slug}</p>
+          <p className={cn(
+            "truncate font-medium",
+            level === 1 ? "text-sm text-cyan-50/95" : "text-sm"
+          )}>
+            {category.name}
+          </p>
+          <p className={cn(
+            "truncate text-xs",
+            level === 1 ? "text-cyan-200/45" : "text-muted-foreground"
+          )}>
+            {category.slug}
+          </p>
         </div>
       </div>
 

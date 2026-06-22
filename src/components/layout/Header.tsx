@@ -124,7 +124,6 @@ export function Header() {
       .then((res) => res.ok ? res.json() : [])
       .then((data: CatalogCategoryNode[]) => {
         setCategories(data)
-        setOpenDesktopCategoryId((current) => current ?? data[0]?.id ?? null)
       })
       .catch(() => setCategories([]))
   }, [])
@@ -206,7 +205,7 @@ export function Header() {
                       <div className="mb-1 space-y-1 pl-2">
                         {root.children.map((child) => (
                           <DropdownMenuItem key={child.id} asChild className="pl-6">
-                            <Link href={`/cursos?categoria=${child.slug}`} className="flex items-center gap-2">
+                            <Link href={`/cursos?categoria=${child.slug}`} className="flex w-full cursor-pointer items-center gap-2">
                               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                               {child.name}
                             </Link>
@@ -374,7 +373,7 @@ export function Header() {
                             key={child.id}
                             href={`/cursos?categoria=${child.slug}`}
                             onClick={() => setMobileOpen(false)}
-                            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                           >
                             <ChevronRight className="h-3.5 w-3.5" />
                             {child.name}
