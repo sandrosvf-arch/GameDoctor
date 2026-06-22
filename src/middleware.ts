@@ -21,6 +21,9 @@ const ADMIN_PREFIXES = ["/admin"]
 // Routes only accessible when NOT authenticated
 const AUTH_ONLY_PREFIXES = ["/login", "/cadastro", "/recuperar-senha"]
 
+const ADMIN_HOME = "/admin/dashboard"
+const MEMBER_HOME = "/dashboard"
+
 export default auth((req: NextAuthRequest) => {
   const { nextUrl } = req
   const session = req.auth
@@ -39,6 +42,10 @@ export default auth((req: NextAuthRequest) => {
     return NextResponse.redirect(url)
   }
 
+  if (isMemberRoute && isAdmin) {
+    return NextResponse.redirect(new URL(ADMIN_HOME, nextUrl))
+  }
+
   if (isAdminRoute) {
     if (!isLoggedIn) {
       const url = new URL("/login", nextUrl)
@@ -46,12 +53,12 @@ export default auth((req: NextAuthRequest) => {
       return NextResponse.redirect(url)
     }
     if (!isAdmin) {
-      return NextResponse.redirect(new URL("/dashboard", nextUrl))
+      return NextResponse.redirect(new URL(MEMBER_HOME, nextUrl))
     }
   }
 
   if (isAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL("/dashboard", nextUrl))
+    return NextResponse.redirect(new URL(isAdmin ? ADMIN_HOME : MEMBER_HOME, nextUrl))
   }
 
   return NextResponse.next()
