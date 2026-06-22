@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
       { shortDescription: { contains: t, mode: "insensitive" as const } },
       { description: { contains: t, mode: "insensitive" as const } },
       { category: { name: { contains: t, mode: "insensitive" as const } } },
+      { courseCategories: { some: { category: { name: { contains: t, mode: "insensitive" as const } } } } },
     ]),
   }
 
@@ -51,6 +52,11 @@ export async function GET(req: NextRequest) {
         badgeLabel: true,
         workloadHours: true,
         category: { select: { name: true, slug: true } },
+        courseCategories: {
+          select: {
+            category: { select: { id: true, name: true, slug: true } },
+          },
+        },
         _count: { select: { lessons: true } },
       },
       take: 20,
@@ -101,7 +107,8 @@ export async function GET(req: NextRequest) {
       _score:
         scoreText(c.title, q, terms) * 2 +
         scoreText(c.shortDescription, q, terms) +
-        scoreText(c.category?.name, q, terms) * 0.5,
+        scoreText(c.category?.name, q, terms) * 0.5 +
+        Math.max(0, ...c.courseCategories.map((entry) => scoreText(entry.category.name, q, terms) * 0.5)),
     }))
     .sort((a, b) => b._score - a._score)
 

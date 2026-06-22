@@ -51,6 +51,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const course = await db.course.findUnique({
     where: { id },
     include: {
+      courseCategories: {
+        include: {
+          category: {
+            select: { id: true, name: true, slug: true, parentId: true },
+          },
+        },
+      },
       modules: {
         orderBy: { order: "asc" },
         include: {
@@ -102,9 +109,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await request.json().catch(() => ({}))
 
-  const { title, slug, shortDescription, description, status, coverImage, trailColorRgb, badgeTextColorRgb, badgeLabel } = body as Record<string, string>
+  const {
+    title,
+    slug,
+    shortDescription,
+    description,
+    status,
+    coverImage,
+    trailColorRgb,
+    badgeTextColorRgb,
+    badgeLabel,
+    selectedCategoryIds,
+  } = body as Record<string, string> & { selectedCategoryIds?: string[] }
   const normalizedTrailColor = normalizeRgbInput(trailColorRgb)
   const normalizedBadgeTextColor = normalizeRgbInput(badgeTextColorRgb)
+  const categoryIds = Array.isArray(selectedCategoryIds)
+    ? Array.from(new Set(selectedCategoryIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0)))
+    : null
 
   if (normalizedTrailColor === undefined && trailColorRgb !== undefined) {
     return NextResponse.json({ error: "Cor da trilha inválida. Use rgb(r, g, b)." }, { status: 400 })
@@ -125,6 +146,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ...(normalizedTrailColor !== undefined && { trailColorRgb: normalizedTrailColor }),
       ...(normalizedBadgeTextColor !== undefined && { badgeTextColorRgb: normalizedBadgeTextColor }),
       ...(badgeLabel !== undefined && { badgeLabel: badgeLabel || null }),
+      ...(categoryIds !== null && {
+        courseCategories: {
+          deleteMany: {},
+          ...(categoryIds.length > 0 && {
+            create: categoryIds.map((categoryId) => ({ categoryId })),
+          }),
+        },
+      }),
+    },
+    include: {
+      courseCategories: {
+        include: {
+          category: {
+            select: { id: true, name: true, slug: true, parentId: true },
+          },
+        },
+      },
     },
   })
 

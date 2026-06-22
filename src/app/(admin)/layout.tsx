@@ -25,6 +25,7 @@ import {
   Plug,
   ScrollText,
   MessageSquarePlus,
+  Tags,
 } from "lucide-react"
 
 const navGroups = [
@@ -41,6 +42,7 @@ const navGroups = [
       { href: "/admin/banners",  label: "Fullbanner",  icon: ImageIcon },
       { href: "/admin/aulas",    label: "Conteúdo",    icon: BookOpen },
       { href: "/admin/trilhas",  label: "Trilhas",     icon: Map },
+      { href: "/admin/categorias", label: "Categorias", icon: Tags },
       { href: "/admin/cursos",   label: "Cursos",      icon: GraduationCap },
     ],
   },

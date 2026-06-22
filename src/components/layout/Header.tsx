@@ -88,6 +88,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -101,13 +102,28 @@ const navLinks = [
   { label: "FAQ", href: "/#faq" },
 ]
 
+interface CatalogCategoryNode {
+  id: string
+  name: string
+  slug: string
+  children: CatalogCategoryNode[]
+}
+
 export function Header() {
   const { data: session, status } = useSession()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+  const [categories, setCategories] = useState<CatalogCategoryNode[]>([])
   const router = useRouter()
   const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    fetch("/api/catalog/categorias")
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: CatalogCategoryNode[]) => setCategories(data))
+      .catch(() => setCategories([]))
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -127,6 +143,9 @@ export function Header() {
         .join("")
         .toUpperCase()
     : "U"
+  const memberHome = ["ADMIN", "EDITOR"].includes((session?.user as { role?: string } | undefined)?.role ?? "")
+    ? "/admin/dashboard"
+    : "/dashboard"
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -158,23 +177,23 @@ export function Header() {
                   <ChevronDown className="h-3 w-3" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
+              <DropdownMenuContent align="start" className="w-60">
                 <DropdownMenuItem asChild>
                   <Link href="/cursos">Ver todos os cursos</Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos?categoria=hardware">Hardware</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos?categoria=software">Software</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos?categoria=consoles">Consoles</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos?categoria=negocios">Negócios</Link>
-                </DropdownMenuItem>
+                {categories.length > 0 && <DropdownMenuSeparator />}
+                {categories.map((root) => (
+                  <div key={root.id}>
+                    <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                      <Link href={`/cursos?categoria=${root.slug}`}>{root.name}</Link>
+                    </DropdownMenuLabel>
+                    {root.children.map((child) => (
+                      <DropdownMenuItem key={child.id} asChild>
+                        <Link href={`/cursos?categoria=${child.slug}`}>{child.name}</Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -232,17 +251,17 @@ export function Header() {
                   <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard">Minha área</Link>
-                </DropdownMenuItem>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href={memberHome}>Minha área</Link>
+                  </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/meus-cursos">Meus cursos</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/minha-conta">Minha conta</Link>
                 </DropdownMenuItem>
-                {(session.user as { role?: string })?.role === "ADMIN" && (
+                {["ADMIN", "EDITOR"].includes((session.user as { role?: string })?.role ?? "") && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
@@ -306,6 +325,27 @@ export function Header() {
                 >
                   Categorias
                 </Link>
+                {categories.map((root) => (
+                  <div key={root.id} className="px-3 py-1">
+                    <Link
+                      href={`/cursos?categoria=${root.slug}`}
+                      onClick={() => setMobileOpen(false)}
+                      className="block py-1 text-sm font-medium"
+                    >
+                      {root.name}
+                    </Link>
+                    {root.children.map((child) => (
+                      <Link
+                        key={child.id}
+                        href={`/cursos?categoria=${child.slug}`}
+                        onClick={() => setMobileOpen(false)}
+                        className="block py-1 pl-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {child.name}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
@@ -321,7 +361,7 @@ export function Header() {
                 {session ? (
                   <>
                     <Link
-                      href="/dashboard"
+                      href={memberHome}
                       onClick={() => setMobileOpen(false)}
                       className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
                     >
