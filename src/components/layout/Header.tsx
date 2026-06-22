@@ -81,14 +81,13 @@ function HeartbeatLine() {
   )
 }
 // ─────────────────────────────────────────────────────────────────────────────
-import { Menu, X, ChevronDown, Search, LayoutGrid } from "lucide-react"
+import { Menu, X, ChevronDown, ChevronRight, Search, LayoutGrid } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -115,13 +114,18 @@ export function Header() {
   const [search, setSearch] = useState("")
   const [isSearching, setIsSearching] = useState(false)
   const [categories, setCategories] = useState<CatalogCategoryNode[]>([])
+  const [openDesktopCategoryId, setOpenDesktopCategoryId] = useState<string | null>(null)
+  const [openMobileCategoryId, setOpenMobileCategoryId] = useState<string | null>(null)
   const router = useRouter()
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch("/api/catalog/categorias")
       .then((res) => res.ok ? res.json() : [])
-      .then((data: CatalogCategoryNode[]) => setCategories(data))
+      .then((data: CatalogCategoryNode[]) => {
+        setCategories(data)
+        setOpenDesktopCategoryId((current) => current ?? data[0]?.id ?? null)
+      })
       .catch(() => setCategories([]))
   }, [])
 
@@ -177,21 +181,39 @@ export function Header() {
                   <ChevronDown className="h-3 w-3" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-60">
+              <DropdownMenuContent align="start" className="w-72 p-1.5">
                 <DropdownMenuItem asChild>
                   <Link href="/cursos">Ver todos os cursos</Link>
                 </DropdownMenuItem>
                 {categories.length > 0 && <DropdownMenuSeparator />}
                 {categories.map((root) => (
-                  <div key={root.id}>
-                    <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                      <Link href={`/cursos?categoria=${root.slug}`}>{root.name}</Link>
-                    </DropdownMenuLabel>
-                    {root.children.map((child) => (
-                      <DropdownMenuItem key={child.id} asChild>
-                        <Link href={`/cursos?categoria=${child.slug}`}>{child.name}</Link>
-                      </DropdownMenuItem>
-                    ))}
+                  <div key={root.id} className="rounded-lg border border-transparent hover:border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => setOpenDesktopCategoryId((current) => current === root.id ? null : root.id)}
+                      className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <Link href={`/cursos?categoria=${root.slug}`} className="flex-1" onClick={(e) => e.stopPropagation()}>
+                        {root.name}
+                      </Link>
+                      {root.children.length > 0 && (
+                        <ChevronDown
+                          className={`h-4 w-4 text-muted-foreground transition-transform ${openDesktopCategoryId === root.id ? "rotate-180" : ""}`}
+                        />
+                      )}
+                    </button>
+                    {root.children.length > 0 && openDesktopCategoryId === root.id && (
+                      <div className="mb-1 space-y-1 pl-2">
+                        {root.children.map((child) => (
+                          <DropdownMenuItem key={child.id} asChild className="pl-6">
+                            <Link href={`/cursos?categoria=${child.slug}`} className="flex items-center gap-2">
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              {child.name}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </DropdownMenuContent>
@@ -326,24 +348,40 @@ export function Header() {
                   Categorias
                 </Link>
                 {categories.map((root) => (
-                  <div key={root.id} className="px-3 py-1">
-                    <Link
-                      href={`/cursos?categoria=${root.slug}`}
-                      onClick={() => setMobileOpen(false)}
-                      className="block py-1 text-sm font-medium"
-                    >
-                      {root.name}
-                    </Link>
-                    {root.children.map((child) => (
+                  <div key={root.id} className="rounded-lg border border-border/40 bg-card/30">
+                    <div className="flex items-center">
                       <Link
-                        key={child.id}
-                        href={`/cursos?categoria=${child.slug}`}
+                        href={`/cursos?categoria=${root.slug}`}
                         onClick={() => setMobileOpen(false)}
-                        className="block py-1 pl-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className="flex-1 px-3 py-2 text-sm font-medium"
                       >
-                        {child.name}
+                        {root.name}
                       </Link>
-                    ))}
+                      {root.children.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setOpenMobileCategoryId((current) => current === root.id ? null : root.id)}
+                          className="px-3 py-2 text-muted-foreground"
+                        >
+                          <ChevronDown className={`h-4 w-4 transition-transform ${openMobileCategoryId === root.id ? "rotate-180" : ""}`} />
+                        </button>
+                      )}
+                    </div>
+                    {root.children.length > 0 && openMobileCategoryId === root.id && (
+                      <div className="border-t border-border/40 px-2 py-1">
+                        {root.children.map((child) => (
+                          <Link
+                            key={child.id}
+                            href={`/cursos?categoria=${child.slug}`}
+                            onClick={() => setMobileOpen(false)}
+                            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {navLinks.map((link) => (

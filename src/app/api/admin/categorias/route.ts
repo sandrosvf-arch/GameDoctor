@@ -26,6 +26,7 @@ export async function GET() {
       parentId: true,
       order: true,
       status: true,
+      showInMenu: true,
       _count: { select: { courseCategories: true, children: true } },
     },
   })
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
   const description = String(body?.description ?? "").trim()
   const parentId = body?.parentId ? String(body.parentId) : null
   const status = body?.status === "INACTIVE" ? "INACTIVE" : "ACTIVE"
+  const showInMenu = body?.showInMenu === undefined ? true : Boolean(body.showInMenu)
 
   if (!name) {
     return NextResponse.json({ error: "Nome obrigatorio." }, { status: 400 })
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
       description: description || null,
       parentId,
       status,
+      showInMenu,
       order: (agg._max.order ?? -1) + 1,
     },
   })

@@ -24,6 +24,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const status = body?.status === "INACTIVE" ? "INACTIVE" : body?.status === "ACTIVE" ? "ACTIVE" : undefined
   const order = typeof body?.order === "number" ? body.order : undefined
   const parentId = body?.parentId === undefined ? undefined : body.parentId ? String(body.parentId) : null
+  const showInMenu = body?.showInMenu === undefined ? undefined : Boolean(body.showInMenu)
   const current = await db.catalogCategory.findUnique({
     where: { id },
     select: { name: true },
@@ -57,6 +58,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ...(slug !== undefined && { slug: slug || slugifyCatalogName(name ?? current.name) }),
       ...(description !== undefined && { description: description || null }),
       ...(status !== undefined && { status }),
+      ...(showInMenu !== undefined && { showInMenu }),
       ...(order !== undefined && { order }),
       ...(parentId !== undefined && { parentId }),
     },

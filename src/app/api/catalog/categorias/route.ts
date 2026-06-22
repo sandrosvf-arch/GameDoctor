@@ -4,7 +4,7 @@ import { buildCatalogTree } from "@/lib/catalog"
 
 export async function GET() {
   const categories = await db.catalogCategory.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", showInMenu: true },
     orderBy: [{ order: "asc" }, { name: "asc" }],
     select: {
       id: true,
@@ -14,6 +14,7 @@ export async function GET() {
       parentId: true,
       order: true,
       status: true,
+      showInMenu: true,
     },
   })
 

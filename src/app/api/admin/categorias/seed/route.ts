@@ -26,6 +26,7 @@ export async function POST() {
         description: item.description ?? null,
         order: item.order,
         status: "ACTIVE",
+        showInMenu: true,
       },
       create: {
         name: item.name,
@@ -33,6 +34,7 @@ export async function POST() {
         description: item.description ?? null,
         order: item.order,
         status: "ACTIVE",
+        showInMenu: true,
       },
     })
     existing.set(item.slug, category.id)
@@ -50,6 +52,7 @@ export async function POST() {
         parentId,
         order: item.order,
         status: "ACTIVE",
+        showInMenu: true,
       },
       create: {
         name: item.name,
@@ -58,6 +61,7 @@ export async function POST() {
         parentId,
         order: item.order,
         status: "ACTIVE",
+        showInMenu: true,
       },
     })
     existing.set(item.slug, category.id)

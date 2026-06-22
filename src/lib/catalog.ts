@@ -8,6 +8,7 @@ export interface CatalogCategoryRecord {
   parentId: string | null
   order: number
   status: CatalogCategoryStatus
+  showInMenu: boolean
 }
 
 export interface CatalogCategoryNode extends CatalogCategoryRecord {
