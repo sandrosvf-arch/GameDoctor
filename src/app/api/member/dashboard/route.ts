@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { differenceInCalendarDays, differenceInDays, format } from "date-fns"
+import { differenceInCalendarDays, format } from "date-fns"
 
 export async function GET() {
   const session = await auth()
@@ -175,7 +175,7 @@ export async function GET() {
   if (activeAccess) {
     const isLifetime = !activeAccess.expiresAt
     const daysRemaining = activeAccess.expiresAt
-      ? Math.max(0, differenceInDays(activeAccess.expiresAt, now))
+      ? Math.max(0, differenceInCalendarDays(activeAccess.expiresAt, now))
       : null
 
     planInfo = {

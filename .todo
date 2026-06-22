@@ -24,12 +24,12 @@ MENU LATERAL:
 
 ---------------------------------
 
-Dashboard(Aluno): Validar se as métricas estão sendo calculadas se não, calcular
-- Dias para expirar a assinatura
-- Progresso geral
-- Aulas concluídas
-- Horas de estudo
-- Conquistas
+Dashboard(Aluno): Validar se as métricas estão sendo calculadas se não, calcular @done
+- Dias para expirar a assinatura @done
+- Progresso geral @done
+- Aulas concluídas @done
+- Horas de estudo @done
+- Conquistas @done
 
 ---------------------------------
 
