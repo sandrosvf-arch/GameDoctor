@@ -44,10 +44,6 @@ export default auth((req: NextAuthRequest) => {
     return NextResponse.redirect(url)
   }
 
-  if (isMemberRoute && isAdmin) {
-    return NextResponse.redirect(new URL(ADMIN_HOME, nextUrl))
-  }
-
   if (isSharedAuthRoute && !isLoggedIn) {
     const url = new URL("/login", nextUrl)
     url.searchParams.set("callbackUrl", pathname)
