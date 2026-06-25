@@ -549,16 +549,24 @@ model Payment {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  lessonId  String   @map("lesson_id")
-  userId    String   @map("user_id")
-  content   String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String    @id @default(cuid())
+  lessonId    String    @map("lesson_id")
+  userId      String    @map("user_id")
+  parentId    String?   @map("parent_id")
+  content     String
+  status      String    @default("APPROVED")
+  approvedAt  DateTime? @map("approved_at")
+  approvedBy  String?   @map("approved_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson   Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
 
+  @@index([lessonId, status, createdAt])
+  @@index([parentId])
   @@map("comments")
 }
 
