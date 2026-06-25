@@ -72,7 +72,7 @@ Status:
 - done: Prisma models and indexes
 - done: manual migration for existing database flow
 - done: reusable slug and ban helper
-- pending: attachment upload flow for community images
+- done: attachment upload flow for community images
 
 ### Phase 2 - Admin
 
@@ -89,9 +89,10 @@ Status:
 Status:
 
 - done: admin forum CRUD
-- done: moderation queue for topics
+- done: moderation queue for topics and replies
 - done: approve, reject, pin, lock and remove topic actions
 - done: ban user controls
+- done: moderation actions inside the topic view
 
 ### Phase 3 - Client
 
@@ -108,6 +109,9 @@ Status:
 - done: topic creation flow
 - done: `/comunidade/topico/[topicSlug]`
 - done: reply composer
+- done: relative date formatting across community pages
+- done: ban-state blocking for topic/reply creation
+- done: image attachments in topic and reply flow
 
 ### Phase 4 - Polish
 
@@ -117,6 +121,14 @@ Status:
 - empty states
 - permission messages
 - audit log display
+
+Status:
+
+- done: counters
+- done: pagination
+- done: loading and empty states
+- done: permission messages for banned users
+- pending: audit log display
 
 ## Rules
 

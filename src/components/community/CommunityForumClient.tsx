@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   CalendarDays,
   Eye,
+  ImagePlus,
   Loader2,
   MessageSquareText,
   Plus,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react"
 import { RichTextEditor } from "@/components/admin/RichTextEditor"
 import { formatCommunityDate, getCommunityFirstName } from "@/lib/community"
+import { uploadCommunityImage, type CommunityUploadedImage } from "@/lib/community-image-upload"
 
 interface CommunityTopicListItem {
   id: string
@@ -72,7 +74,9 @@ export function CommunityForumClient({
   const [showComposer, setShowComposer] = useState(false)
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
+  const [attachments, setAttachments] = useState<CommunityUploadedImage[]>([])
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
 
@@ -113,10 +117,10 @@ export function CommunityForumClient({
   }, [query])
 
   const statsText = useMemo(() => {
-    if (!hasLoadedOnce || loading) return "Carregando tópicos..."
-    if (total === 0) return "Nenhum tópico publicado."
-    if (total === 1) return "1 tópico publicado."
-    return `${total} tópicos publicados.`
+    if (!hasLoadedOnce || loading) return "Carregando topicos..."
+    if (total === 0) return "Nenhum topico publicado."
+    if (total === 1) return "1 topico publicado."
+    return `${total} topicos publicados.`
   }, [hasLoadedOnce, loading, total])
 
   async function submitTopic(event: React.FormEvent) {
@@ -131,6 +135,7 @@ export function CommunityForumClient({
       body: JSON.stringify({
         title,
         content,
+        attachments,
       }),
     })
 
@@ -138,20 +143,21 @@ export function CommunityForumClient({
     const data = await response.json().catch(() => null)
 
     if (!response.ok) {
-      setError(data?.error ?? "Não foi possível criar o tópico.")
+      setError(data?.error ?? "Nao foi possivel criar o topico.")
       return
     }
 
     setTitle("")
     setContent("")
+    setAttachments([])
     setShowComposer(false)
 
     if (data?.pending) {
-      setInfo(data.message ?? "Tópico enviado para aprovação.")
+      setInfo(data.message ?? "Topico enviado para aprovacao.")
       return
     }
 
-    setInfo("Tópico publicado com sucesso.")
+    setInfo("Topico publicado com sucesso.")
     setPage(1)
     setQuery("")
     setLoading(true)
@@ -173,6 +179,27 @@ export function CommunityForumClient({
     setLoading(false)
   }
 
+  async function handleAttachmentChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? [])
+    if (!files.length) return
+
+    setError(null)
+    setUploading(true)
+
+    try {
+      const nextUploads: CommunityUploadedImage[] = []
+      for (const file of files.slice(0, Math.max(0, 6 - attachments.length))) {
+        nextUploads.push(await uploadCommunityImage(file))
+      }
+      setAttachments((current) => [...current, ...nextUploads].slice(0, 6))
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o anexo.")
+    } finally {
+      setUploading(false)
+      event.target.value = ""
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#080b10] text-slate-100">
       <section className="border-b border-white/[0.08] bg-[#0b0f16]">
@@ -192,7 +219,7 @@ export function CommunityForumClient({
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-                {initialForum.description || "Fórum sem descrição cadastrada ainda."}
+                {initialForum.description || "Forum sem descricao cadastrada ainda."}
               </p>
 
               <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
@@ -201,12 +228,13 @@ export function CommunityForumClient({
                 {initialForum.topicApprovalRequired && (
                   <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-300">
                     <Shield className="h-3.5 w-3.5" />
-                    Tópicos moderados
+                    Topicos moderados
                   </span>
                 )}
 
                 {initialForum.replyApprovalRequired && (
                   <span className="inline-flex items-center gap-1.5 rounded-md border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-sky-300">
+                    <Shield className="h-3.5 w-3.5" />
                     Respostas moderadas
                   </span>
                 )}
@@ -233,11 +261,11 @@ export function CommunityForumClient({
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
                 >
                   <Plus className="h-4 w-4" />
-                  Novo tópico
+                  Novo topico
                 </button>
               ) : (
                 <span className="inline-flex h-10 items-center justify-center rounded-md border border-white/[0.1] bg-white/[0.03] px-4 text-sm text-slate-400">
-                  {banMessage ? "Publicação bloqueada" : "Entre para criar tópicos"}
+                  {banMessage ? "Publicacao bloqueada" : "Entre para criar topicos"}
                 </span>
               )}
             </div>
@@ -272,7 +300,7 @@ export function CommunityForumClient({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar no fórum"
+              placeholder="Buscar no forum"
               className="h-10 w-full rounded-md border border-white/[0.1] bg-[#0d1118] pl-9 pr-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-600 focus:border-slate-500"
             />
           </div>
@@ -280,10 +308,10 @@ export function CommunityForumClient({
 
         <div className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#0c1017]">
           <div className="hidden grid-cols-[minmax(0,1fr)_110px_100px_170px] border-b border-white/[0.08] bg-white/[0.025] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 md:grid">
-            <div>Tópico</div>
+            <div>Topico</div>
             <div className="text-center">Respostas</div>
             <div className="text-center">Views</div>
-            <div>Última atividade</div>
+            <div>Ultima atividade</div>
           </div>
 
           {loading ? (
@@ -292,10 +320,8 @@ export function CommunityForumClient({
             </div>
           ) : items.length === 0 ? (
             <div className="px-6 py-16 text-center">
-              <p className="text-sm font-medium text-slate-300">Nenhum tópico encontrado</p>
-              <p className="mt-1 text-sm text-slate-500">
-                Quando houver publicações, elas aparecerão aqui.
-              </p>
+              <p className="text-sm font-medium text-slate-300">Nenhum topico encontrado</p>
+              <p className="mt-1 text-sm text-slate-500">Quando houver publicacoes, elas aparecerao aqui.</p>
             </div>
           ) : (
             <div className="divide-y divide-white/[0.08]">
@@ -381,7 +407,7 @@ export function CommunityForumClient({
         {!loading && items.length > 0 && (
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
-              Página {page} de {totalPages}
+              Pagina {page} de {totalPages}
             </p>
 
             <div className="flex items-center gap-2">
@@ -398,7 +424,7 @@ export function CommunityForumClient({
                 disabled={page >= totalPages}
                 className="h-9 rounded-md border border-white/[0.1] bg-white/[0.03] px-3 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Próxima
+                Proxima
               </button>
             </div>
           </div>
@@ -410,9 +436,9 @@ export function CommunityForumClient({
           <div className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-lg border border-white/[0.1] bg-[#0c1017] shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] bg-[#111722] px-6 py-5">
               <div>
-                <h2 className="text-lg font-semibold text-white">Novo tópico</h2>
+                <h2 className="text-lg font-semibold text-white">Novo topico</h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Informe o problema, testes realizados e o contexto técnico.
+                  Informe o problema, testes realizados e o contexto tecnico.
                 </p>
               </div>
 
@@ -426,36 +452,72 @@ export function CommunityForumClient({
 
             <form onSubmit={submitTopic} className="max-h-[calc(92vh-82px)] space-y-5 overflow-y-auto px-6 py-6">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Título
-                </label>
-
+                <label className="mb-2 block text-sm font-medium text-slate-300">Titulo</label>
                 <input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   className="h-11 w-full rounded-md border border-white/[0.1] bg-[#080b10] px-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-slate-500"
-                  placeholder="Ex.: PS5 liga e desliga após alguns segundos"
+                  placeholder="Ex.: PS5 liga e desliga apos alguns segundos"
                   required
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Conteúdo
-                </label>
-
+                <label className="mb-2 block text-sm font-medium text-slate-300">Conteudo</label>
                 <RichTextEditor
                   value={content}
                   onChange={setContent}
-                  placeholder="Descreva o caso com o máximo de contexto possível..."
+                  placeholder="Descreva o caso com o maximo de contexto possivel..."
                 />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-sm font-medium text-slate-300">Anexos</label>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/[0.06]">
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                    Adicionar imagens
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleAttachmentChange}
+                      disabled={uploading || attachments.length >= 6}
+                    />
+                  </label>
+                </div>
+
+                {attachments.length > 0 && (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {attachments.map((attachment) => (
+                      <div key={attachment.url} className="overflow-hidden rounded-md border border-white/[0.08] bg-[#080b10]">
+                        <img src={attachment.url} alt={attachment.fileName} className="h-32 w-full object-cover" />
+                        <div className="flex items-center justify-between gap-2 px-3 py-2">
+                          <p className="truncate text-xs text-slate-400">{attachment.fileName}</p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAttachments((current) => current.filter((item) => item.url !== attachment.url))
+                            }
+                            className="text-xs text-red-300 transition hover:text-red-200"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-xs text-slate-500">Ate 6 imagens por topico.</p>
               </div>
 
               {initialForum.topicApprovalRequired && (
                 <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                   <span className="inline-flex items-center gap-2">
                     <Shield className="h-4 w-4" />
-                    Este fórum possui aprovação de tópicos antes da publicação.
+                    Este forum possui aprovacao de topicos antes da publicacao.
                   </span>
                 </div>
               )}
@@ -477,10 +539,10 @@ export function CommunityForumClient({
 
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || uploading}
                   className="h-10 rounded-md bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? "Publicando..." : "Criar tópico"}
+                  {saving ? "Publicando..." : "Criar topico"}
                 </button>
               </div>
             </form>

@@ -63,6 +63,15 @@ export default async function CommunityTopicPage({
           },
         },
       },
+      attachments: {
+        select: {
+          id: true,
+          fileName: true,
+          fileUrl: true,
+          mimeType: true,
+          sizeBytes: true,
+        },
+      },
       posts: {
         where: {
           parentPostId: null,
@@ -73,6 +82,15 @@ export default async function CommunityTopicPage({
           id: true,
           content: true,
           createdAt: true,
+          attachments: {
+            select: {
+              id: true,
+              fileName: true,
+              fileUrl: true,
+              mimeType: true,
+              sizeBytes: true,
+            },
+          },
           author: {
             select: {
               id: true,
@@ -211,11 +229,25 @@ export default async function CommunityTopicPage({
                 : null,
             },
             replyApprovalRequired: topic.forum.replyApprovalRequired,
+            attachments: topic.attachments.map((attachment) => ({
+              id: attachment.id,
+              fileName: attachment.fileName,
+              url: attachment.fileUrl,
+              mimeType: attachment.mimeType ?? "image/jpeg",
+              sizeBytes: attachment.sizeBytes ?? 0,
+            })),
           }}
           initialPosts={topic.posts.map((post) => ({
             id: post.id,
             content: post.content,
             createdAt: post.createdAt.toISOString(),
+            attachments: post.attachments.map((attachment) => ({
+              id: attachment.id,
+              fileName: attachment.fileName,
+              url: attachment.fileUrl,
+              mimeType: attachment.mimeType ?? "image/jpeg",
+              sizeBytes: attachment.sizeBytes ?? 0,
+            })),
             author: {
               id: post.author.id,
               name: post.author.name,

@@ -154,6 +154,7 @@ export async function POST(
   const body = await request.json().catch(() => null)
   const title = typeof body?.title === "string" ? body.title.trim() : ""
   const content = typeof body?.content === "string" ? body.content.trim() : ""
+  const attachments = Array.isArray(body?.attachments) ? body.attachments : []
 
   if (title.length < 6) {
     return NextResponse.json({ error: "O titulo precisa ter pelo menos 6 caracteres." }, { status: 400 })
@@ -162,6 +163,27 @@ export async function POST(
   if (content.replace(/<[^>]+>/g, "").trim().length < 12) {
     return NextResponse.json({ error: "Escreva um conteudo mais completo para o topico." }, { status: 400 })
   }
+
+  const normalizedAttachments = attachments
+    .filter((attachment: unknown) => typeof (attachment as { url?: unknown })?.url === "string")
+    .slice(0, 6)
+    .map((attachment: {
+      fileName?: string
+      url: string
+      mimeType?: string
+      sizeBytes?: number | string
+    }) => ({
+      fileName:
+        typeof attachment.fileName === "string" && attachment.fileName.trim()
+          ? attachment.fileName.trim()
+          : "anexo",
+      fileUrl: attachment.url.trim(),
+      mimeType: typeof attachment.mimeType === "string" ? attachment.mimeType : null,
+      sizeBytes:
+        Number.isFinite(Number(attachment.sizeBytes)) && Number(attachment.sizeBytes) > 0
+          ? Number(attachment.sizeBytes)
+          : null,
+    }))
 
   const autoApprove = isAdminRole(session.user.role) || !forum.topicApprovalRequired
   const topicSlug = await buildUniqueTopicSlug(title)
@@ -177,6 +199,22 @@ export async function POST(
       approvedAt: autoApprove ? new Date() : null,
       approvedById: autoApprove ? session.user.id : null,
       lastReplyAt: new Date(),
+      attachments: normalizedAttachments.length
+        ? {
+            create: normalizedAttachments.map((attachment: {
+              fileName: string
+              fileUrl: string
+              mimeType: string | null
+              sizeBytes: number | null
+            }) => ({
+              uploadedById: session.user.id,
+              fileName: attachment.fileName,
+              fileUrl: attachment.fileUrl,
+              mimeType: attachment.mimeType,
+              sizeBytes: attachment.sizeBytes,
+            })),
+          }
+        : undefined,
     },
     select: {
       id: true,
@@ -184,6 +222,15 @@ export async function POST(
       slug: true,
       status: true,
       createdAt: true,
+      attachments: {
+        select: {
+          id: true,
+          fileName: true,
+          fileUrl: true,
+          mimeType: true,
+          sizeBytes: true,
+        },
+      },
     },
   })
 

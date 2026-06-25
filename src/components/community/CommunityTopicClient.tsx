@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronLeft,
   Eye,
+  ImagePlus,
   Loader2,
   LockKeyhole,
   MessageSquareText,
@@ -22,6 +23,7 @@ import {
   UserRound,
 } from "lucide-react"
 import { formatCommunityDate, getCommunityFirstName, getCommunityInitials } from "@/lib/community"
+import { uploadCommunityImage, type CommunityUploadedImage } from "@/lib/community-image-upload"
 
 interface ActiveBanMeta {
   id: string
@@ -41,6 +43,7 @@ interface TopicPost {
   id: string
   content: string
   createdAt: string
+  attachments: CommunityUploadedImage[]
   author: TopicAuthor
 }
 
@@ -57,6 +60,7 @@ interface TopicMeta {
   forumSlug: string
   author: TopicAuthor
   replyApprovalRequired: boolean
+  attachments: CommunityUploadedImage[]
 }
 
 export function CommunityTopicClient({
@@ -77,7 +81,9 @@ export function CommunityTopicClient({
   const router = useRouter()
   const [posts, setPosts] = useState(initialPosts)
   const [content, setContent] = useState("")
+  const [attachments, setAttachments] = useState<CommunityUploadedImage[]>([])
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [adminActionId, setAdminActionId] = useState<string | null>(null)
@@ -92,7 +98,7 @@ export function CommunityTopicClient({
     const response = await fetch(`/api/comunidade/topicos/${topicSlug}/posts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, attachments }),
     })
 
     setSaving(false)
@@ -105,14 +111,66 @@ export function CommunityTopicClient({
     }
 
     setContent("")
+    setAttachments([])
 
     if (data?.pending) {
       setInfo(data.message ?? "Resposta enviada para aprovacao.")
       return
     }
 
-    setPosts((current) => [...current, data.post])
+    setPosts((current) => [
+      ...current,
+      {
+        id: data.post.id,
+        content: data.post.content,
+        createdAt: data.post.createdAt,
+        attachments: Array.isArray(data.post.attachments)
+          ? data.post.attachments.map((attachment: {
+              id?: string
+              fileName: string
+              fileUrl?: string
+              url?: string
+              mimeType?: string | null
+              sizeBytes?: number | null
+            }) => ({
+              id: attachment.id,
+              url: attachment.url ?? attachment.fileUrl ?? "",
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType ?? "image/jpeg",
+              sizeBytes: attachment.sizeBytes ?? 0,
+            }))
+          : [],
+        author: {
+          id: data.post.author.id,
+          name: data.post.author.name,
+          email: null,
+          avatarUrl: data.post.author.avatarUrl,
+          activeBan: null,
+        },
+      },
+    ])
     setInfo("Resposta publicada com sucesso.")
+  }
+
+  async function handleAttachmentChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? [])
+    if (!files.length) return
+
+    setError(null)
+    setUploading(true)
+
+    try {
+      const nextUploads: CommunityUploadedImage[] = []
+      for (const file of files.slice(0, Math.max(0, 6 - attachments.length))) {
+        nextUploads.push(await uploadCommunityImage(file))
+      }
+      setAttachments((current) => [...current, ...nextUploads].slice(0, 6))
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o anexo.")
+    } finally {
+      setUploading(false)
+      event.target.value = ""
+    }
   }
 
   async function toggleBanUser(author: TopicAuthor) {
@@ -290,6 +348,7 @@ export function CommunityTopicClient({
         authorRole="Autor da discussão"
         createdAt={topic.createdAt}
         content={topic.content}
+        attachments={topic.attachments}
         highlight
         isAdminUser={isAdminUser}
         actionBusy={adminActionId === `topic:${topic.id}` || adminActionId === `ban:${topic.author.id}`}
@@ -323,6 +382,7 @@ export function CommunityTopicClient({
                   authorRole="Membro da comunidade"
                   createdAt={post.createdAt}
                   content={post.content}
+                  attachments={post.attachments}
                   compact
                   isAdminUser={isAdminUser}
                   actionBusy={adminActionId === `post:${post.id}` || adminActionId === `ban:${post.author.id}`}
@@ -363,6 +423,46 @@ export function CommunityTopicClient({
                 <RichTextEditor value={content} onChange={setContent} placeholder="Escreva sua resposta..." />
               </div>
 
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-sm font-medium text-slate-300">Anexos</label>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/[0.06]">
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                    Adicionar imagens
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleAttachmentChange}
+                      disabled={uploading || attachments.length >= 6}
+                    />
+                  </label>
+                </div>
+
+                {attachments.length > 0 && (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {attachments.map((attachment) => (
+                      <div key={attachment.url} className="overflow-hidden rounded-md border border-white/[0.08] bg-[#080b10]">
+                        <img src={attachment.url} alt={attachment.fileName} className="h-32 w-full object-cover" />
+                        <div className="flex items-center justify-between gap-2 px-3 py-2">
+                          <p className="truncate text-xs text-slate-400">{attachment.fileName}</p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAttachments((current) => current.filter((item) => item.url !== attachment.url))
+                            }
+                            className="text-xs text-red-300 transition hover:text-red-200"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {topic.replyApprovalRequired && (
                 <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                   <span className="inline-flex items-center gap-2">
@@ -387,7 +487,7 @@ export function CommunityTopicClient({
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || uploading}
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -407,6 +507,7 @@ function CommunityPostCard({
   authorRole,
   createdAt,
   content,
+  attachments,
   highlight = false,
   compact = false,
   isAdminUser = false,
@@ -418,6 +519,7 @@ function CommunityPostCard({
   authorRole: string
   createdAt: string
   content: string
+  attachments: CommunityUploadedImage[]
   highlight?: boolean
   compact?: boolean
   isAdminUser?: boolean
@@ -508,6 +610,22 @@ function CommunityPostCard({
               className="prose prose-invert max-w-none prose-headings:text-white prose-a:text-sky-300 prose-strong:text-white prose-p:leading-7 prose-p:text-slate-300 prose-li:text-slate-300 prose-blockquote:border-slate-600 prose-blockquote:text-slate-400"
               dangerouslySetInnerHTML={{ __html: content }}
             />
+
+            {attachments.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-3">
+                {attachments.map((attachment) => (
+                  <a
+                    key={attachment.id ?? attachment.url}
+                    href={attachment.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="h-[60px] w-[60px] overflow-hidden rounded-md border border-white/[0.08] bg-[#080b10] transition hover:border-white/[0.16]"
+                  >
+                    <img src={attachment.url} alt={attachment.fileName} className="h-full w-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -106,10 +106,32 @@ export async function POST(
 
   const body = await request.json().catch(() => null)
   const content = typeof body?.content === "string" ? body.content.trim() : ""
+  const attachments = Array.isArray(body?.attachments) ? body.attachments : []
 
   if (content.replace(/<[^>]+>/g, "").trim().length < 6) {
     return NextResponse.json({ error: "Escreva uma resposta mais completa." }, { status: 400 })
   }
+
+  const normalizedAttachments = attachments
+    .filter((attachment: unknown) => typeof (attachment as { url?: unknown })?.url === "string")
+    .slice(0, 6)
+    .map((attachment: {
+      fileName?: string
+      url: string
+      mimeType?: string
+      sizeBytes?: number | string
+    }) => ({
+      fileName:
+        typeof attachment.fileName === "string" && attachment.fileName.trim()
+          ? attachment.fileName.trim()
+          : "anexo",
+      fileUrl: attachment.url.trim(),
+      mimeType: typeof attachment.mimeType === "string" ? attachment.mimeType : null,
+      sizeBytes:
+        Number.isFinite(Number(attachment.sizeBytes)) && Number(attachment.sizeBytes) > 0
+          ? Number(attachment.sizeBytes)
+          : null,
+    }))
 
   const autoApprove = isAdminRole(session.user.role) || !topic.forum.replyApprovalRequired
 
@@ -121,12 +143,37 @@ export async function POST(
       status: autoApprove ? "APPROVED" : "PENDING",
       approvedAt: autoApprove ? new Date() : null,
       approvedById: autoApprove ? session.user.id : null,
+      attachments: normalizedAttachments.length
+        ? {
+            create: normalizedAttachments.map((attachment: {
+              fileName: string
+              fileUrl: string
+              mimeType: string | null
+              sizeBytes: number | null
+            }) => ({
+              uploadedById: session.user.id,
+              fileName: attachment.fileName,
+              fileUrl: attachment.fileUrl,
+              mimeType: attachment.mimeType,
+              sizeBytes: attachment.sizeBytes,
+            })),
+          }
+        : undefined,
     },
     select: {
       id: true,
       content: true,
       createdAt: true,
       status: true,
+      attachments: {
+        select: {
+          id: true,
+          fileName: true,
+          fileUrl: true,
+          mimeType: true,
+          sizeBytes: true,
+        },
+      },
       author: {
         select: {
           id: true,
