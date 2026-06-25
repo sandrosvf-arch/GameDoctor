@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { getCommunityActiveBanWhere } from "@/lib/community"
 
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "EDITOR"
@@ -54,6 +55,17 @@ export async function GET(request: Request) {
           name: true,
           email: true,
           avatarUrl: true,
+          communityBans: {
+            where: getCommunityActiveBanWhere(),
+            orderBy: [{ createdAt: "desc" }],
+            take: 1,
+            select: {
+              id: true,
+              reason: true,
+              endsAt: true,
+              status: true,
+            },
+          },
         },
       },
     },

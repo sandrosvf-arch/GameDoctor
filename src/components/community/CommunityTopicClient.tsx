@@ -1,25 +1,40 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { RichTextEditor } from "@/components/admin/RichTextEditor"
 import {
+  Ban,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   Eye,
   Loader2,
   LockKeyhole,
   MessageSquareText,
+  MoreHorizontal,
   Send,
   ShieldCheck,
+  ShieldOff,
+  Trash2,
   UserRound,
 } from "lucide-react"
-import { getCommunityFirstName, getCommunityInitials } from "@/lib/community"
+import { formatCommunityDate, getCommunityFirstName, getCommunityInitials } from "@/lib/community"
+
+interface ActiveBanMeta {
+  id: string
+  reason: string | null
+  endsAt: string | null
+}
 
 interface TopicAuthor {
+  id: string
   name: string
+  email: string | null
   avatarUrl: string | null
+  activeBan: ActiveBanMeta | null
 }
 
 interface TopicPost {
@@ -48,18 +63,24 @@ export function CommunityTopicClient({
   topic,
   initialPosts,
   canReply,
+  banMessage,
+  isAdminUser,
   topicSlug,
 }: {
   topic: TopicMeta
   initialPosts: TopicPost[]
   canReply: boolean
+  banMessage?: string | null
+  isAdminUser: boolean
   topicSlug: string
 }) {
+  const router = useRouter()
   const [posts, setPosts] = useState(initialPosts)
   const [content, setContent] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const [adminActionId, setAdminActionId] = useState<string | null>(null)
 
   async function sendReply(event: React.FormEvent) {
     event.preventDefault()
@@ -79,19 +100,129 @@ export function CommunityTopicClient({
     const data = await response.json().catch(() => null)
 
     if (!response.ok) {
-      setError(data?.error ?? "Não foi possível publicar a resposta.")
+      setError(data?.error ?? "Nao foi possivel publicar a resposta.")
       return
     }
 
     setContent("")
 
     if (data?.pending) {
-      setInfo(data.message ?? "Resposta enviada para aprovação.")
+      setInfo(data.message ?? "Resposta enviada para aprovacao.")
       return
     }
 
     setPosts((current) => [...current, data.post])
     setInfo("Resposta publicada com sucesso.")
+  }
+
+  async function toggleBanUser(author: TopicAuthor) {
+    const authorLabel = author.email
+      ? `${getCommunityFirstName(author.name)} (${author.email})`
+      : getCommunityFirstName(author.name)
+
+    if (author.activeBan) {
+      if (!window.confirm(`Remover o banimento da comunidade de ${authorLabel}?`)) {
+        return
+      }
+
+      setAdminActionId(`ban:${author.id}`)
+
+      const response = await fetch(`/api/admin/comunidade/bans/${author.id}`, {
+        method: "DELETE",
+      })
+
+      setAdminActionId(null)
+
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        window.alert(data?.error ?? "Nao foi possivel remover o banimento.")
+        return
+      }
+
+      router.refresh()
+      return
+    }
+
+    const reason = window.prompt(`Motivo do banimento para ${authorLabel}:`)
+    if (reason === null) return
+
+    const durationInput = window.prompt("Duracao em dias? Deixe vazio para permanente.", "")
+    const durationDays = durationInput?.trim() ? Number(durationInput) : null
+
+    setAdminActionId(`ban:${author.id}`)
+
+    const response = await fetch("/api/admin/comunidade/bans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: author.id,
+        reason,
+        durationDays,
+      }),
+    })
+
+    setAdminActionId(null)
+
+    const data = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      window.alert(data?.error ?? "Nao foi possivel banir este usuario.")
+      return
+    }
+
+    router.refresh()
+  }
+
+  async function deleteTopic() {
+    if (!window.confirm("Apagar este topico inteiro? Essa acao remove a publicação principal e todas as respostas.")) {
+      return
+    }
+
+    setAdminActionId(`topic:${topic.id}`)
+
+    const response = await fetch(`/api/admin/comunidade/topicos/${topic.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete" }),
+    })
+
+    setAdminActionId(null)
+
+    const data = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      window.alert(data?.error ?? "Nao foi possivel apagar este topico.")
+      return
+    }
+
+    router.push(`/comunidade/${topic.forumSlug}`)
+    router.refresh()
+  }
+
+  async function deleteReply(postId: string) {
+    if (!window.confirm("Apagar esta resposta da comunidade?")) {
+      return
+    }
+
+    setAdminActionId(`post:${postId}`)
+
+    const response = await fetch(`/api/admin/comunidade/posts/${postId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete" }),
+    })
+
+    setAdminActionId(null)
+
+    const data = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      window.alert(data?.error ?? "Nao foi possivel apagar esta resposta.")
+      return
+    }
+
+    setPosts((current) => current.filter((post) => post.id !== postId))
   }
 
   const views = topic.viewsCount + 1
@@ -113,7 +244,7 @@ export function CommunityTopicClient({
             <div className="min-w-0">
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs font-medium text-slate-400">
-                  Discussão da comunidade
+                  discussão da comunidade
                 </span>
 
                 {topic.isPinned && (
@@ -136,7 +267,7 @@ export function CommunityTopicClient({
 
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500">
                 <MetaItem icon={UserRound} label={getCommunityFirstName(topic.author.name)} />
-                <MetaItem icon={CalendarDays} label={formatDate(topic.createdAt)} />
+                <MetaItem icon={CalendarDays} label={formatCommunityDate(topic.createdAt)} />
                 <MetaItem icon={MessageSquareText} label={plural(replies, "resposta", "respostas")} />
                 <MetaItem icon={Eye} label={plural(views, "visualização", "visualizações")} />
               </div>
@@ -160,32 +291,28 @@ export function CommunityTopicClient({
         createdAt={topic.createdAt}
         content={topic.content}
         highlight
+        isAdminUser={isAdminUser}
+        actionBusy={adminActionId === `topic:${topic.id}` || adminActionId === `ban:${topic.author.id}`}
+        onDelete={deleteTopic}
+        onToggleBan={() => toggleBanUser(topic.author)}
       />
 
       <section className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#0c1017]">
         <div className="flex flex-col gap-2 border-b border-white/[0.08] bg-white/[0.025] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-base font-semibold text-white">
-              Respostas da comunidade
-            </h2>
+            <h2 className="text-base font-semibold text-white">Respostas da comunidade</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Acompanhe os complementos, diagnósticos e soluções compartilhadas.
+              Acompanhe os complementos, diagnósticose soluções compartilhadas.
             </p>
           </div>
 
-          <span className="text-sm text-slate-500">
-            {plural(replies, "resposta", "respostas")}
-          </span>
+          <span className="text-sm text-slate-500">{plural(replies, "resposta", "respostas")}</span>
         </div>
 
         {posts.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-sm font-medium text-slate-300">
-              Nenhuma resposta publicada ainda.
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              Seja o primeiro a contribuir com essa discussão.
-            </p>
+            <p className="text-sm font-medium text-slate-300">Nenhuma resposta publicada ainda.</p>
+            <p className="mt-1 text-sm text-slate-500">Seja o primeiro a contribuir com essa discussão.</p>
           </div>
         ) : (
           <div className="divide-y divide-white/[0.08]">
@@ -197,6 +324,10 @@ export function CommunityTopicClient({
                   createdAt={post.createdAt}
                   content={post.content}
                   compact
+                  isAdminUser={isAdminUser}
+                  actionBusy={adminActionId === `post:${post.id}` || adminActionId === `ban:${post.author.id}`}
+                  onDelete={() => deleteReply(post.id)}
+                  onToggleBan={() => toggleBanUser(post.author)}
                 />
               </div>
             ))}
@@ -206,11 +337,9 @@ export function CommunityTopicClient({
 
       <section className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#0c1017]">
         <div className="border-b border-white/[0.08] bg-white/[0.025] px-5 py-4">
-          <h2 className="text-base font-semibold text-white">
-            Participar da discussão
-          </h2>
+          <h2 className="text-base font-semibold text-white">Participar da discussão</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Compartilhe seu diagnóstico, teste realizado ou complemento para ajudar a comunidade.
+            Compartilhe seu diagnostico, teste realizado ou complemento para ajudar a comunidade.
           </p>
         </div>
 
@@ -218,31 +347,27 @@ export function CommunityTopicClient({
           {!canReply ? (
             <div className="rounded-md border border-dashed border-white/[0.12] px-4 py-10 text-center">
               <p className="text-sm font-medium text-slate-300">
-                Entre na sua conta para participar.
+                {banMessage ? "Sua participacao esta temporariamente bloqueada." : "Entre na sua conta para participar."}
               </p>
               <p className="mt-1 text-sm text-slate-500">
-                Apenas membros autenticados podem responder discussões.
+                {banMessage ? banMessage : "Apenas membros autenticados podem responder discussoes."}
               </p>
             </div>
           ) : topic.isLocked ? (
             <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-sm text-amber-200">
-              Esta discussão está encerrada para novas respostas.
+              Esta discussão esta encerrada para novas respostas.
             </div>
           ) : (
             <form onSubmit={sendReply} className="space-y-4">
               <div className="overflow-hidden rounded-md border border-white/[0.08] bg-[#080b10]">
-                <RichTextEditor
-                  value={content}
-                  onChange={setContent}
-                  placeholder="Escreva sua resposta..."
-                />
+                <RichTextEditor value={content} onChange={setContent} placeholder="Escreva sua resposta..." />
               </div>
 
               {topic.replyApprovalRequired && (
                 <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                   <span className="inline-flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4" />
-                    As respostas desta comunidade passam por aprovação antes da publicação.
+                    As respostas desta comunidade passam por aprovacao antes da publicação.
                   </span>
                 </div>
               )}
@@ -265,12 +390,7 @@ export function CommunityTopicClient({
                   disabled={saving}
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   {saving ? "Enviando..." : "Publicar resposta"}
                 </button>
               </div>
@@ -289,6 +409,10 @@ function CommunityPostCard({
   content,
   highlight = false,
   compact = false,
+  isAdminUser = false,
+  actionBusy = false,
+  onDelete,
+  onToggleBan,
 }: {
   author: TopicAuthor
   authorRole: string
@@ -296,7 +420,13 @@ function CommunityPostCard({
   content: string
   highlight?: boolean
   compact?: boolean
+  isAdminUser?: boolean
+  actionBusy?: boolean
+  onDelete?: () => void
+  onToggleBan?: () => void
 }) {
+  const isBanned = Boolean(author.activeBan)
+
   return (
     <article
       className={[
@@ -316,25 +446,61 @@ function CommunityPostCard({
             </Avatar>
 
             <div className="min-w-0 md:mt-3">
-              <p className="truncate text-sm font-semibold text-white">
-                {getCommunityFirstName(author.name)}
-              </p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {authorRole}
-              </p>
+              <p className="truncate text-sm font-semibold text-white">{getCommunityFirstName(author.name)}</p>
+              <p className="mt-0.5 text-xs text-slate-500">{authorRole}</p>
+              {isAdminUser && author.email && (
+                <p className="mt-1 break-all text-[11px] text-slate-500">{author.email}</p>
+              )}
+              {isBanned && (
+                <p className="mt-2 text-[11px] font-medium text-amber-300">Banido da comunidade</p>
+              )}
             </div>
           </div>
         </aside>
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] px-5 py-3">
-            <MetaItem icon={CalendarDays} label={formatDate(createdAt)} />
+            <MetaItem icon={CalendarDays} label={formatCommunityDate(createdAt)} />
 
-            {highlight && (
-              <span className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-xs text-slate-400">
-                Publicação principal
-              </span>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {highlight && (
+                <span className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-xs text-slate-400">
+                  Publicação principal
+                </span>
+              )}
+
+              {isAdminUser && (
+                <details className="group relative">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/[0.06]">
+                    {actionBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MoreHorizontal className="h-3.5 w-3.5" />}
+                    Ações
+                    <ChevronDown className="h-3.5 w-3.5 transition group-open:rotate-180" />
+                  </summary>
+
+                  <div className="absolute right-0 top-full z-20 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-white/[0.08] bg-[#0a0e14] p-1 shadow-2xl shadow-black/40">
+                    <button
+                      type="button"
+                      onClick={onToggleBan}
+                      disabled={actionBusy}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isBanned ? <ShieldOff className="h-4 w-4 text-emerald-300" /> : <Ban className="h-4 w-4 text-amber-300" />}
+                      {isBanned ? "Desbanir usuario" : "Banir usuario"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onDelete}
+                      disabled={actionBusy}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-300 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Apagar publicação
+                    </button>
+                  </div>
+                </details>
+              )}
+            </div>
           </div>
 
           <div className="px-5 py-5">
@@ -362,16 +528,6 @@ function MetaItem({
       {label}
     </span>
   )
-}
-
-function formatDate(date: string | Date | null | undefined) {
-  if (!date) return "Sem data"
-
-  return new Date(date).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  })
 }
 
 function plural(value: number, singular: string, pluralText: string) {

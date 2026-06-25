@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { isCommunityWriterBanned } from "@/lib/community"
+import { getCommunityActiveBanWhere, isCommunityWriterBanned } from "@/lib/community"
 
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "EDITOR"
@@ -82,10 +82,7 @@ export async function POST(
   }
 
   const activeBan = await db.communityBan.findFirst({
-    where: {
-      userId: session.user.id,
-      status: "ACTIVE",
-    },
+    where: getCommunityActiveBanWhere(session.user.id),
     orderBy: [{ createdAt: "desc" }],
     select: {
       status: true,

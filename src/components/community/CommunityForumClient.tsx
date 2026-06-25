@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react"
 import { RichTextEditor } from "@/components/admin/RichTextEditor"
-import { getCommunityFirstName } from "@/lib/community"
+import { formatCommunityDate, getCommunityFirstName } from "@/lib/community"
 
 interface CommunityTopicListItem {
   id: string
@@ -54,10 +54,12 @@ interface ForumResponse {
 export function CommunityForumClient({
   initialForum,
   canCreate,
+  banMessage,
   isAdminUser,
 }: {
   initialForum: CommunityForumMeta
   canCreate: boolean
+  banMessage?: string | null
   isAdminUser: boolean
 }) {
   const [query, setQuery] = useState("")
@@ -235,7 +237,7 @@ export function CommunityForumClient({
                 </button>
               ) : (
                 <span className="inline-flex h-10 items-center justify-center rounded-md border border-white/[0.1] bg-white/[0.03] px-4 text-sm text-slate-400">
-                  Entre para criar tópicos
+                  {banMessage ? "Publicação bloqueada" : "Entre para criar tópicos"}
                 </span>
               )}
             </div>
@@ -255,6 +257,12 @@ export function CommunityForumClient({
             {error && (
               <p className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                 {error}
+              </p>
+            )}
+
+            {banMessage && (
+              <p className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                {banMessage}
               </p>
             )}
           </div>
@@ -292,8 +300,8 @@ export function CommunityForumClient({
           ) : (
             <div className="divide-y divide-white/[0.08]">
               {items.map((topic) => {
-                const activityDate = new Date(topic.lastReplyAt ?? topic.createdAt).toLocaleDateString("pt-BR")
-                const createdDate = new Date(topic.createdAt).toLocaleDateString("pt-BR")
+                const activityDate = formatCommunityDate(topic.lastReplyAt ?? topic.createdAt)
+                const createdDate = formatCommunityDate(topic.createdAt)
 
                 return (
                   <Link

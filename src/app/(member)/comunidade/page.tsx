@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getCommunityFirstName } from "@/lib/community"
+import { formatCommunityDate, getCommunityFirstName } from "@/lib/community"
 import {
   ChevronRight,
   Clock3,
@@ -12,16 +12,6 @@ import {
 
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "EDITOR"
-}
-
-function formatDate(date?: Date | string | null) {
-  if (!date) return "Sem atividade"
-
-  return new Date(date).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  })
 }
 
 export default async function ComunidadePage() {
@@ -215,7 +205,7 @@ export default async function ComunidadePage() {
 
                           <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
                             <Clock3 className="h-3.5 w-3.5" />
-                            <span>{formatDate(latestDate)}</span>
+                            <span>{latestDate ? formatCommunityDate(latestDate) : "Sem atividade"}</span>
                             <span>·</span>
                             <span>
                               {latestTopic.repliesCount} resposta{latestTopic.repliesCount !== 1 ? "s" : ""}
@@ -250,7 +240,7 @@ export default async function ComunidadePage() {
                       </span>
 
                       <span>
-                        {formatDate(latestDate)}
+                        {latestDate ? formatCommunityDate(latestDate) : "Sem atividade"}
                       </span>
                     </div>
                   </Link>

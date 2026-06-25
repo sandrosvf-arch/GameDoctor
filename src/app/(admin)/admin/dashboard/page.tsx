@@ -552,7 +552,7 @@ export default function AdminDashboardPage() {
 
         <div className="rounded-xl border border-border bg-muted/20 p-5">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Zap className="h-4 w-4 text-muted-foreground" /> Acoes rapidas
+            <Zap className="h-4 w-4 text-muted-foreground" /> Ações rápidas
           </h2>
 
           <div className="space-y-1">

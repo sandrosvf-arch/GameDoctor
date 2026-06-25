@@ -91,7 +91,7 @@ Status:
 - done: admin forum CRUD
 - done: moderation queue for topics
 - done: approve, reject, pin, lock and remove topic actions
-- pending: ban user controls
+- done: ban user controls
 
 ### Phase 3 - Client
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Check, Loader2, Lock, Pencil, Pin, Plus, Save, Trash2, X } from "lucide-react"
+import { Ban, Check, Loader2, Lock, Pencil, Pin, Plus, Save, ShieldOff, Trash2, X } from "lucide-react"
 import { getCommunityFirstName } from "@/lib/community"
 
 type ForumStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED"
@@ -38,6 +38,12 @@ interface PendingTopicItem {
     id: string
     name: string
     email: string
+    communityBans: Array<{
+      id: string
+      reason: string | null
+      endsAt: string | null
+      status: "ACTIVE"
+    }>
   }
 }
 
@@ -62,6 +68,12 @@ interface PendingPostItem {
     name: string
     email: string
     avatarUrl: string | null
+    communityBans: Array<{
+      id: string
+      reason: string | null
+      endsAt: string | null
+      status: "ACTIVE"
+    }>
   }
 }
 
@@ -237,6 +249,47 @@ export default function AdminComunidadePage() {
     if (!response.ok) {
       const data = await response.json().catch(() => null)
       window.alert(data?.error ?? "Nao foi possivel processar a resposta.")
+      return
+    }
+
+    await load()
+  }
+
+  async function toggleBanUser(userId: string, currentlyBanned: boolean) {
+    if (currentlyBanned) {
+      if (!window.confirm("Remover o banimento da comunidade deste usuario?")) return
+      setModeratingId(userId)
+      const response = await fetch(`/api/admin/comunidade/bans/${userId}`, { method: "DELETE" })
+      setModeratingId(null)
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        window.alert(data?.error ?? "Nao foi possivel remover o banimento.")
+        return
+      }
+      await load()
+      return
+    }
+
+    const reason = window.prompt("Motivo do banimento da comunidade:")
+    if (reason === null) return
+    const durationInput = window.prompt("Duracao em dias? Deixe vazio para permanente.", "")
+    const durationDays = durationInput?.trim() ? Number(durationInput) : null
+
+    setModeratingId(userId)
+    const response = await fetch("/api/admin/comunidade/bans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        reason,
+        durationDays,
+      }),
+    })
+    setModeratingId(null)
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      window.alert(data?.error ?? "Nao foi possivel banir o usuario.")
       return
     }
 
@@ -510,7 +563,10 @@ export default function AdminComunidadePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {pendingTopics.map((topic) => (
+            {pendingTopics.map((topic) => {
+              const activeBan = topic.author.communityBans[0] ?? null
+
+              return (
               <article key={topic.id} className="rounded-2xl border border-border bg-background/35 p-5">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0 flex-1">
@@ -528,6 +584,13 @@ export default function AdminComunidadePage() {
                       <span className="px-2 text-muted-foreground/50">/</span>
                       {topic.author.email}
                     </p>
+                    {activeBan && (
+                      <p className="mt-2 text-xs text-red-400">
+                        Usuario banido da comunidade
+                        {activeBan.endsAt ? ` ate ${new Date(activeBan.endsAt).toLocaleDateString("pt-BR")}` : " por tempo indeterminado"}
+                        {activeBan.reason ? ` / ${activeBan.reason}` : ""}
+                      </p>
+                    )}
 
                     <p className="mt-1 text-xs text-muted-foreground">
                       Enviado em {new Date(topic.createdAt).toLocaleString("pt-BR")}
@@ -580,10 +643,23 @@ export default function AdminComunidadePage() {
                       <Trash2 className="h-4 w-4" />
                       Remover
                     </button>
+                    <button
+                      onClick={() => toggleBanUser(topic.author.id, Boolean(activeBan))}
+                      disabled={moderatingId === topic.id || moderatingId === topic.author.id}
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
+                        activeBan
+                          ? "border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                          : "border border-red-500/30 text-red-400 hover:bg-red-500/10"
+                      }`}
+                    >
+                      {activeBan ? <ShieldOff className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                      {activeBan ? "Desbanir" : "Banir usuario"}
+                    </button>
                   </div>
                 </div>
               </article>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>
@@ -606,7 +682,10 @@ export default function AdminComunidadePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {pendingPosts.map((post) => (
+            {pendingPosts.map((post) => {
+              const activeBan = post.author.communityBans[0] ?? null
+
+              return (
               <article key={post.id} className="rounded-2xl border border-border bg-background/35 p-5">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0 flex-1">
@@ -624,6 +703,13 @@ export default function AdminComunidadePage() {
                       <span className="px-2 text-muted-foreground/50">/</span>
                       {post.author.email}
                     </p>
+                    {activeBan && (
+                      <p className="mt-2 text-xs text-red-400">
+                        Usuario banido da comunidade
+                        {activeBan.endsAt ? ` ate ${new Date(activeBan.endsAt).toLocaleDateString("pt-BR")}` : " por tempo indeterminado"}
+                        {activeBan.reason ? ` / ${activeBan.reason}` : ""}
+                      </p>
+                    )}
 
                     <p className="mt-1 text-xs text-muted-foreground">
                       Enviado em {new Date(post.createdAt).toLocaleString("pt-BR")}
@@ -660,10 +746,23 @@ export default function AdminComunidadePage() {
                       <Trash2 className="h-4 w-4" />
                       Remover
                     </button>
+                    <button
+                      onClick={() => toggleBanUser(post.author.id, Boolean(activeBan))}
+                      disabled={moderatingId === post.id || moderatingId === post.author.id}
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
+                        activeBan
+                          ? "border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                          : "border border-red-500/30 text-red-400 hover:bg-red-500/10"
+                      }`}
+                    >
+                      {activeBan ? <ShieldOff className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                      {activeBan ? "Desbanir" : "Banir usuario"}
+                    </button>
                   </div>
                 </div>
               </article>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>

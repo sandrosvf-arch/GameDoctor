@@ -1,10 +1,13 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { unstable_noStore as noStore } from "next/cache"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { CalendarDays, Eye, MessageSquareText, UserRound } from "lucide-react"
-import { getCommunityFirstName } from "@/lib/community"
+import { formatCommunityDate, getCommunityActiveBanWhere, getCommunityFirstName, isCommunityWriterBanned } from "@/lib/community"
 import { CommunityTopicClient } from "@/components/community/CommunityTopicClient"
+
+export const dynamic = "force-dynamic"
 
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "EDITOR"
@@ -15,6 +18,7 @@ export default async function CommunityTopicPage({
 }: {
   params: Promise<{ slug: string }>
 }) {
+  noStore()
   const session = await auth()
   const { slug } = await params
   const isAdminUser = isAdminRole(session?.user?.role)
@@ -42,8 +46,21 @@ export default async function CommunityTopicPage({
       },
       author: {
         select: {
+          id: true,
           name: true,
+          email: true,
           avatarUrl: true,
+          communityBans: {
+            where: getCommunityActiveBanWhere(),
+            orderBy: [{ createdAt: "desc" }],
+            take: 1,
+            select: {
+              id: true,
+              reason: true,
+              endsAt: true,
+              status: true,
+            },
+          },
         },
       },
       posts: {
@@ -58,8 +75,21 @@ export default async function CommunityTopicPage({
           createdAt: true,
           author: {
             select: {
+              id: true,
               name: true,
+              email: true,
               avatarUrl: true,
+              communityBans: {
+                where: getCommunityActiveBanWhere(),
+                orderBy: [{ createdAt: "desc" }],
+                take: 1,
+                select: {
+                  id: true,
+                  reason: true,
+                  endsAt: true,
+                  status: true,
+                },
+              },
             },
           },
         },
@@ -69,6 +99,30 @@ export default async function CommunityTopicPage({
 
   if (!topic) notFound()
   if (topic.status !== "APPROVED" && !isAdminUser) notFound()
+
+  let activeBanMessage: string | null = null
+
+  if (session?.user?.id) {
+    const activeBan = await db.communityBan.findFirst({
+      where: getCommunityActiveBanWhere(session.user.id),
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        status: true,
+        endsAt: true,
+        reason: true,
+      },
+    })
+
+    if (
+      activeBan &&
+      isCommunityWriterBanned({
+        status: activeBan.status,
+        endsAt: activeBan.endsAt,
+      })
+    ) {
+      activeBanMessage = activeBan.reason || "Sua conta esta bloqueada para publicar na comunidade."
+    }
+  }
 
   await db.communityTopic.update({
     where: { id: topic.id },
@@ -115,7 +169,7 @@ export default async function CommunityTopicPage({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <CalendarDays className="h-4 w-4 text-slate-500" />
-                {new Date(topic.createdAt).toLocaleDateString("pt-BR")}
+                {formatCommunityDate(topic.createdAt)}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <MessageSquareText className="h-4 w-4 text-slate-500" />
@@ -144,8 +198,17 @@ export default async function CommunityTopicPage({
             forumName: topic.forum.name,
             forumSlug: topic.forum.slug,
             author: {
+              id: topic.author.id,
               name: topic.author.name,
+              email: topic.author.email,
               avatarUrl: topic.author.avatarUrl,
+              activeBan: topic.author.communityBans[0]
+                ? {
+                    id: topic.author.communityBans[0].id,
+                    reason: topic.author.communityBans[0].reason,
+                    endsAt: topic.author.communityBans[0].endsAt?.toISOString() ?? null,
+                  }
+                : null,
             },
             replyApprovalRequired: topic.forum.replyApprovalRequired,
           }}
@@ -154,11 +217,22 @@ export default async function CommunityTopicPage({
             content: post.content,
             createdAt: post.createdAt.toISOString(),
             author: {
+              id: post.author.id,
               name: post.author.name,
+              email: post.author.email,
               avatarUrl: post.author.avatarUrl,
+              activeBan: post.author.communityBans[0]
+                ? {
+                    id: post.author.communityBans[0].id,
+                    reason: post.author.communityBans[0].reason,
+                    endsAt: post.author.communityBans[0].endsAt?.toISOString() ?? null,
+                  }
+                : null,
             },
           }))}
-          canReply={Boolean(session?.user?.id)}
+          canReply={Boolean(session?.user?.id) && !activeBanMessage}
+          banMessage={activeBanMessage}
+          isAdminUser={isAdminUser}
           topicSlug={slug}
         />
       </section>

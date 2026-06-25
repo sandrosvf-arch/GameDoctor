@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { isCommunityWriterBanned, slugifyCommunity } from "@/lib/community"
+import { getCommunityActiveBanWhere, isCommunityWriterBanned, slugifyCommunity } from "@/lib/community"
 
 const PAGE_SIZE = 20
 
@@ -129,10 +129,7 @@ export async function POST(
   }
 
   const activeBan = await db.communityBan.findFirst({
-    where: {
-      userId: session.user.id,
-      status: "ACTIVE",
-    },
+    where: getCommunityActiveBanWhere(session.user.id),
     orderBy: [{ createdAt: "desc" }],
     select: {
       status: true,
@@ -198,7 +195,7 @@ export async function POST(
         forumId: forum.id,
         topicId: topic.id,
         actionType: "APPROVE_TOPIC",
-        reason: "Publicacao aprovada automaticamente.",
+        reason: "Publicação aprovada automaticamente.",
       },
     }).catch(() => {})
   }

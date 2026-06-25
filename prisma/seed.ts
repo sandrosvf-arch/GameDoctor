@@ -311,7 +311,7 @@ async function main() {
     where: { slug: "playstation" },
     update: {
       name: "PlayStation",
-      description: "Discussao focada em PS3, PS4, PS5 e diagnosticos recorrentes.",
+      description: "discussão focada em PS3, PS4, PS5 e diagnósticosrecorrentes.",
       order: 2,
       status: "ACTIVE",
       topicApprovalRequired: false,
@@ -320,7 +320,7 @@ async function main() {
     create: {
       name: "PlayStation",
       slug: "playstation",
-      description: "Discussao focada em PS3, PS4, PS5 e diagnosticos recorrentes.",
+      description: "discussão focada em PS3, PS4, PS5 e diagnósticosrecorrentes.",
       order: 2,
       status: "ACTIVE",
       topicApprovalRequired: false,

@@ -266,7 +266,7 @@ export default function AdminPlanosPage() {
                 <span>Parcelamento</span>
                 <span>Assinaturas</span>
                 <span>Status</span>
-                <span className="text-right">Acoes</span>
+                <span className="text-right">Ações</span>
               </div>
 
               <div className="divide-y divide-border/70">
@@ -302,7 +302,7 @@ export default function AdminPlanosPage() {
 
                     <div className="space-y-2 text-sm">
                       <p className="font-semibold text-foreground">{plan.usage.accessPermissions} ativas</p>
-                      <p className="text-muted-foreground">{plan.usage.orderItems} contratacoes</p>
+                      <p className="text-muted-foreground">{plan.usage.orderItems} contratações</p>
                     </div>
 
                     <div className="space-y-2 text-sm">
@@ -530,7 +530,7 @@ export default function AdminPlanosPage() {
                       <Loader2 className="h-4 w-4 animate-spin" /> Salvando
                     </span>
                   ) : editingId ? (
-                    "Salvar alteracoes"
+                    "Salvar alterações"
                   ) : (
                     "Criar plano"
                   )}
