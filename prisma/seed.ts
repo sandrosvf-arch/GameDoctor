@@ -286,12 +286,77 @@ async function main() {
   })
   console.log("Comments seeded")
 
+  await db.communityForum.upsert({
+    where: { slug: "manutencao-geral" },
+    update: {
+      name: "Manutencao Geral",
+      description: "Troque diagnosticos, ferramentas e rotinas gerais de bancada.",
+      order: 1,
+      status: "ACTIVE",
+      topicApprovalRequired: true,
+      replyApprovalRequired: false,
+    },
+    create: {
+      name: "Manutencao Geral",
+      slug: "manutencao-geral",
+      description: "Troque diagnosticos, ferramentas e rotinas gerais de bancada.",
+      order: 1,
+      status: "ACTIVE",
+      topicApprovalRequired: true,
+      replyApprovalRequired: false,
+    },
+  })
+
+  await db.communityForum.upsert({
+    where: { slug: "playstation" },
+    update: {
+      name: "PlayStation",
+      description: "Discussao focada em PS3, PS4, PS5 e diagnosticos recorrentes.",
+      order: 2,
+      status: "ACTIVE",
+      topicApprovalRequired: false,
+      replyApprovalRequired: false,
+    },
+    create: {
+      name: "PlayStation",
+      slug: "playstation",
+      description: "Discussao focada em PS3, PS4, PS5 e diagnosticos recorrentes.",
+      order: 2,
+      status: "ACTIVE",
+      topicApprovalRequired: false,
+      replyApprovalRequired: false,
+    },
+  })
+
+  await db.communityForum.upsert({
+    where: { slug: "controles-e-perifericos" },
+    update: {
+      name: "Controles e Perifericos",
+      description: "Espaco para reparos, analises e duvidas sobre controles e acessorios.",
+      order: 3,
+      status: "ACTIVE",
+      topicApprovalRequired: false,
+      replyApprovalRequired: true,
+    },
+    create: {
+      name: "Controles e Perifericos",
+      slug: "controles-e-perifericos",
+      description: "Espaco para reparos, analises e duvidas sobre controles e acessorios.",
+      order: 3,
+      status: "ACTIVE",
+      topicApprovalRequired: false,
+      replyApprovalRequired: true,
+    },
+  })
+  console.log("Community forums seeded")
+
   console.log("")
   console.log("Done! Demo lesson URLs:")
   console.log("   Free:  http://localhost:3000/aula/demo-lesson-ps5-01")
   console.log("   Paid:  http://localhost:3000/aula/demo-lesson-ps5-02  (preview 30s)")
   console.log("   Paid:  http://localhost:3000/aula/demo-lesson-ps5-03  (preview 20s)")
   console.log("   Admin comments: http://localhost:3000/admin/comentarios")
+  console.log("   Community: http://localhost:3000/comunidade")
 }
 
 main()

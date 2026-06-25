@@ -172,6 +172,47 @@ enum CertificateStatus {
   REVOKED
 }
 
+enum CommunityForumStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum CommunityTopicStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+enum CommunityPostStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+enum CommunityBanStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum CommunityModerationActionType {
+  APPROVE_TOPIC
+  REJECT_TOPIC
+  APPROVE_POST
+  REJECT_POST
+  PIN_TOPIC
+  UNPIN_TOPIC
+  LOCK_TOPIC
+  UNLOCK_TOPIC
+  DELETE_TOPIC
+  DELETE_POST
+  BAN_USER
+  UNBAN_USER
+}
+
 // ─────────────────────────────────────────────
 // MODELS
 // ─────────────────────────────────────────────
@@ -199,6 +240,16 @@ model User {
   certificates      Certificate[]
   adminLogs         AdminLog[]
   comments          Comment[]
+  communityTopics   CommunityTopic[]            @relation("CommunityTopicAuthor")
+  approvedCommunityTopics CommunityTopic[]      @relation("CommunityTopicApprovedBy")
+  communityPosts    CommunityPost[]             @relation("CommunityPostAuthor")
+  approvedCommunityPosts CommunityPost[]        @relation("CommunityPostApprovedBy")
+  communityAttachments CommunityAttachment[]    @relation("CommunityAttachmentUploadedBy")
+  communityBans     CommunityBan[]              @relation("CommunityBanUser")
+  issuedCommunityBans CommunityBan[]            @relation("CommunityBanCreatedBy")
+  revokedCommunityBans CommunityBan[]           @relation("CommunityBanRevokedBy")
+  communityModerationActions CommunityModerationAction[] @relation("CommunityModerator")
+  communityTargetActions CommunityModerationAction[]     @relation("CommunityTargetUser")
 
   @@map("users")
 }
@@ -717,4 +768,143 @@ model HelpArticle {
 
   @@index([categoryId, order])
   @@map("help_articles")
+}
+
+model CommunityForum {
+  id                    String               @id @default(cuid())
+  name                  String
+  slug                  String               @unique
+  description           String?              @db.Text
+  order                 Int                  @default(0)
+  status                CommunityForumStatus @default(ACTIVE)
+  topicApprovalRequired Boolean              @default(false) @map("topic_approval_required")
+  replyApprovalRequired Boolean              @default(false) @map("reply_approval_required")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  topics                CommunityTopic[]
+  moderationActions     CommunityModerationAction[]
+
+  @@index([status, order])
+  @@map("community_forums")
+}
+
+model CommunityTopic {
+  id            String               @id @default(cuid())
+  forumId        String               @map("forum_id")
+  authorId       String               @map("author_id")
+  approvedById   String?              @map("approved_by_id")
+  title          String
+  slug           String               @unique
+  content        String               @db.Text
+  status         CommunityTopicStatus @default(PENDING)
+  isPinned       Boolean              @default(false) @map("is_pinned")
+  isLocked       Boolean              @default(false) @map("is_locked")
+  viewsCount     Int                  @default(0) @map("views_count")
+  repliesCount   Int                  @default(0) @map("replies_count")
+  lastReplyAt    DateTime?            @map("last_reply_at")
+  approvedAt     DateTime?            @map("approved_at")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  forum          CommunityForum       @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  author         User                 @relation("CommunityTopicAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  approvedBy     User?                @relation("CommunityTopicApprovedBy", fields: [approvedById], references: [id])
+  posts          CommunityPost[]
+  attachments    CommunityAttachment[]
+  moderationActions CommunityModerationAction[]
+
+  @@index([forumId, status, isPinned, lastReplyAt])
+  @@index([authorId, createdAt])
+  @@map("community_topics")
+}
+
+model CommunityPost {
+  id            String              @id @default(cuid())
+  topicId        String              @map("topic_id")
+  authorId       String              @map("author_id")
+  approvedById   String?             @map("approved_by_id")
+  parentPostId   String?             @map("parent_post_id")
+  content        String              @db.Text
+  status         CommunityPostStatus @default(PENDING)
+  approvedAt     DateTime?           @map("approved_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  topic          CommunityTopic      @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  author         User                @relation("CommunityPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  approvedBy     User?               @relation("CommunityPostApprovedBy", fields: [approvedById], references: [id])
+  parentPost     CommunityPost?      @relation("CommunityPostReplies", fields: [parentPostId], references: [id], onDelete: Cascade)
+  replies        CommunityPost[]     @relation("CommunityPostReplies")
+  attachments    CommunityAttachment[]
+  moderationActions CommunityModerationAction[]
+
+  @@index([topicId, status, createdAt])
+  @@index([parentPostId])
+  @@index([authorId, createdAt])
+  @@map("community_posts")
+}
+
+model CommunityAttachment {
+  id           String           @id @default(cuid())
+  topicId       String?          @map("topic_id")
+  postId        String?          @map("post_id")
+  uploadedById  String           @map("uploaded_by_id")
+  fileName      String           @map("file_name")
+  fileUrl       String           @map("file_url")
+  mimeType      String?          @map("mime_type")
+  sizeBytes     Int?             @map("size_bytes")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  topic         CommunityTopic?  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  post          CommunityPost?   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  uploadedBy    User             @relation("CommunityAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([topicId])
+  @@index([postId])
+  @@index([uploadedById, createdAt])
+  @@map("community_attachments")
+}
+
+model CommunityBan {
+  id           String             @id @default(cuid())
+  userId        String             @map("user_id")
+  createdById   String             @map("created_by_id")
+  revokedById   String?            @map("revoked_by_id")
+  reason        String?            @db.Text
+  status        CommunityBanStatus @default(ACTIVE)
+  startsAt      DateTime           @default(now()) @map("starts_at")
+  endsAt        DateTime?          @map("ends_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  user          User               @relation("CommunityBanUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy     User               @relation("CommunityBanCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  revokedBy     User?              @relation("CommunityBanRevokedBy", fields: [revokedById], references: [id])
+
+  @@index([userId, status, endsAt])
+  @@map("community_bans")
+}
+
+model CommunityModerationAction {
+  id           String                        @id @default(cuid())
+  moderatorId   String                        @map("moderator_id")
+  targetUserId  String?                       @map("target_user_id")
+  forumId       String?                       @map("forum_id")
+  topicId       String?                       @map("topic_id")
+  postId        String?                       @map("post_id")
+  actionType    CommunityModerationActionType @map("action_type")
+  reason        String?                       @db.Text
+  createdAt     DateTime                      @default(now()) @map("created_at")
+
+  moderator     User                          @relation("CommunityModerator", fields: [moderatorId], references: [id], onDelete: Cascade)
+  targetUser    User?                         @relation("CommunityTargetUser", fields: [targetUserId], references: [id])
+  forum         CommunityForum?               @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  topic         CommunityTopic?               @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  post          CommunityPost?                @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([moderatorId, createdAt])
+  @@index([topicId])
+  @@index([postId])
+  @@map("community_moderation_actions")
 }

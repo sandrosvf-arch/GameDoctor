@@ -1,0 +1,184 @@
+import { NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
+import { db } from "@/lib/db"
+import { isCommunityWriterBanned } from "@/lib/community"
+
+function isAdminRole(role?: string | null) {
+  return role === "ADMIN" || role === "EDITOR"
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params
+
+  const topic = await db.communityTopic.findUnique({
+    where: { slug },
+    select: { id: true, status: true },
+  })
+
+  if (!topic || topic.status !== "APPROVED") {
+    return NextResponse.json({ error: "Topico nao encontrado." }, { status: 404 })
+  }
+
+  const posts = await db.communityPost.findMany({
+    where: {
+      topicId: topic.id,
+      parentPostId: null,
+      status: "APPROVED",
+    },
+    orderBy: [{ createdAt: "asc" }],
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      author: {
+        select: {
+          id: true,
+          name: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  })
+
+  return NextResponse.json(posts)
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { slug } = await params
+
+  const topic = await db.communityTopic.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      forumId: true,
+      authorId: true,
+      isLocked: true,
+      status: true,
+      forum: {
+        select: {
+          replyApprovalRequired: true,
+        },
+      },
+    },
+  })
+
+  if (!topic || topic.status !== "APPROVED") {
+    return NextResponse.json({ error: "Topico nao encontrado." }, { status: 404 })
+  }
+
+  if (topic.isLocked) {
+    return NextResponse.json({ error: "Este topico esta fechado para novas respostas." }, { status: 400 })
+  }
+
+  const activeBan = await db.communityBan.findFirst({
+    where: {
+      userId: session.user.id,
+      status: "ACTIVE",
+    },
+    orderBy: [{ createdAt: "desc" }],
+    select: {
+      status: true,
+      endsAt: true,
+      reason: true,
+    },
+  })
+
+  if (
+    activeBan &&
+    isCommunityWriterBanned({
+      status: activeBan.status,
+      endsAt: activeBan.endsAt,
+    })
+  ) {
+    return NextResponse.json(
+      { error: activeBan.reason || "Sua conta esta bloqueada para publicar na comunidade." },
+      { status: 403 }
+    )
+  }
+
+  const body = await request.json().catch(() => null)
+  const content = typeof body?.content === "string" ? body.content.trim() : ""
+
+  if (content.replace(/<[^>]+>/g, "").trim().length < 6) {
+    return NextResponse.json({ error: "Escreva uma resposta mais completa." }, { status: 400 })
+  }
+
+  const autoApprove = isAdminRole(session.user.role) || !topic.forum.replyApprovalRequired
+
+  const post = await db.communityPost.create({
+    data: {
+      topicId: topic.id,
+      authorId: session.user.id,
+      content,
+      status: autoApprove ? "APPROVED" : "PENDING",
+      approvedAt: autoApprove ? new Date() : null,
+      approvedById: autoApprove ? session.user.id : null,
+    },
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      status: true,
+      author: {
+        select: {
+          id: true,
+          name: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  })
+
+  if (autoApprove) {
+    await db.communityTopic.update({
+      where: { id: topic.id },
+      data: {
+        repliesCount: {
+          increment: 1,
+        },
+        lastReplyAt: new Date(),
+      },
+    })
+
+    await db.communityModerationAction.create({
+      data: {
+        moderatorId: session.user.id,
+        targetUserId: session.user.id,
+        forumId: topic.forumId,
+        topicId: topic.id,
+        postId: post.id,
+        actionType: "APPROVE_POST",
+        reason: "Resposta aprovada automaticamente.",
+      },
+    }).catch(() => {})
+  }
+
+  if (!autoApprove) {
+    return NextResponse.json(
+      {
+        pending: true,
+        message: "Resposta enviada para aprovacao da equipe.",
+      },
+      { status: 201 }
+    )
+  }
+
+  return NextResponse.json(
+    {
+      pending: false,
+      post,
+    },
+    { status: 201 }
+  )
+}

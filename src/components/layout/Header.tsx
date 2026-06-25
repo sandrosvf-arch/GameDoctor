@@ -97,6 +97,7 @@ import { cn } from "@/lib/utils"
 const navLinks = [
   { label: "Cursos", href: "/cursos" },
   { label: "Planos", href: "/planos" },
+  { label: "Comunidade", href: "/comunidade" },
   { label: "FAQ", href: "/suporte" },
 ]
 
