@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import {
   Play, Save, Loader2, Eye, EyeOff, ExternalLink,
-  Search, Filter, Paperclip, Plus, Trash2,
+  Search, Filter, Paperclip, Plus, Trash2, ChevronLeft, ChevronRight,
   FileText, FileSpreadsheet, Link2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,22 @@ interface LessonWithCourse {
   durationSeconds: number | null
   course: { id: string; title: string; slug: string; trailColorRgb: string | null } | null
   module: { id: string; title: string } | null
+}
+
+interface TrailOption {
+  id: string
+  title: string
+}
+
+interface LessonsResponse {
+  lessons: LessonWithCourse[]
+  pagination: {
+    page: number
+    pageSize: number
+    total: number
+    totalPages: number
+  }
+  trails: TrailOption[]
 }
 
 type LessonEdits = {
@@ -110,7 +126,11 @@ function MaterialTypeIcon({ type }: { type: string }) {
 
 export default function TodasAsAulasPage() {
   const [lessons, setLessons] = useState<LessonWithCourse[]>([])
+  const [trails, setTrails] = useState<TrailOption[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
   const [search, setSearch] = useState("")
   const [filterTrail, setFilterTrail] = useState("all")
@@ -129,12 +149,30 @@ export default function TodasAsAulasPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch("/api/admin/aulas")
-    if (res.ok) setLessons(await res.json())
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: "30",
+      search,
+      trailId: filterTrail,
+      status: filterStatus,
+    })
+
+    const res = await fetch(`/api/admin/aulas?${params.toString()}`)
+    if (res.ok) {
+      const data: LessonsResponse = await res.json()
+      setLessons(data.lessons)
+      setTrails(data.trails)
+      setTotal(data.pagination.total)
+      setTotalPages(data.pagination.totalPages)
+    }
     setLoading(false)
-  }, [])
+  }, [filterStatus, filterTrail, page, search])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    setPage(1)
+  }, [search, filterTrail, filterStatus])
 
   function startEdit(lesson: LessonWithCourse) {
     setEditingId(lesson.id)
@@ -203,24 +241,6 @@ export default function TodasAsAulasPage() {
     load()
   }
 
-  // Build trail list for filter
-  const trailOptions = Array.from(
-    new Map(
-      lessons
-        .filter(l => l.course)
-        .map(l => [l.course!.id, l.course!.title])
-    ).entries()
-  )
-
-  const filtered = lessons.filter(l => {
-    const matchSearch = search === "" ||
-      l.title.toLowerCase().includes(search.toLowerCase()) ||
-      (l.course?.title ?? "").toLowerCase().includes(search.toLowerCase())
-    const matchTrail = filterTrail === "all" || l.course?.id === filterTrail
-    const matchStatus = filterStatus === "all" || l.status === filterStatus
-    return matchSearch && matchTrail && matchStatus
-  })
-
   return (
     <div className="p-6 md:p-8 max-w-5xl space-y-6">
       {/* Header */}
@@ -228,7 +248,7 @@ export default function TodasAsAulasPage() {
         <div>
           <h1 className="text-xl font-bold">Todas as aulas</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {loading ? "Carregando..." : `${filtered.length} aula${filtered.length !== 1 ? "s" : ""} com vídeo Bunny Stream`}
+            {loading ? "Carregando..." : `${total} aula${total !== 1 ? "s" : ""} com vídeo Bunny Stream`}
           </p>
         </div>
       </div>
@@ -252,8 +272,8 @@ export default function TodasAsAulasPage() {
             onChange={e => setFilterTrail(e.target.value)}
           >
             <option value="all">Todas as trilhas</option>
-            {trailOptions.map(([id, title]) => (
-              <option key={id} value={id}>{title}</option>
+            {trails.map((trail) => (
+              <option key={trail.id} value={trail.id}>{trail.title}</option>
             ))}
           </select>
           <select
@@ -273,11 +293,11 @@ export default function TodasAsAulasPage() {
         <div className="flex items-center justify-center h-40">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : lessons.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-16">Nenhuma aula encontrada.</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map((lesson, i) => {
+          {lessons.map((lesson, i) => {
             const isEditing = editingId === lesson.id
             const e = edits[lesson.id] ?? {}
             const thumb = lesson.thumbnail
@@ -306,7 +326,9 @@ export default function TodasAsAulasPage() {
               >
                 {/* Row */}
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <span className="text-xs text-muted-foreground w-6 shrink-0 text-right">{i + 1}</span>
+                  <span className="text-xs text-muted-foreground w-10 shrink-0 text-right">
+                    {(page - 1) * 30 + i + 1}
+                  </span>
 
                   {/* Thumbnail */}
                   {thumb
@@ -536,6 +558,38 @@ export default function TodasAsAulasPage() {
               </div>
             )
           })}
+
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {total === 0 ? 0 : (page - 1) * 30 + 1} a {Math.min(page * 30, total)} de {total} aulas
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page <= 1}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+              </button>
+
+              <span className="min-w-[120px] text-center text-sm text-foreground">
+                Página {page} de {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={page >= totalPages}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Próxima
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
