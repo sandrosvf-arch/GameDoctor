@@ -39,11 +39,12 @@ const navGroups = [
     items: [
       { href: "/admin/alunos",   label: "Usuários",    icon: Users },
       { href: "/admin/acessos",  label: "Assinaturas", icon: CreditCard },
+      { href: "/admin/planos",   label: "Planos de assinatura", icon: Tags },
       { href: "/admin/banners",  label: "Fullbanner",  icon: ImageIcon },
       { href: "/admin/aulas",    label: "Conteúdo",    icon: BookOpen },
       { href: "/admin/trilhas",  label: "Trilhas",     icon: Map },
       { href: "/admin/categorias", label: "Categorias", icon: Tags },
-      { href: "/admin/cursos",   label: "Cursos",      icon: GraduationCap },
+      // { href: "/admin/cursos",   label: "Cursos",      icon: GraduationCap },
     ],
   },
   {

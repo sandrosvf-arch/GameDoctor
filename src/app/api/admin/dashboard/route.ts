@@ -16,6 +16,11 @@ export async function GET() {
   const now = new Date()
   const startCurrent = startOfMonth(now)
   const startPrev = startOfMonth(subMonths(now, 1))
+  const activeAccessWhere = {
+    status: "ACTIVE" as const,
+    startsAt: { lte: now },
+    OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+  }
 
   // Revenue last 12 months (parallel)
   const revenueChart = await Promise.all(
@@ -24,7 +29,10 @@ export async function GET() {
       const end = i === 0 ? now : startOfMonth(subMonths(now, i - 1))
       const res = await db.payment.aggregate({
         _sum: { amount: true },
-        where: { paymentStatus: "APPROVED", createdAt: { gte: start, lt: end } },
+        where: {
+          paymentStatus: "APPROVED",
+          paidAt: { gte: start, lt: end },
+        },
       })
       return { month: format(start, "MMM", { locale: ptBR }), value: Number(res._sum.amount ?? 0) }
     })
@@ -36,7 +44,7 @@ export async function GET() {
     monthlyRevenue,
     prevMonthRevenue,
     completedLessons,
-    openComments,
+    totalComments,
     publishedCourses,
     totalLessons,
     draftLessons,
@@ -47,38 +55,52 @@ export async function GET() {
     recentLogs,
   ] = await Promise.all([
     db.user.count({ where: { role: "STUDENT", status: "ACTIVE" } }),
-    db.accessPermission.count({ where: { status: "ACTIVE" } }),
+    db.accessPermission.count({ where: activeAccessWhere }),
     db.payment.aggregate({
       _sum: { amount: true },
-      where: { paymentStatus: "APPROVED", createdAt: { gte: startCurrent } },
+      where: {
+        paymentStatus: "APPROVED",
+        paidAt: { gte: startCurrent, lte: now },
+      },
     }),
     db.payment.aggregate({
       _sum: { amount: true },
-      where: { paymentStatus: "APPROVED", createdAt: { gte: startPrev, lt: startCurrent } },
+      where: {
+        paymentStatus: "APPROVED",
+        paidAt: { gte: startPrev, lt: startCurrent },
+      },
     }),
     db.lessonProgress.count({ where: { completed: true } }),
     db.comment.count(),
     db.course.count({ where: { status: "PUBLISHED" } }),
     db.lesson.count({ where: { status: "PUBLISHED" } }),
     db.lesson.count({ where: { status: "DRAFT" } }),
-    db.order.findMany({
+    db.payment.findMany({
       take: 5,
-      orderBy: { createdAt: "desc" },
-      where: { paymentStatus: "APPROVED" },
+      orderBy: { paidAt: "desc" },
+      where: { paymentStatus: "APPROVED", paidAt: { not: null } },
       select: {
-        id: true, finalTotal: true, createdAt: true,
-        user: { select: { name: true, email: true, avatarUrl: true } },
-        orderItems: {
-          take: 1,
+        id: true,
+        amount: true,
+        paidAt: true,
+        order: {
           select: {
-            plan: { select: { name: true } },
-            course: { select: { title: true } },
+            id: true,
+            user: { select: { name: true, email: true, avatarUrl: true } },
+            orderItems: {
+              take: 1,
+              select: {
+                plan: { select: { name: true } },
+                course: { select: { title: true } },
+              },
+            },
           },
         },
       },
     }),
     db.lessonProgress.groupBy({
       by: ["courseId"],
+      where: { completed: true },
       _count: { lessonId: true },
       orderBy: { _count: { lessonId: "desc" } },
       take: 5,
@@ -86,12 +108,12 @@ export async function GET() {
     db.accessPermission.groupBy({
       by: ["planId"],
       _count: { id: true },
-      where: { status: "ACTIVE", planId: { not: null } },
+      where: { ...activeAccessWhere, planId: { not: null } },
       orderBy: { _count: { id: "desc" } },
     }),
     db.lesson.findMany({
       take: 3,
-      orderBy: { createdAt: "desc" },
+      orderBy: { updatedAt: "desc" },
       select: {
         title: true, status: true, updatedAt: true,
         course: { select: { title: true } },
@@ -145,7 +167,7 @@ export async function GET() {
       monthlyRevenue: mrr,
       mrrChange,
       completedLessons,
-      openComments,
+      totalComments,
       publishedCourses,
       totalLessons,
       draftLessons,
@@ -153,13 +175,13 @@ export async function GET() {
     revenueChart,
     topCourses,
     planDistribution,
-    recentOrders: recentOrders.map(o => ({
-      id: o.id,
-      user: o.user,
-      plan: o.orderItems[0]?.plan?.name ?? null,
-      course: o.orderItems[0]?.course?.title ?? null,
-      amount: Number(o.finalTotal),
-      createdAt: o.createdAt.toISOString(),
+    recentOrders: recentOrders.map((payment) => ({
+      id: payment.order.id,
+      user: payment.order.user,
+      plan: payment.order.orderItems[0]?.plan?.name ?? null,
+      course: payment.order.orderItems[0]?.course?.title ?? null,
+      amount: Number(payment.amount),
+      approvedAt: payment.paidAt?.toISOString() ?? new Date().toISOString(),
     })),
     recentLessons: recentLessons.map(l => ({
       title: l.title,

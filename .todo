@@ -34,18 +34,18 @@ Dashboard(Aluno): Validar se as métricas estão sendo calculadas se não, calcu
 ---------------------------------
 
 Admin:
-- Ver o que tá funcionando e o que não tá (Dash)
-- Construir área do usuário
-- Planos de assinatura
+- Ver o que tá funcionando e o que não tá (Dash) @done
+- Construir área do usuário @done
+- Planos de assinatura @done
+    - Assinaturas (Cartão, pix, Boleto) - MP
 - Aulas (colocar uma paginação ~ 30 por página)
 - Trilhas (colocar uma paginação ~ 30 por página) (O problema é que tem ordenação, qual seria a sugestão?)
-- Remover cursos
+- Remover cursos @done
 - Tickets
 - Central de ajuda (FAQ)
 - Comentários
 - Comunidade (Fórum) (Tópicos ordenados) + subtópicos com opção e criar, anexar mídia + richText, ...
 - Fale com o professor (mensagens)
-- Assinaturas (Cartão, pix, Boleto) - MP
 - Pedidos
 - Cupons (Criar cupom)
 - Configurações (Validar o que é útil manter)

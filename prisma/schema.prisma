@@ -414,8 +414,16 @@ model Plan {
   slug               String      @unique
   description        String?
   price              Decimal?    @db.Decimal(10, 2)
+  annualPrice        Decimal?    @db.Decimal(10, 2) @map("annual_price")
+  monthlyPrice       Decimal?    @db.Decimal(10, 2) @map("monthly_price")
   billingType        BillingType @default(ONE_TIME) @map("billing_type")
   accessDurationDays Int?        @map("access_duration_days")
+  annualAccessDurationDays Int   @default(365) @map("annual_access_duration_days")
+  monthlyAccessDurationDays Int? @map("monthly_access_duration_days")
+  monthlyEnabled     Boolean     @default(false) @map("monthly_enabled")
+  benefits           String[]    @default([])
+  maxInstallments    Int         @default(12) @map("max_installments")
+  maxInstallmentsNoInterest Int  @default(1) @map("max_installments_no_interest")
   status             PlanStatus  @default(ACTIVE)
   highlighted        Boolean     @default(false)
   certificateIncluded Boolean    @default(false) @map("certificate_included")

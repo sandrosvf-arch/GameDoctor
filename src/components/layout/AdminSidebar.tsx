@@ -38,7 +38,7 @@ const navGroups = [
     label: "Comercial",
     items: [
       { label: "Alunos", href: "/admin/alunos", icon: Users },
-      { label: "Planos", href: "/admin/planos", icon: FileText },
+      { label: "Planos de Assinatura", href: "/admin/planos", icon: FileText },
       { label: "Pedidos", href: "/admin/pedidos", icon: ShoppingCart },
       { label: "Pagamentos", href: "/admin/pagamentos", icon: CreditCard },
       { label: "Cupons", href: "/admin/cupons", icon: Tag },
