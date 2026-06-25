@@ -43,6 +43,13 @@ export async function GET() {
   const courses = await db.course.findMany({
     orderBy: { createdAt: "desc" },
     include: {
+      courseCategories: {
+        include: {
+          category: {
+            select: { id: true, name: true, slug: true, parentId: true },
+          },
+        },
+      },
       modules: {
         orderBy: { order: "asc" },
         include: {
@@ -68,9 +75,10 @@ export async function POST(request: Request) {
   if (!await requireAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
-  const { title, slug, shortDescription, status = "DRAFT", coverImage, trailColorRgb, badgeTextColorRgb, badgeLabel } = body as {
+  const { title, slug, shortDescription, status = "DRAFT", coverImage, trailColorRgb, badgeTextColorRgb, badgeLabel, selectedCategoryIds } = body as {
     title?: string; slug?: string; shortDescription?: string; status?: string
     coverImage?: string; trailColorRgb?: string; badgeTextColorRgb?: string; badgeLabel?: string
+    selectedCategoryIds?: string[]
   }
 
   if (!title?.trim()) return NextResponse.json({ error: "Título obrigatório" }, { status: 400 })
@@ -88,6 +96,9 @@ export async function POST(request: Request) {
   // Assign displayOrder = max existing + 1 so the new trail appears last
   const agg = await db.course.aggregate({ _max: { displayOrder: true } })
   const nextOrder = (agg._max.displayOrder ?? -1) + 1
+  const categoryIds = Array.isArray(selectedCategoryIds)
+    ? Array.from(new Set(selectedCategoryIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0)))
+    : []
 
   const course = await db.course.create({
     data: {
@@ -100,6 +111,20 @@ export async function POST(request: Request) {
       ...(normalizedTrailColor != null && { trailColorRgb: normalizedTrailColor }),
       ...(normalizedBadgeTextColor != null && { badgeTextColorRgb: normalizedBadgeTextColor }),
       ...(badgeLabel?.trim() && { badgeLabel: badgeLabel.trim() }),
+      ...(categoryIds.length > 0 && {
+        courseCategories: {
+          create: categoryIds.map((categoryId) => ({ categoryId })),
+        },
+      }),
+    },
+    include: {
+      courseCategories: {
+        include: {
+          category: {
+            select: { id: true, name: true, slug: true, parentId: true },
+          },
+        },
+      },
     },
   })
 

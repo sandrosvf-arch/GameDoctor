@@ -12,14 +12,18 @@ const MEMBER_PREFIXES = [
   "/meus-cursos",
   "/materiais",
   "/certificados",
-  "/minha-conta",
 ]
+
+const SHARED_AUTH_PREFIXES = ["/minha-conta"]
 
 // Routes that require ADMIN role
 const ADMIN_PREFIXES = ["/admin"]
 
 // Routes only accessible when NOT authenticated
 const AUTH_ONLY_PREFIXES = ["/login", "/cadastro", "/recuperar-senha"]
+
+const ADMIN_HOME = "/admin/dashboard"
+const MEMBER_HOME = "/dashboard"
 
 export default auth((req: NextAuthRequest) => {
   const { nextUrl } = req
@@ -32,8 +36,15 @@ export default auth((req: NextAuthRequest) => {
   const isMemberRoute = MEMBER_PREFIXES.some((p) => pathname.startsWith(p))
   const isAdminRoute = ADMIN_PREFIXES.some((p) => pathname.startsWith(p))
   const isAuthRoute = AUTH_ONLY_PREFIXES.some((p) => pathname.startsWith(p))
+  const isSharedAuthRoute = SHARED_AUTH_PREFIXES.some((p) => pathname.startsWith(p))
 
   if (isMemberRoute && !isLoggedIn) {
+    const url = new URL("/login", nextUrl)
+    url.searchParams.set("callbackUrl", pathname)
+    return NextResponse.redirect(url)
+  }
+
+  if (isSharedAuthRoute && !isLoggedIn) {
     const url = new URL("/login", nextUrl)
     url.searchParams.set("callbackUrl", pathname)
     return NextResponse.redirect(url)
@@ -46,12 +57,12 @@ export default auth((req: NextAuthRequest) => {
       return NextResponse.redirect(url)
     }
     if (!isAdmin) {
-      return NextResponse.redirect(new URL("/dashboard", nextUrl))
+      return NextResponse.redirect(new URL(MEMBER_HOME, nextUrl))
     }
   }
 
   if (isAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL("/dashboard", nextUrl))
+    return NextResponse.redirect(new URL(isAdmin ? ADMIN_HOME : MEMBER_HOME, nextUrl))
   }
 
   return NextResponse.next()

@@ -19,6 +19,7 @@ interface CourseResult {
   badgeLabel: string | null
   workloadHours: number | null
   category: { name: string; slug: string } | null
+  courseCategories: { category: { id: string; name: string; slug: string } }[]
   _count: { lessons: number }
 }
 
@@ -267,10 +268,10 @@ export default function BuscaPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 px-1 pt-2 pb-1 text-[11px] text-muted-foreground/70">
-                      {course.category && (
+                      {(course.courseCategories.length > 0 || course.category) && (
                         <span className="flex items-center gap-1">
                           <Tag className="h-3 w-3" />
-                          {course.category.name}
+                          {(course.courseCategories[0]?.category.name ?? course.category?.name) || ""}
                         </span>
                       )}
                       <span className="flex items-center gap-1">

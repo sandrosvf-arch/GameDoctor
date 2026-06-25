@@ -81,7 +81,7 @@ function HeartbeatLine() {
   )
 }
 // ─────────────────────────────────────────────────────────────────────────────
-import { Menu, X, ChevronDown, Search, LayoutGrid } from "lucide-react"
+import { Menu, X, ChevronDown, ChevronRight, Search, LayoutGrid } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -97,17 +97,36 @@ import { cn } from "@/lib/utils"
 const navLinks = [
   { label: "Cursos", href: "/cursos" },
   { label: "Planos", href: "/planos" },
-  { label: "Quem somos", href: "/#sobre" },
-  { label: "FAQ", href: "/#faq" },
+  { label: "Comunidade", href: "/comunidade" },
+  { label: "FAQ", href: "/suporte" },
 ]
+
+interface CatalogCategoryNode {
+  id: string
+  name: string
+  slug: string
+  children: CatalogCategoryNode[]
+}
 
 export function Header() {
   const { data: session, status } = useSession()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+  const [categories, setCategories] = useState<CatalogCategoryNode[]>([])
+  const [openDesktopCategoryId, setOpenDesktopCategoryId] = useState<string | null>(null)
+  const [openMobileCategoryId, setOpenMobileCategoryId] = useState<string | null>(null)
   const router = useRouter()
   const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    fetch("/api/catalog/categorias")
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: CatalogCategoryNode[]) => {
+        setCategories(data)
+      })
+      .catch(() => setCategories([]))
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -127,6 +146,8 @@ export function Header() {
         .join("")
         .toUpperCase()
     : "U"
+  const isAdminUser = ["ADMIN", "EDITOR"].includes((session?.user as { role?: string } | undefined)?.role ?? "")
+  const memberHome = isAdminUser ? "/admin/dashboard" : "/dashboard"
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -158,23 +179,41 @@ export function Header() {
                   <ChevronDown className="h-3 w-3" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
+              <DropdownMenuContent align="start" className="w-72 p-1.5">
                 <DropdownMenuItem asChild>
                   <Link href="/cursos">Ver todos os cursos</Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos?categoria=hardware">Hardware</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos?categoria=software">Software</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos?categoria=consoles">Consoles</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos?categoria=negocios">Negócios</Link>
-                </DropdownMenuItem>
+                {categories.length > 0 && <DropdownMenuSeparator />}
+                {categories.map((root) => (
+                  <div key={root.id} className="rounded-lg border border-transparent hover:border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => setOpenDesktopCategoryId((current) => current === root.id ? null : root.id)}
+                      className="flex w-full cursor-pointer items-center justify-between rounded-md px-2.5 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <Link href={`/cursos?categoria=${root.slug}`} className="flex-1" onClick={(e) => e.stopPropagation()}>
+                        {root.name}
+                      </Link>
+                      {root.children.length > 0 && (
+                        <ChevronDown
+                          className={`h-4 w-4 text-muted-foreground transition-transform ${openDesktopCategoryId === root.id ? "rotate-180" : ""}`}
+                        />
+                      )}
+                    </button>
+                    {root.children.length > 0 && openDesktopCategoryId === root.id && (
+                      <div className="mb-1 space-y-1 pl-2">
+                        {root.children.map((child) => (
+                          <DropdownMenuItem key={child.id} asChild className="pl-6">
+                            <Link href={`/cursos?categoria=${child.slug}`} className="flex w-full cursor-pointer items-center gap-2">
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              {child.name}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -219,7 +258,7 @@ export function Header() {
           {status === "loading" ? null : session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-full pr-1 hover:bg-secondary/50 transition-colors">
+                <button className="flex cursor-pointer items-center gap-2 rounded-full pr-1 hover:bg-secondary/50 transition-colors">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={session.user?.image ?? ""} />
                     <AvatarFallback className="bg-primary/20 text-primary text-xs">
@@ -232,24 +271,20 @@ export function Header() {
                   <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard">Minha área</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/meus-cursos">Meus cursos</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/minha-conta">Minha conta</Link>
-                </DropdownMenuItem>
-                {(session.user as { role?: string })?.role === "ADMIN" && (
-                  <>
-                    <DropdownMenuSeparator />
+                <DropdownMenuContent align="end" className="w-48">
+                  {!isAdminUser && (
+                    <DropdownMenuItem asChild>
+                      <Link href={memberHome}>Minha área</Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem asChild>
+                    <Link href="/minha-conta">Minha conta</Link>
+                  </DropdownMenuItem>
+                  {isAdminUser && (
                     <DropdownMenuItem asChild>
                       <Link href="/admin/dashboard">Painel Admin</Link>
                     </DropdownMenuItem>
-                  </>
-                )}
+                  )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -306,6 +341,43 @@ export function Header() {
                 >
                   Categorias
                 </Link>
+                {categories.map((root) => (
+                  <div key={root.id} className="rounded-lg border border-border/40 bg-card/30">
+                    <div className="flex items-center">
+                      <Link
+                        href={`/cursos?categoria=${root.slug}`}
+                        onClick={() => setMobileOpen(false)}
+                        className="flex-1 px-3 py-2 text-sm font-medium"
+                      >
+                        {root.name}
+                      </Link>
+                      {root.children.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setOpenMobileCategoryId((current) => current === root.id ? null : root.id)}
+                          className="cursor-pointer px-3 py-2 text-muted-foreground"
+                        >
+                          <ChevronDown className={`h-4 w-4 transition-transform ${openMobileCategoryId === root.id ? "rotate-180" : ""}`} />
+                        </button>
+                      )}
+                    </div>
+                    {root.children.length > 0 && openMobileCategoryId === root.id && (
+                      <div className="border-t border-border/40 px-2 py-1">
+                        {root.children.map((child) => (
+                          <Link
+                            key={child.id}
+                            href={`/cursos?categoria=${child.slug}`}
+                            onClick={() => setMobileOpen(false)}
+                            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
@@ -320,16 +392,34 @@ export function Header() {
               <div className="flex flex-col gap-2 border-t border-border pt-4">
                 {session ? (
                   <>
+                    {!isAdminUser && (
+                      <Link
+                        href={memberHome}
+                        onClick={() => setMobileOpen(false)}
+                        className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                      >
+                        Minha área
+                      </Link>
+                    )}
                     <Link
-                      href="/dashboard"
+                      href="/minha-conta"
                       onClick={() => setMobileOpen(false)}
                       className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
                     >
-                      Minha área
+                      Minha conta
                     </Link>
+                    {isAdminUser && (
+                      <Link
+                        href="/admin/dashboard"
+                        onClick={() => setMobileOpen(false)}
+                        className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                      >
+                        Painel Admin
+                      </Link>
+                    )}
                     <button
                       onClick={() => signOut({ callbackUrl: "/" })}
-                      className="px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 text-left transition-colors"
+                      className="cursor-pointer px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 text-left transition-colors"
                     >
                       Sair
                     </button>

@@ -68,7 +68,24 @@ interface Trilha {
   trailColorRgb: string | null
   badgeTextColorRgb: string | null
   badgeLabel: string | null
+  courseCategories?: {
+    category: {
+      id: string
+      name: string
+      slug: string
+      parentId: string | null
+    }
+  }[]
   modules: { id: string; title: string; lessons: Lesson[] }[]
+}
+
+interface CatalogCategoryNode {
+  id: string
+  name: string
+  slug: string
+  parentId: string | null
+  status: string
+  children: CatalogCategoryNode[]
 }
 
 function formatSecs(s: number | null | undefined) {
@@ -220,9 +237,57 @@ function CoverUploadField({
   )
 }
 
+function CategoryMultiSelect({
+  categories,
+  selectedIds,
+  onToggle,
+}: {
+  categories: CatalogCategoryNode[]
+  selectedIds: string[]
+  onToggle: (id: string) => void
+}) {
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
+      {categories.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhuma categoria cadastrada ainda.</p>
+      ) : (
+        categories.map((root) => (
+          <div key={root.id} className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(root.id)}
+                onChange={() => onToggle(root.id)}
+                className="rounded"
+              />
+              {root.name}
+            </label>
+            {root.children.length > 0 && (
+              <div className="grid gap-2 pl-6 sm:grid-cols-2">
+                {root.children.map((child) => (
+                  <label key={child.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(child.id)}
+                      onChange={() => onToggle(child.id)}
+                      className="rounded"
+                    />
+                    {child.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
 export default function EditarTrilhaPage({ params }: { params: Promise<{ id: string }> }) {
   const [trilhaId, setTrilhaId] = useState("")
   const [trilha, setTrilha] = useState<Trilha | null>(null)
+  const [categories, setCategories] = useState<CatalogCategoryNode[]>([])
   const [loading, setLoading] = useState(true)
 
   // Trilha edit state
@@ -233,6 +298,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [editTrailColorRgb, setEditTrailColorRgb] = useState("")
   const [editBadgeTextColorRgb, setEditBadgeTextColorRgb] = useState("")
   const [editBadgeLabel, setEditBadgeLabel] = useState("")
+  const [editSelectedCategoryIds, setEditSelectedCategoryIds] = useState<string[]>([])
   const [savingTrilha, setSavingTrilha] = useState(false)
 
   // New lesson form
@@ -274,9 +340,12 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
 
   const load = useCallback(async (id: string) => {
     setLoading(true)
-    const res = await fetch(`/api/admin/trilhas/${id}`)
-    if (res.ok) {
-      const data: Trilha = await res.json()
+    const [trilhaRes, categoriesRes] = await Promise.all([
+      fetch(`/api/admin/trilhas/${id}`),
+      fetch("/api/admin/categorias"),
+    ])
+    if (trilhaRes.ok) {
+      const data: Trilha = await trilhaRes.json()
       setTrilha(data)
       setLocalLessons(data.modules.flatMap(m => m.lessons))
       setEditTitle(data.title)
@@ -286,6 +355,11 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
       setEditTrailColorRgb(data.trailColorRgb ?? "")
       setEditBadgeTextColorRgb(data.badgeTextColorRgb ?? "")
       setEditBadgeLabel(data.badgeLabel ?? "")
+      setEditSelectedCategoryIds(data.courseCategories?.map(({ category }) => category.id) ?? [])
+    }
+    if (categoriesRes.ok) {
+      const data: CatalogCategoryNode[] = await categoriesRes.json()
+      setCategories(data)
     }
     setLoading(false)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -309,6 +383,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
         trailColorRgb: editTrailColorRgb,
         badgeTextColorRgb: editBadgeTextColorRgb,
         badgeLabel: editBadgeLabel || undefined,
+        selectedCategoryIds: editSelectedCategoryIds,
       }),
     })
     if (!res.ok) {
@@ -319,6 +394,12 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
     }
     setSavingTrilha(false)
     load(trilhaId)
+  }
+
+  function toggleEditCategory(id: string) {
+    setEditSelectedCategoryIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    )
   }
 
   async function createLesson(e: React.FormEvent) {
@@ -532,6 +613,15 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
             <p className="text-[11px] text-muted-foreground mt-1">
               Texto exibido como badge em todos os cards de aula desta trilha. Deixe vazio para não exibir.
             </p>
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground block mb-2">Categorias da trilha</label>
+            <CategoryMultiSelect
+              categories={categories}
+              selectedIds={editSelectedCategoryIds}
+              onToggle={toggleEditCategory}
+            />
           </div>
 
           <Button type="submit" size="sm" disabled={savingTrilha}>

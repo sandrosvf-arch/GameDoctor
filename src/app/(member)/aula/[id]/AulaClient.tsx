@@ -79,6 +79,12 @@ interface CommentItem {
   content: string
   createdAt: string
   user: { id: string; name: string; avatarUrl: string | null }
+  replies: Array<{
+    id: string
+    content: string
+    createdAt: string
+    user: { id: string; name: string; avatarUrl: string | null }
+  }>
 }
 
 function formatDuration(seconds: number | null | undefined): string {
@@ -157,6 +163,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   const [commentText, setCommentText] = useState("")
   const [submittingComment, setSubmittingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
+  const [commentInfo, setCommentInfo] = useState<string | null>(null)
 
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -243,6 +250,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault()
     setCommentError(null)
+    setCommentInfo(null)
     if (!commentText.trim()) return
     setSubmittingComment(true)
     const res = await fetch(`/api/lessons/${lessonId}/comments`, {
@@ -257,9 +265,16 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
       setCommentError(d.error ?? "Erro ao enviar comentário.")
       return
     }
-    const newComment: CommentItem = await res.json()
+    const data = await res.json()
+    if (data.pending) {
+      setCommentInfo(data.message ?? "Comentario enviado para aprovacao.")
+      setCommentText("")
+      return
+    }
+    const newComment: CommentItem = data.comment
     setComments((prev) => [...prev, newComment])
     setCommentText("")
+    setCommentInfo("Comentario publicado com sucesso.")
   }
 
   if (loading) {
@@ -490,6 +505,9 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     {commentError && (
                       <p className="text-xs text-destructive mt-1">{commentError}</p>
                     )}
+                    {commentInfo && (
+                      <p className="mt-1 text-xs text-emerald-400">{commentInfo}</p>
+                    )}
                     <div className="flex justify-end mt-2">
                       <Button
                         type="submit"
@@ -520,33 +538,62 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
               ) : (
                 <div className="space-y-5">
                   {comments.map((c) => (
-                    <div key={c.id} className="flex gap-3">
-                      <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-                        {c.user.avatarUrl ? (
-                          <img
-                            src={c.user.avatarUrl}
-                            alt={c.user.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User2 className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-2 mb-1">
-                          <span className="text-sm font-medium">{c.user.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(c.createdAt).toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </span>
+                    <div key={c.id} className="space-y-3">
+                      <div className="flex gap-3">
+                        <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                          {c.user.avatarUrl ? (
+                            <img
+                              src={c.user.avatarUrl}
+                              alt={c.user.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User2 className="h-4 w-4 text-muted-foreground" />
+                          )}
                         </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                          {c.content}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 mb-1">
+                            <span className="text-sm font-medium">{c.user.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(c.createdAt).toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            {c.content}
+                          </p>
+                        </div>
                       </div>
+
+                      {c.replies.length > 0 && (
+                        <div className="ml-12 space-y-3">
+                          {c.replies.map((reply) => (
+                            <div
+                              key={reply.id}
+                              className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.05] px-4 py-3"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/85">
+                                  Equipe GameDoctor
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                  {new Date(reply.createdAt).toLocaleDateString("pt-BR", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}
+                                </span>
+                              </div>
+                              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-200">
+                                {reply.content}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

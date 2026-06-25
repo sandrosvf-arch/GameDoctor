@@ -18,6 +18,8 @@ export type {
   AdminLog,
   Category,
   Platform,
+  CatalogCategory,
+  CourseCategory,
   // Enums
   UserRole,
   UserStatus,

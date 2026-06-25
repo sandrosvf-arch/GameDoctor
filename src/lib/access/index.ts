@@ -5,7 +5,7 @@
  * Never rely on frontend-only checks for paid content.
  */
 import { db } from "@/lib/db"
-import type { AccessType, AccessOrigin } from "@prisma/client"
+import type { AccessOrigin, AccessType, BillingType } from "@prisma/client"
 
 /**
  * Check if a user has active access to a specific course.
@@ -135,6 +135,52 @@ export async function grantAccess(params: {
       notes: params.notes,
     },
   })
+}
+
+export function resolvePlanAccessWindow(params: {
+  billingType: BillingType
+  accessDurationDays?: number | null
+  startDate?: Date
+}) {
+  const startDate = params.startDate ?? new Date()
+
+  if (params.accessDurationDays && params.accessDurationDays > 0) {
+    const expiresAt = new Date(startDate)
+    expiresAt.setUTCDate(expiresAt.getUTCDate() + params.accessDurationDays)
+
+    return {
+      accessType:
+        params.billingType === "MONTHLY" || params.billingType === "YEARLY"
+          ? "SUBSCRIPTION"
+          : "TIMED",
+      expiresAt,
+    } satisfies { accessType: AccessType; expiresAt: Date | null }
+  }
+
+  if (params.billingType === "YEARLY") {
+    const expiresAt = new Date(startDate)
+    expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1)
+
+    return {
+      accessType: "SUBSCRIPTION",
+      expiresAt,
+    } satisfies { accessType: AccessType; expiresAt: Date | null }
+  }
+
+  if (params.billingType === "MONTHLY") {
+    const expiresAt = new Date(startDate)
+    expiresAt.setUTCMonth(expiresAt.getUTCMonth() + 1)
+
+    return {
+      accessType: "SUBSCRIPTION",
+      expiresAt,
+    } satisfies { accessType: AccessType; expiresAt: Date | null }
+  }
+
+  return {
+    accessType: "LIFETIME",
+    expiresAt: null,
+  } satisfies { accessType: AccessType; expiresAt: Date | null }
 }
 
 /**

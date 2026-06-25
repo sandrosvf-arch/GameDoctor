@@ -3,13 +3,8 @@
 import Link from "next/link"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
-import { Button } from "@/components/ui/button"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
+import { HomePlansSection } from "@/components/home/HomePlansSection"
+import { HomeFaqSection } from "@/components/home/HomeFaqSection"
 import {
   type LucideIcon,
   Play,
@@ -19,7 +14,6 @@ import {
   Zap,
   Wrench,
   ChevronRight,
-  CheckCircle2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { db } from "@/lib/db"
@@ -188,10 +182,15 @@ const plans = [
 const faqs = [
   { q: "Preciso ter experiencia previa?",     a: "Nao. Os cursos vao do basico ao avancado. Se voce sabe segurar uma chave de fenda, ja pode comecar." },
   { q: "Posso assistir antes de comprar?",    a: "Sim. Varias aulas tem previa gratuita - sem cadastro e sem cartao de credito." },
-  { q: "O que e o acesso vitalicio?",         a: "Uma vez comprado, o acesso nao expira. Atualizacoes e novos modulos sao incluidos automaticamente." },
+  { q: "O que e o acesso vitalicio?",         a: "Uma vez comprado, o acesso nao expira. Atualizações e novos modulos sao incluidos automaticamente." },
   { q: "Quais ferramentas sao necessarias?",  a: "Cada curso lista suas ferramentas. Em geral: chaves de precisao, estacao de solda e multimetro cobrem 90% dos procedimentos." },
   { q: "Aceita Pix ou apenas cartao?",        a: "Aceitamos Pix (aprovacao instantanea) e cartao de credito em ate 12x." },
 ]
+
+const HOME_SECTION_FLAGS = {
+  showPlans: false,
+  showFaq: false,
+} as const
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export default async function HomePage() {
@@ -344,82 +343,8 @@ export default async function HomePage() {
           )}
         </section>
 
-        {/* PLANOS */}
-        <section id="planos" className="py-20 border-t border-zinc-900">
-          <div className="container">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-black mb-3">Escolha seu plano</h2>
-              <p className="text-zinc-500 text-sm max-w-md mx-auto">
-                Comece com as aulas gratuitas. Faca upgrade quando estiver pronto.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
-              {plans.map((plan) => (
-                <div
-                  key={plan.name}
-                  className={cn(
-                    "relative rounded-2xl border p-7 flex flex-col",
-                    plan.highlight
-                      ? "border-cyan-500/40 bg-gradient-to-b from-cyan-500/8 to-transparent shadow-xl shadow-cyan-500/10"
-                      : "border-zinc-800 bg-zinc-900/40",
-                  )}
-                >
-                  {plan.badge && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500 text-zinc-950 text-xs font-black px-3 py-1 rounded-full whitespace-nowrap">
-                      {plan.badge}
-                    </span>
-                  )}
-                  <h3 className="font-bold text-lg mb-1">{plan.name}</h3>
-                  <div className="flex items-baseline gap-1 mb-0.5">
-                    <span className="text-3xl font-black">{plan.price}</span>
-                  </div>
-                  <p className="text-xs text-zinc-600 mb-6">acesso por {plan.period}</p>
-                  <ul className="space-y-2.5 flex-1 mb-7">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm text-zinc-300">
-                        <CheckCircle2 className="h-4 w-4 text-cyan-500 shrink-0 mt-0.5" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    asChild
-                    size="sm"
-                    className={plan.highlight
-                      ? "bg-cyan-500 text-zinc-950 hover:bg-cyan-400 font-bold"
-                      : "bg-zinc-800 text-white hover:bg-zinc-700"
-                    }
-                  >
-                    <Link href="/planos">Comecar com {plan.name}</Link>
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* FAQ */}
-        <section id="suporte" className="py-20 border-t border-zinc-900">
-          <div className="container max-w-2xl">
-            <h2 className="text-2xl font-black text-center mb-8">Perguntas frequentes</h2>
-            <Accordion type="single" collapsible className="space-y-2">
-              {faqs.map((faq, i) => (
-                <AccordionItem
-                  key={i}
-                  value={`faq-${i}`}
-                  className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-5"
-                >
-                  <AccordionTrigger className="text-sm font-medium text-zinc-300 hover:text-white hover:no-underline py-4 text-left">
-                    {faq.q}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-sm text-zinc-500 pb-4">
-                    {faq.a}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </div>
-        </section>
+        {HOME_SECTION_FLAGS.showPlans && <HomePlansSection plans={plans} />}
+        {HOME_SECTION_FLAGS.showFaq && <HomeFaqSection faqs={faqs} />}
 
       </main>
       <Footer />

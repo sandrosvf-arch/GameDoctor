@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getPaymentGateway } from "@/lib/payment"
-import { grantAccess, suspendUserAccess } from "@/lib/access"
+import { grantAccess, resolvePlanAccessWindow, suspendUserAccess } from "@/lib/access"
 import type { PaymentGatewayName } from "@/lib/payment"
 
 export async function POST(request: Request) {
@@ -63,25 +63,95 @@ export async function POST(request: Request) {
     const { order } = payment
 
     if (event.eventType === "payment_approved") {
+      const alreadyApproved = payment.paymentStatus === "APPROVED"
+      const approvedAt = payment.paidAt ?? new Date()
+
       // Update payment and order status
       await db.payment.update({
         where: { id: payment.id },
-        data: { paymentStatus: "APPROVED", paidAt: new Date() },
+        data: { paymentStatus: "APPROVED", paidAt: approvedAt },
       })
       await db.order.update({
         where: { id: order.id },
         data: { paymentStatus: "APPROVED" },
       })
 
-      // Grant access for each item in the order
-      for (const item of order.orderItems) {
-        await grantAccess({
-          userId: order.userId,
-          courseId: item.courseId ?? undefined,
-          planId: item.planId ?? undefined,
-          accessType: "LIFETIME", // TODO: determine from plan billing type
-          origin: "PURCHASE",
-        })
+      if (!alreadyApproved) {
+        // Grant access for each item in the order.
+        // Plans can be time-based, so renewals extend from the current expiry when still active.
+        for (const item of order.orderItems) {
+          if (item.planId) {
+            const plan = await db.plan.findUnique({
+              where: { id: item.planId },
+              select: {
+                billingType: true,
+                accessDurationDays: true,
+              },
+            })
+
+            if (!plan) {
+              continue
+            }
+
+            const existingAccess = await db.accessPermission.findFirst({
+              where: {
+                userId: order.userId,
+                planId: item.planId,
+                status: "ACTIVE",
+              },
+              orderBy: [{ expiresAt: "desc" }, { createdAt: "desc" }],
+              select: {
+                id: true,
+                expiresAt: true,
+              },
+            })
+
+            if (existingAccess?.expiresAt === null) {
+              continue
+            }
+
+            const renewalBaseDate =
+              existingAccess?.expiresAt && existingAccess.expiresAt > approvedAt
+                ? existingAccess.expiresAt
+                : approvedAt
+
+            const accessWindow = resolvePlanAccessWindow({
+              billingType: plan.billingType,
+              accessDurationDays: plan.accessDurationDays,
+              startDate: renewalBaseDate,
+            })
+
+            if (existingAccess) {
+              await db.accessPermission.update({
+                where: { id: existingAccess.id },
+                data: {
+                  accessType: accessWindow.accessType,
+                  expiresAt: accessWindow.expiresAt,
+                  notes: `Renovado automaticamente pelo pagamento do pedido ${order.id}`,
+                },
+              })
+            } else {
+              await grantAccess({
+                userId: order.userId,
+                planId: item.planId,
+                accessType: accessWindow.accessType,
+                origin: "PURCHASE",
+                expiresAt: accessWindow.expiresAt,
+                notes: `Liberado automaticamente pelo pagamento do pedido ${order.id}`,
+              })
+            }
+
+            continue
+          }
+
+          await grantAccess({
+            userId: order.userId,
+            courseId: item.courseId ?? undefined,
+            accessType: "LIFETIME",
+            origin: "PURCHASE",
+            notes: `Liberado automaticamente pelo pagamento do pedido ${order.id}`,
+          })
+        }
       }
     } else if (
       event.eventType === "payment_refunded" ||

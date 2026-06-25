@@ -16,6 +16,23 @@ interface Trilha {
   displayOrder: number
   createdAt: string
   _count: { lessons: number }
+  courseCategories?: {
+    category: {
+      id: string
+      name: string
+      slug: string
+      parentId: string | null
+    }
+  }[]
+}
+
+interface CatalogCategoryNode {
+  id: string
+  name: string
+  slug: string
+  parentId: string | null
+  status: string
+  children: CatalogCategoryNode[]
 }
 
 const statusLabel: Record<string, string> = {
@@ -147,10 +164,58 @@ function CoverUploadField({ value, onChange }: { value: string; onChange: (value
   )
 }
 
+function CategoryMultiSelect({
+  categories,
+  selectedIds,
+  onToggle,
+}: {
+  categories: CatalogCategoryNode[]
+  selectedIds: string[]
+  onToggle: (id: string) => void
+}) {
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
+      {categories.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhuma categoria cadastrada ainda.</p>
+      ) : (
+        categories.map((root) => (
+          <div key={root.id} className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(root.id)}
+                onChange={() => onToggle(root.id)}
+                className="rounded"
+              />
+              {root.name}
+            </label>
+            {root.children.length > 0 && (
+              <div className="grid gap-2 pl-6 sm:grid-cols-2">
+                {root.children.map((child) => (
+                  <label key={child.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(child.id)}
+                      onChange={() => onToggle(child.id)}
+                      className="rounded"
+                    />
+                    {child.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminTrilhasPage() {
   const [trilhas, setTrilhas] = useState<Trilha[]>([])
+  const [categories, setCategories] = useState<CatalogCategoryNode[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -161,6 +226,7 @@ export default function AdminTrilhasPage() {
   const [newTrailColorRgb, setNewTrailColorRgb] = useState("")
   const [newBadgeTextColorRgb, setNewBadgeTextColorRgb] = useState("")
   const [newBadgeLabel, setNewBadgeLabel] = useState("")
+  const [newSelectedCategoryIds, setNewSelectedCategoryIds] = useState<string[]>([])
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [savingOrder, setSavingOrder] = useState(false)
 
@@ -170,10 +236,17 @@ export default function AdminTrilhasPage() {
 
   async function load() {
     setLoading(true)
-    const res = await fetch("/api/admin/trilhas")
-    if (res.ok) {
-      const data: Trilha[] = await res.json()
+    const [trilhasRes, categoriesRes] = await Promise.all([
+      fetch("/api/admin/trilhas"),
+      fetch("/api/admin/categorias"),
+    ])
+    if (trilhasRes.ok) {
+      const data: Trilha[] = await trilhasRes.json()
       setTrilhas(data.sort((a, b) => a.displayOrder - b.displayOrder))
+    }
+    if (categoriesRes.ok) {
+      const data: CatalogCategoryNode[] = await categoriesRes.json()
+      setCategories(data)
     }
     setLoading(false)
   }
@@ -195,15 +268,23 @@ export default function AdminTrilhasPage() {
         trailColorRgb: newTrailColorRgb.trim() || undefined,
         badgeTextColorRgb: newBadgeTextColorRgb.trim() || undefined,
         badgeLabel: newBadgeLabel.trim() || undefined,
+        selectedCategoryIds: newSelectedCategoryIds,
       }),
     })
     setCreating(false)
     if (res.ok) {
       setNewTitle(""); setNewStatus("PUBLISHED"); setNewDesc("")
       setNewCoverImage(""); setNewTrailColorRgb(""); setNewBadgeTextColorRgb(""); setNewBadgeLabel("")
+      setNewSelectedCategoryIds([])
       setShowForm(false)
       load()
     }
+  }
+
+  function toggleNewCategory(id: string) {
+    setNewSelectedCategoryIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    )
   }
 
   async function deleteTrilha(id: string) {
@@ -345,6 +426,15 @@ export default function AdminTrilhasPage() {
             </p>
           </div>
 
+          <div>
+            <label className="text-xs text-muted-foreground block mb-2">Categorias da trilha</label>
+            <CategoryMultiSelect
+              categories={categories}
+              selectedIds={newSelectedCategoryIds}
+              onToggle={toggleNewCategory}
+            />
+          </div>
+
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={creating}>
               {creating && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
@@ -397,6 +487,15 @@ export default function AdminTrilhasPage() {
                   <p className="text-xs text-muted-foreground truncate mt-0.5">{t.shortDescription}</p>
                 )}
                 <p className="text-xs text-muted-foreground mt-0.5">{t._count.lessons} aula{t._count.lessons !== 1 ? "s" : ""}</p>
+                {!!t.courseCategories?.length && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {t.courseCategories.slice(0, 4).map(({ category }) => (
+                      <span key={category.id} className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                        {category.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <span className={cn("text-xs border px-2 py-0.5 rounded-full shrink-0", statusColor[t.status] ?? statusColor.DRAFT)}>
                 {statusLabel[t.status] ?? t.status}
