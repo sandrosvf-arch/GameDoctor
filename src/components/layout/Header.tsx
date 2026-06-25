@@ -97,8 +97,7 @@ import { cn } from "@/lib/utils"
 const navLinks = [
   { label: "Cursos", href: "/cursos" },
   { label: "Planos", href: "/planos" },
-  { label: "Quem somos", href: "/#sobre" },
-  { label: "FAQ", href: "/#faq" },
+  { label: "FAQ", href: "/suporte" },
 ]
 
 interface CatalogCategoryNode {
