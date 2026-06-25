@@ -128,7 +128,7 @@ Status:
 - done: pagination
 - done: loading and empty states
 - done: permission messages for banned users
-- pending: audit log display
+- done: audit log display
 
 ## Rules
 
