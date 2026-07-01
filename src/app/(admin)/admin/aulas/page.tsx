@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
 import {
   Play, Save, Loader2, Eye, EyeOff, ExternalLink,
   Search, Filter, Paperclip, Plus, Trash2, ChevronLeft, ChevronRight,
-  FileText, FileSpreadsheet, Link2,
+  FileText, FileSpreadsheet, Link2, Mic, BrainCircuit, CheckCircle,
+  AlertCircle, RefreshCw, ChevronDown, ChevronUp, Check, X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -147,6 +148,22 @@ export default function TodasAsAulasPage() {
   const [drafts, setDrafts] = useState<Record<string, NewMaterialDraft>>({})
   const [addingMaterial, setAddingMaterial] = useState<string | null>(null)
 
+  // Transcription & AI state
+  const [transcriptionState, setTranscriptionState] = useState<Record<string, { status: string; text?: string; error?: string }>>({})
+  const [showTranscript, setShowTranscript] = useState<Record<string, boolean>>({})
+  const [aiResults, setAiResults] = useState<Record<string, { description: string; keywords: string } | null>>({})
+  const [generatingAi, setGeneratingAi] = useState<string | null>(null)
+  const [startingTranscription, setStartingTranscription] = useState<string | null>(null)
+  const [uploadingCaption, setUploadingCaption] = useState<string | null>(null)
+  const [captionStatus, setCaptionStatus] = useState<Record<string, { ok: boolean; message: string }>>({})
+  const pollingRef = useRef<Record<string, ReturnType<typeof setInterval>>>({})
+
+  // Clear all polling intervals on unmount
+  useEffect(() => {
+    const ref = pollingRef.current
+    return () => { Object.values(ref).forEach(clearInterval) }
+  }, [])
+
   const load = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams({
@@ -195,6 +212,101 @@ export default function TodasAsAulasPage() {
         .then(r => r.ok ? r.json() : [])
         .then((data: MaterialItem[]) => setMaterials(prev => ({ ...prev, [lesson.id]: data })))
         .finally(() => setLoadingMaterials(null))
+    }
+    // Load transcription status
+    if (!transcriptionState[lesson.id]) {
+      fetch(`/api/admin/aulas/${lesson.id}/transcribe`)
+        .then(r => r.ok ? r.json() : { status: "NONE" })
+        .then((data: { status: string; text?: string; error?: string }) => {
+          setTranscriptionState(prev => ({ ...prev, [lesson.id]: { status: data.status, text: data.text, error: data.error } }))
+        })
+    }
+  }
+
+  function pollTranscription(lessonId: string) {
+    fetch(`/api/admin/aulas/${lessonId}/transcribe`)
+      .then(r => r.ok ? r.json() : { status: "FAILED" })
+      .then((data: { status: string; text?: string; error?: string }) => {
+        setTranscriptionState(prev => ({ ...prev, [lessonId]: { status: data.status, text: data.text, error: data.error } }))
+        if (data.status === "DONE" || data.status === "FAILED") {
+          clearInterval(pollingRef.current[lessonId])
+          delete pollingRef.current[lessonId]
+        }
+      })
+  }
+
+  async function startTranscription(lessonId: string) {
+    setStartingTranscription(lessonId)
+    // Reset any previous failed state so the user sees "uploading" feedback
+    setTranscriptionState(prev => ({ ...prev, [lessonId]: { status: "UPLOADING" } }))
+    const res = await fetch(`/api/admin/aulas/${lessonId}/transcribe`, { method: "POST" })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert((err as { error?: string }).error ?? "Erro ao iniciar transcrição")
+      setStartingTranscription(null)
+      return
+    }
+    setTranscriptionState(prev => ({ ...prev, [lessonId]: { status: "PENDING" } }))
+    setStartingTranscription(null)
+    // Start polling every 6 seconds
+    pollingRef.current[lessonId] = setInterval(() => pollTranscription(lessonId), 6000)
+  }
+
+  async function generateAi(lessonId: string) {
+    setGeneratingAi(lessonId)
+    setAiResults(prev => ({ ...prev, [lessonId]: null }))
+    const res = await fetch(`/api/admin/aulas/${lessonId}/generate-ai`, { method: "POST" })
+    if (res.ok) {
+      const data = await res.json() as { description: string; keywords: string }
+      setAiResults(prev => ({ ...prev, [lessonId]: data }))
+    } else {
+      const err = await res.json().catch(() => ({}))
+      alert((err as { error?: string }).error ?? "Erro ao gerar conteúdo com IA")
+    }
+    setGeneratingAi(null)
+  }
+
+  async function uploadCaptionToBunny(lessonId: string) {
+    setUploadingCaption(lessonId)
+    setCaptionStatus(prev => {
+      const next = { ...prev }
+      delete next[lessonId]
+      return next
+    })
+
+    const res = await fetch(`/api/admin/aulas/${lessonId}/captions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ srclang: "pt", label: "Português (Auto)", charsPerCaption: 42 }),
+    })
+
+    const data = await res.json().catch(() => ({})) as { message?: string; error?: string; detail?: unknown }
+
+    if (res.ok) {
+      setCaptionStatus(prev => ({
+        ...prev,
+        [lessonId]: { ok: true, message: data.message ?? "Legenda enviada com sucesso" },
+      }))
+    } else {
+      const detail = typeof data.detail === "string" ? ` ${data.detail}` : ""
+      setCaptionStatus(prev => ({
+        ...prev,
+        [lessonId]: { ok: false, message: `${data.error ?? "Falha ao enviar legenda"}${detail}` },
+      }))
+    }
+
+    setUploadingCaption(null)
+  }
+
+  function applyAiField(lessonId: string, field: "description" | "keywords") {
+    const result = aiResults[lessonId]
+    if (!result) return
+    if (field === "description") {
+      patch(lessonId, "description", result.description)
+      setAiResults(prev => prev[lessonId] ? { ...prev, [lessonId]: { ...prev[lessonId]!, description: "" } } : prev)
+    } else {
+      patch(lessonId, "searchKeywords", result.keywords)
+      setAiResults(prev => prev[lessonId] ? { ...prev, [lessonId]: { ...prev[lessonId]!, keywords: "" } } : prev)
     }
   }
 
@@ -540,6 +652,194 @@ export default function TodasAsAulasPage() {
                         </Button>
                       </div>
                     </div>
+
+                    {/* ── Transcrição & IA ── */}
+                    {(() => {
+                      const ts = transcriptionState[lesson.id]
+                      const ai = aiResults[lesson.id]
+                      const tsStatus = ts?.status ?? "NONE"
+                      const isDone = tsStatus === "DONE"
+                      const isRunning = tsStatus === "PENDING" || tsStatus === "PROCESSING" || tsStatus === "UPLOADING"
+                      const isFailed = tsStatus === "FAILED"
+                      const caption = captionStatus[lesson.id]
+
+                      return (
+                        <div className="border-t border-border/40 pt-3 space-y-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-xs font-semibold flex items-center gap-1.5">
+                              <Mic className="h-3.5 w-3.5 text-muted-foreground" />
+                              Transcrição & IA
+                            </h3>
+
+                            {/* Status badge */}
+                            {isRunning && (
+                              <span className="flex items-center gap-1 text-[10px] text-amber-400 border border-amber-500/30 bg-amber-500/10 rounded-full px-2 py-0.5">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                {tsStatus === "UPLOADING" ? "Enviando vídeo..." : tsStatus === "PENDING" ? "Na fila..." : "Processando..."}
+                              </span>
+                            )}
+                            {isDone && (
+                              <span className="flex items-center gap-1 text-[10px] text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 rounded-full px-2 py-0.5">
+                                <CheckCircle className="h-3 w-3" />
+                                Transcrição pronta
+                              </span>
+                            )}
+                            {isFailed && (
+                              <span className="flex items-center gap-1 text-[10px] text-destructive border border-destructive/30 bg-destructive/10 rounded-full px-2 py-0.5">
+                                <AlertCircle className="h-3 w-3" />
+                                Falhou
+                              </span>
+                            )}
+
+                            {/* Action buttons */}
+                            <div className="flex gap-1 ml-auto">
+                              {!isDone && (
+                                <Button
+                                  size="sm" variant="outline"
+                                  onClick={() => startTranscription(lesson.id)}
+                                  disabled={isRunning || startingTranscription === lesson.id}
+                                  className="h-7 text-xs"
+                                >
+                                  {(isRunning || startingTranscription === lesson.id)
+                                    ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                    : isFailed
+                                      ? <RefreshCw className="h-3 w-3 mr-1" />
+                                      : <Mic className="h-3 w-3 mr-1" />
+                                  }
+                                  {isFailed ? "Tentar novamente" : "Transcrever áudio"}
+                                </Button>
+                              )}
+                              {isDone && (
+                                <>
+                                  <Button
+                                    size="sm" variant="ghost"
+                                    onClick={() => setShowTranscript(prev => ({ ...prev, [lesson.id]: !prev[lesson.id] }))}
+                                    className="h-7 text-xs text-muted-foreground"
+                                  >
+                                    {showTranscript[lesson.id]
+                                      ? <><ChevronUp className="h-3 w-3 mr-1" />Ocultar</>
+                                      : <><ChevronDown className="h-3 w-3 mr-1" />Ver transcript</>
+                                    }
+                                  </Button>
+                                  <Button size="sm" variant="ghost" asChild className="h-7 text-xs text-muted-foreground">
+                                    <a href={`/api/admin/aulas/${lesson.id}/subtitles?format=vtt`}>
+                                      <FileText className="h-3 w-3 mr-1" /> Baixar VTT
+                                    </a>
+                                  </Button>
+                                  <Button
+                                    size="sm" variant="ghost"
+                                    onClick={() => uploadCaptionToBunny(lesson.id)}
+                                    disabled={uploadingCaption === lesson.id}
+                                    className="h-7 text-xs text-muted-foreground"
+                                  >
+                                    {uploadingCaption === lesson.id
+                                      ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                      : <Mic className="h-3 w-3 mr-1" />
+                                    }
+                                    Enviar ao Bunny
+                                  </Button>
+                                  <Button
+                                    size="sm" variant="outline"
+                                    onClick={() => generateAi(lesson.id)}
+                                    disabled={generatingAi === lesson.id}
+                                    className="h-7 text-xs"
+                                  >
+                                    {generatingAi === lesson.id
+                                      ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                      : <BrainCircuit className="h-3 w-3 mr-1" />
+                                    }
+                                    Gerar com IA
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Error details */}
+                          {isFailed && ts?.error && (
+                            <p className="text-[10px] text-destructive/80 font-mono bg-destructive/5 border border-destructive/20 rounded px-2 py-1.5 break-all">
+                              {ts.error}
+                            </p>
+                          )}
+
+                          {caption && (
+                            <p className={cn(
+                              "text-[10px] rounded px-2 py-1.5 border",
+                              caption.ok
+                                ? "text-emerald-300 bg-emerald-500/5 border-emerald-500/20"
+                                : "text-destructive/80 bg-destructive/5 border-destructive/20"
+                            )}>
+                              {caption.message}
+                            </p>
+                          )}
+
+                          {/* Transcript viewer */}
+                          {isDone && showTranscript[lesson.id] && ts?.text && (
+                            <textarea
+                              readOnly
+                              rows={5}
+                              className="w-full bg-muted/30 border border-border/50 rounded-lg px-3 py-2 text-xs text-muted-foreground resize-none focus:outline-none font-mono leading-relaxed"
+                              value={ts.text}
+                            />
+                          )}
+
+                          {/* AI results preview */}
+                          {ai && (
+                            <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                              <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wide flex items-center gap-1">
+                                <BrainCircuit className="h-3 w-3" /> Sugestão da IA
+                              </p>
+
+                              {ai.description && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-muted-foreground font-medium">Descrição:</p>
+                                  <p className="text-xs leading-relaxed">{ai.description}</p>
+                                  <div className="flex gap-1.5 pt-0.5">
+                                    <button
+                                      onClick={() => applyAiField(lesson.id, "description")}
+                                      className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+                                    >
+                                      <Check className="h-3 w-3" /> Aplicar
+                                    </button>
+                                    <span className="text-muted-foreground/30">·</span>
+                                    <button
+                                      onClick={() => setAiResults(prev => prev[lesson.id] ? { ...prev, [lesson.id]: { ...prev[lesson.id]!, description: "" } } : prev)}
+                                      className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                                    >
+                                      <X className="h-3 w-3" /> Descartar
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {ai.description && ai.keywords && <div className="border-t border-border/30" />}
+
+                              {ai.keywords && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-muted-foreground font-medium">Palavras-chave:</p>
+                                  <p className="text-xs font-mono text-muted-foreground">{ai.keywords}</p>
+                                  <div className="flex gap-1.5 pt-0.5">
+                                    <button
+                                      onClick={() => applyAiField(lesson.id, "keywords")}
+                                      className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+                                    >
+                                      <Check className="h-3 w-3" /> Aplicar
+                                    </button>
+                                    <span className="text-muted-foreground/30">·</span>
+                                    <button
+                                      onClick={() => setAiResults(prev => prev[lesson.id] ? { ...prev, [lesson.id]: { ...prev[lesson.id]!, keywords: "" } } : prev)}
+                                      className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                                    >
+                                      <X className="h-3 w-3" /> Descartar
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                     <div className="flex gap-2 pt-1">
                       <Button size="sm" onClick={() => save(lesson.id)} disabled={saving === lesson.id}>

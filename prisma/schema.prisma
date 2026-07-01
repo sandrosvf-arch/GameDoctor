@@ -421,6 +421,9 @@ model Lesson {
   previewPercentage      Int?                @map("preview_percentage")
   requiresPlan           Boolean             @default(false) @map("requires_plan")
   requiredPlanId         String?             @map("required_plan_id")
+  transcription          String?
+  transcriptionStatus    String?             @map("transcription_status")
+  transcriptionJobId     String?             @map("transcription_job_id")
   status                 LessonStatus        @default(DRAFT)
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
