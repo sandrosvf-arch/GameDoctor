@@ -8,6 +8,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { hasAccessToCourse } from "@/lib/access"
+import { bunnySignedPlaylistUrl, bunnySignedEmbedUrl } from "@/lib/bunny"
 
 export async function GET(
   _request: Request,
@@ -95,8 +96,13 @@ export async function GET(
       durationSeconds: lesson.videoDurationSeconds ?? lesson.durationSeconds,
       // Video URL is always returned so the 7-second preview can play.
       // The paywall overlay is enforced client-side after the preview window.
-      videoEmbedUrl: lesson.videoEmbedUrl,
-      videoPlaybackUrl: lesson.videoPlaybackUrl,
+      // For Bunny, generate signed URLs at serve time (CDN/embed token auth).
+      videoEmbedUrl: lesson.videoProvider === "BUNNY" && lesson.videoProviderId
+        ? bunnySignedEmbedUrl(lesson.videoProviderId)
+        : lesson.videoEmbedUrl,
+      videoPlaybackUrl: lesson.videoProvider === "BUNNY" && lesson.videoProviderId
+        ? bunnySignedPlaylistUrl(lesson.videoProviderId)
+        : lesson.videoPlaybackUrl,
       videoThumbnailUrl: lesson.videoThumbnailUrl,
       isFree: lesson.isFree,
       isAccessible,

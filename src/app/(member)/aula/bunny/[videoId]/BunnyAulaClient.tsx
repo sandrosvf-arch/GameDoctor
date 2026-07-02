@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useRef, useMemo, useState } from "react"
 import Link from "next/link"
-import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
@@ -27,7 +26,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { BUNNY_CDN_HOST } from "@/lib/constants"
 
 export interface LessonMaterial {
   id: string
@@ -57,8 +55,6 @@ function formatSecs(s: number | null | undefined): string | null {
   return r > 0 ? `${m}min ${r}s` : `${m}min`
 }
 
-const ReactPlayer = dynamic(() => import("react-player"), { ssr: false })
-
 interface BunnyAulaClientProps {
   videoId: string
   lessonId: string | null
@@ -67,6 +63,7 @@ interface BunnyAulaClientProps {
   duration: string | null
   previewImage: string | null
   playbackUrl: string
+  embedUrl: string
   isAccessible: boolean
   isFree: boolean
   courseTitle: string
@@ -87,7 +84,7 @@ export default function BunnyAulaClient({
   subtitle,
   duration,
   previewImage,
-  playbackUrl,
+  embedUrl,
   isAccessible,
   isFree,
   courseTitle,
@@ -101,20 +98,46 @@ export default function BunnyAulaClient({
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [paywallVisible, setPaywallVisible] = useState(false)
-  const [started, setStarted] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [autoAdvance, setAutoAdvance] = useState(false)
   const [completed, setCompleted] = useState(initialCompleted)
   const [completingLesson, setCompletingLesson] = useState(false)
   const [listOpen, setListOpen] = useState(false)
+  const paywallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setMounted(true)
-    setStarted(false)
     setPaywallVisible(false)
+    setPreviewUrl(null)
+    if (paywallTimerRef.current) {
+      clearTimeout(paywallTimerRef.current)
+      paywallTimerRef.current = null
+    }
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
     const saved = localStorage.getItem("gamedoctor_autoadvance")
     if (saved === "1") setAutoAdvance(true)
+    return () => {
+      if (paywallTimerRef.current) {
+        clearTimeout(paywallTimerRef.current)
+        paywallTimerRef.current = null
+      }
+    }
   }, [videoId])
+
+  const handlePreviewPlay = useCallback(async () => {
+    if (previewLoading || previewUrl) return
+    setPreviewLoading(true)
+    try {
+      const res = await fetch(`/api/bunny/preview-embed?videoId=${videoId}`)
+      const data = await res.json()
+      setPreviewUrl(data.embedUrl)
+      // Start paywall timer immediately — iframe autoplays on load
+      paywallTimerRef.current = setTimeout(() => setPaywallVisible(true), 7000)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }, [videoId, previewLoading, previewUrl])
 
   const handleMarkComplete = useCallback(async () => {
     if (!lessonId || completingLesson) return
@@ -148,6 +171,19 @@ export default function BunnyAulaClient({
     router.push(href)
   }, [autoAdvance, nextLesson, router])
 
+  // Listen for Bunny embed player events (postMessage)
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (typeof event.data !== "object" || !event.data) return
+      const action = event.data.action ?? event.data.event
+      if (action === "onVideoEnd" || action === "ended") {
+        handleEnded()
+      }
+    }
+    window.addEventListener("message", onMessage)
+    return () => window.removeEventListener("message", onMessage)
+  }, [handleEnded])
+
   // Group lessons by module
   const groupedLessons = useMemo(() => {
     const groups: { module: { id: string; title: string } | null; lessons: CourseLessonInfo[] }[] = []
@@ -167,11 +203,6 @@ export default function BunnyAulaClient({
     () => courseLessons.findIndex(l => l.videoProviderId === videoId),
     [courseLessons, videoId]
   )
-  const handleProgress = useCallback((state: { playedSeconds?: number }) => {
-    if ((state.playedSeconds ?? 0) >= 7) {
-      setPaywallVisible(true)
-    }
-  }, [])
 
   const prevLesson = currentIdx > 0 ? courseLessons[currentIdx - 1] : null
 
@@ -208,9 +239,10 @@ export default function BunnyAulaClient({
               className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 overflow-hidden rounded-none md:rounded-xl bg-black shadow-xl"
               style={{ aspectRatio: "16/9" }}
             >
-              {(!isAccessible && paywallVisible) ? (
-                // Paywall — ReactPlayer desmontado, nenhum <video> no DOM
+              {!isAccessible ? (
+                // Non-accessible: thumbnail → click → iframe preview (7s) → paywall
                 <div className="absolute inset-0">
+                  {/* Thumbnail always in background */}
                   {previewImage && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -220,59 +252,79 @@ export default function BunnyAulaClient({
                       draggable={false}
                     />
                   )}
-                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 px-6 text-center backdrop-blur-[1px] animate-in fade-in duration-500">
-                    <div className="w-full max-w-xl rounded-2xl border border-white/15 bg-zinc-950/70 p-5 shadow-2xl backdrop-blur-xl">
-                      <div className="flex items-center justify-center gap-2 text-white">
-                        <Play className="h-4 w-4 fill-white" />
-                        <p className="text-base font-semibold">Continue assistindo</p>
-                      </div>
-                      <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                        Entre para a maior e mais completa plataforma de formação de técnicos em videogames do Brasil
-                      </p>
-                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <Link
-                          href="/planos"
-                          className="cta-shine inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-zinc-950 shadow-[0_8px_24px_rgba(16,185,129,0.28)]"
-                        >
-                          <span className="relative z-10">Continuar assistindo</span>
-                          <span
-                            aria-hidden
-                            className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]"
-                          />
-                        </Link>
-                        <Link
-                          href={`/login?callbackUrl=/aula/bunny/${videoId}`}
-                          className="inline-flex items-center justify-center rounded-xl border border-white/25 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-                        >
-                          Já tenho acesso
-                        </Link>
+
+                  {/* State 1: play button (no preview yet) */}
+                  {!previewUrl && !paywallVisible && (
+                    <button
+                      onClick={handlePreviewPlay}
+                      disabled={previewLoading}
+                      aria-label="Reproduzir vídeo"
+                      className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors disabled:cursor-wait"
+                    >
+                      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur hover:bg-black/65 transition-colors">
+                        {previewLoading
+                          ? <Loader2 className="h-7 w-7 animate-spin" />
+                          : <Play className="h-7 w-7 fill-white" />
+                        }
+                      </span>
+                    </button>
+                  )}
+
+                  {/* State 2: iframe playing (previewUrl set, paywall not yet visible) */}
+                  {previewUrl && !paywallVisible && (
+                    <iframe
+                      src={previewUrl}
+                      className="absolute inset-0 h-full w-full"
+                      width="100%"
+                      height="100%"
+                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                      allowFullScreen
+                      title={title}
+                    />
+                  )}
+
+                  {/* State 3: paywall overlay */}
+                  {paywallVisible && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 px-6 text-center backdrop-blur-[1px] animate-in fade-in duration-300">
+                      <div className="w-full max-w-xl rounded-2xl border border-white/15 bg-zinc-950/70 p-5 shadow-2xl backdrop-blur-xl">
+                        <div className="flex items-center justify-center gap-2 text-white">
+                          <Play className="h-4 w-4 fill-white" />
+                          <p className="text-base font-semibold">Continue assistindo</p>
+                        </div>
+                        <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+                          Entre para a maior e mais completa plataforma de formação de técnicos em videogames do Brasil
+                        </p>
+                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <Link
+                            href="/planos"
+                            className="cta-shine inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-zinc-950 shadow-[0_8px_24px_rgba(16,185,129,0.28)]"
+                          >
+                            <span className="relative z-10">Continuar assistindo</span>
+                            <span
+                              aria-hidden
+                              className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]"
+                            />
+                          </Link>
+                          <Link
+                            href={`/login?callbackUrl=/aula/bunny/${videoId}`}
+                            className="inline-flex items-center justify-center rounded-xl border border-white/25 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                          >
+                            Já tenho acesso
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ) : mounted ? (
-                <ReactPlayer
-                  url={playbackUrl}
-                  playing={started}
-                  controls={isAccessible}
-                  playsInline
-                  config={{ file: { attributes: { playsInline: true, 'webkit-playsinline': true } } }}
-                  light={previewImage ?? true}
-                  playIcon={
-                    <button
-                      type="button"
-                      aria-label="Reproduzir vídeo"
-                      className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/45 text-white shadow-2xl backdrop-blur hover:bg-black/60"
-                    >
-                      <Play className="h-7 w-7 fill-white" />
-                    </button>
-                  }
+                <iframe
+                  src={embedUrl}
+                  className="absolute inset-0 h-full w-full"
                   width="100%"
                   height="100%"
-                  className="absolute inset-0"
-                  onClickPreview={() => setStarted(true)}
-                  onProgress={!isAccessible ? handleProgress : undefined}
-                  onEnded={handleEnded}
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                  title={title}
                 />
               ) : null}
             </div>

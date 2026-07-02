@@ -1,6 +1,6 @@
 import BunnyAulaClient, { type CourseLessonInfo, type LessonMaterial } from "./BunnyAulaClient"
 import { auth } from "@/lib/auth"
-import { bunnyPlaybackUrl } from "@/lib/bunny"
+import { bunnySignedPlaylistUrl, bunnySignedEmbedUrl } from "@/lib/bunny"
 import { hasAccessToCourse } from "@/lib/access"
 import { db } from "@/lib/db"
 
@@ -103,7 +103,8 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   const isAccessible = lesson ? lesson.isFree || !!courseAccess : true
   const title = titulo ?? lesson?.title ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
   const duration = meta?.length ? formatDuration(meta.length) : null
-  const playbackUrl = bunnyPlaybackUrl(videoId)
+  const playbackUrl = bunnySignedPlaylistUrl(videoId)
+  const embedUrl = bunnySignedEmbedUrl(videoId)
   const courseTitle = lesson?.course.title ?? "Início da Jornada"
   const courseSlug = lesson?.course.slug ?? null
   const previewImage = lesson?.thumbnail ?? lesson?.videoThumbnailUrl ?? null
@@ -124,6 +125,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       duration={duration}
       previewImage={previewImage}
       playbackUrl={playbackUrl}
+      embedUrl={embedUrl}
       isAccessible={isAccessible}
       isFree={lesson?.isFree ?? true}
       courseTitle={courseTitle}
