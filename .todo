@@ -5,6 +5,7 @@ Categorização: @done
 - 2 níveis de categorias, ex: @done
 - Playstation > Playstation 1~5 @done
 - Controles > "Categorias" @done
+- Nivel 3, abrir para o lado
 ---------------------------------
 
 Busca:
@@ -48,7 +49,8 @@ Admin:
 - Central de ajuda (FAQ) @done
 - Comentários @done
 - Comunidade (Fórum) (Tópicos ordenados) + subtópicos com opção e criar, anexar mídia + richText, ... @done
-- Fale com o professor (mensagens)
+    - Caso não tenha assinatura, não vai conseguir acessar um tópico, vai alertar sobre assinar um plano, ... com uma chamada forte
+- Fale com o professor (mensagens) (Ver com o Thiago)
 - Tickets
 - Configurações (Validar o que é útil manter)
 - Integrações (A validar)
@@ -58,3 +60,4 @@ Admin:
 Validar área da aula:
 - Super admin está com tudo bloqueado, sendo que não deveria
 - Validar os endpoints, validar se está correto
+- Apagar trilha Diagnostico Completo PS5
