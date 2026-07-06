@@ -221,3 +221,23 @@ export async function getUserAccess(userId: string) {
     },
   })
 }
+
+/**
+ * Check if a user has any active plan-based subscription/access.
+ */
+export async function hasActivePlanAccess(userId: string): Promise<boolean> {
+  const now = new Date()
+
+  const activePlanAccess = await db.accessPermission.findFirst({
+    where: {
+      userId,
+      planId: { not: null },
+      status: "ACTIVE",
+      startsAt: { lte: now },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    select: { id: true },
+  })
+
+  return Boolean(activePlanAccess)
+}

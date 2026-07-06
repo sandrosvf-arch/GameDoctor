@@ -38,7 +38,7 @@ const navGroups = [
     title: "Gerenciamento",
     items: [
       { href: "/admin/alunos", label: "Usuários", icon: Users },
-      { href: "/admin/acessos", label: "Assinaturas", icon: CreditCard },
+      // { href: "/admin/acessos", label: "Assinaturas", icon: CreditCard },
       { href: "/admin/planos", label: "Planos de assinatura", icon: Tags },
       { href: "/admin/banners", label: "Fullbanner", icon: ImageIcon },
       { href: "/admin/aulas", label: "Conteúdo", icon: BookOpen },
@@ -68,9 +68,9 @@ const navGroups = [
     title: "Sistema",
     items: [
       { href: "/admin/perfil", label: "Administradores", icon: Shield },
-      { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
-      { href: "/admin/integracoes", label: "Integrações", icon: Plug },
-      { href: "/admin/logs", label: "Logs", icon: ScrollText },
+      // { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
+      // { href: "/admin/integracoes", label: "Integrações", icon: Plug }]
+      // { href: "/admin/logs", label: "Logs", icon: ScrollText },
     ],
   },
 ]

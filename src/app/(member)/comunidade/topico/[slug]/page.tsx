@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { unstable_noStore as noStore } from "next/cache"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { hasActivePlanAccess } from "@/lib/access"
 import { CalendarDays, Eye, MessageSquareText, UserRound } from "lucide-react"
 import { formatCommunityDate, getCommunityActiveBanWhere, getCommunityFirstName, isCommunityWriterBanned } from "@/lib/community"
 import { CommunityTopicClient } from "@/components/community/CommunityTopicClient"
@@ -22,6 +23,7 @@ export default async function CommunityTopicPage({
   const session = await auth()
   const { slug } = await params
   const isAdminUser = isAdminRole(session?.user?.role)
+  const hasRepliesAccess = isAdminUser || (session?.user?.id ? await hasActivePlanAccess(session.user.id) : false)
 
   const topic = await db.communityTopic.findUnique({
     where: { slug },
@@ -191,7 +193,7 @@ export default async function CommunityTopicPage({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <MessageSquareText className="h-4 w-4 text-slate-500" />
-                {topic.posts.length} resposta{topic.posts.length !== 1 ? "s" : ""}
+                {topic.repliesCount} resposta{topic.repliesCount !== 1 ? "s" : ""}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Eye className="h-4 w-4 text-slate-500" />
@@ -212,7 +214,7 @@ export default async function CommunityTopicPage({
             isPinned: topic.isPinned,
             isLocked: topic.isLocked,
             viewsCount: topic.viewsCount,
-            repliesCount: topic.posts.length,
+            repliesCount: topic.repliesCount,
             forumName: topic.forum.name,
             forumSlug: topic.forum.slug,
             author: {
@@ -237,32 +239,36 @@ export default async function CommunityTopicPage({
               sizeBytes: attachment.sizeBytes ?? 0,
             })),
           }}
-          initialPosts={topic.posts.map((post) => ({
-            id: post.id,
-            content: post.content,
-            createdAt: post.createdAt.toISOString(),
-            attachments: post.attachments.map((attachment) => ({
-              id: attachment.id,
-              fileName: attachment.fileName,
-              url: attachment.fileUrl,
-              mimeType: attachment.mimeType ?? "image/jpeg",
-              sizeBytes: attachment.sizeBytes ?? 0,
-            })),
-            author: {
-              id: post.author.id,
-              name: post.author.name,
-              email: post.author.email,
-              avatarUrl: post.author.avatarUrl,
-              activeBan: post.author.communityBans[0]
-                ? {
-                    id: post.author.communityBans[0].id,
-                    reason: post.author.communityBans[0].reason,
-                    endsAt: post.author.communityBans[0].endsAt?.toISOString() ?? null,
-                  }
-                : null,
-            },
-          }))}
-          canReply={Boolean(session?.user?.id) && !activeBanMessage}
+          initialPosts={hasRepliesAccess
+            ? topic.posts.map((post) => ({
+                id: post.id,
+                content: post.content,
+                createdAt: post.createdAt.toISOString(),
+                attachments: post.attachments.map((attachment) => ({
+                  id: attachment.id,
+                  fileName: attachment.fileName,
+                  url: attachment.fileUrl,
+                  mimeType: attachment.mimeType ?? "image/jpeg",
+                  sizeBytes: attachment.sizeBytes ?? 0,
+                })),
+                author: {
+                  id: post.author.id,
+                  name: post.author.name,
+                  email: post.author.email,
+                  avatarUrl: post.author.avatarUrl,
+                  activeBan: post.author.communityBans[0]
+                    ? {
+                        id: post.author.communityBans[0].id,
+                        reason: post.author.communityBans[0].reason,
+                        endsAt: post.author.communityBans[0].endsAt?.toISOString() ?? null,
+                      }
+                    : null,
+                },
+              }))
+            : []}
+          canReply={hasRepliesAccess && Boolean(session?.user?.id) && !activeBanMessage}
+          canViewReplies={hasRepliesAccess}
+          requiresPlan={!hasRepliesAccess}
           banMessage={activeBanMessage}
           isAdminUser={isAdminUser}
           topicSlug={slug}
