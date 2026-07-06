@@ -12,6 +12,7 @@ import {
   Award,
   Heart,
   HeadphonesIcon,
+  Ticket,
   Settings,
   LogOut,
   Users,
@@ -35,6 +36,7 @@ const mainNavItems = [
 
 const supportNavItems = [
   { label: "Central de Ajuda", href: "/suporte", icon: HeadphonesIcon },
+  { label: "Tickets", href: "/tickets", icon: Ticket },
   { label: "Comunidade", href: "/comunidade", icon: Globe },
   { label: "Configurações", href: "/configuracoes", icon: Settings },
 ]

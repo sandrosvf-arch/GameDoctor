@@ -232,6 +232,23 @@ export function HelpCenterClient({
           ) : (
             <p className="text-sm text-slate-400">Nenhuma categoria disponível.</p>
           )}
+          <div className="mt-10 rounded-[28px] border border-cyan-500/15 bg-cyan-500/[0.04] px-5 py-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-medium text-white">Nao encontrou o que procurava?</p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Fale com a equipe e abra um ticket para acompanhar sua solicitacao.
+                </p>
+              </div>
+
+              <Link
+                href="/tickets"
+                className="inline-flex h-11 items-center justify-center rounded-full border border-cyan-500/20 bg-cyan-500/10 px-5 text-sm font-medium text-cyan-200 transition hover:border-cyan-400/40 hover:bg-cyan-500/15 hover:text-white"
+              >
+                Fale conosco
+              </Link>
+            </div>
+          </div>
         </section>
       </div>
     </div>

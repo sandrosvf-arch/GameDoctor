@@ -213,6 +213,23 @@ enum CommunityModerationActionType {
   UNBAN_USER
 }
 
+enum TicketStatus {
+  ABERTO
+  AGUARDANDO_RESPOSTA
+  RESPONDIDO
+  FINALIZADO
+}
+
+enum TicketDepartmentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TicketAuthorType {
+  STUDENT
+  STAFF
+}
+
 // ─────────────────────────────────────────────
 // MODELS
 // ─────────────────────────────────────────────
@@ -250,6 +267,10 @@ model User {
   revokedCommunityBans CommunityBan[]           @relation("CommunityBanRevokedBy")
   communityModerationActions CommunityModerationAction[] @relation("CommunityModerator")
   communityTargetActions CommunityModerationAction[]     @relation("CommunityTargetUser")
+  supportTickets    Ticket[]                    @relation("TicketStudent")
+  closedTickets     Ticket[]                    @relation("TicketClosedBy")
+  ticketMessages    TicketMessage[]             @relation("TicketMessageAuthor")
+  ticketAttachments TicketAttachment[]          @relation("TicketAttachmentUploadedBy")
 
   @@map("users")
 }
@@ -771,6 +792,80 @@ model HelpArticle {
 
   @@index([categoryId, order])
   @@map("help_articles")
+}
+
+model TicketDepartment {
+  id          String                 @id @default(cuid())
+  name        String
+  slug        String                 @unique
+  description String?
+  order       Int                    @default(0)
+  status      TicketDepartmentStatus @default(ACTIVE)
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  tickets     Ticket[]
+
+  @@index([status, order])
+  @@map("ticket_departments")
+}
+
+model Ticket {
+  id            String         @id @default(cuid())
+  ticketNumber  String         @unique @map("ticket_number")
+  studentId     String         @map("student_id")
+  departmentId  String         @map("department_id")
+  subject       String
+  status        TicketStatus   @default(ABERTO)
+  lastMessageAt DateTime       @map("last_message_at")
+  closedAt      DateTime?      @map("closed_at")
+  closedById    String?        @map("closed_by_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  student       User           @relation("TicketStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  department    TicketDepartment @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  closedBy      User?          @relation("TicketClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  messages      TicketMessage[]
+
+  @@index([status, departmentId, lastMessageAt])
+  @@index([studentId, lastMessageAt])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id          String           @id @default(cuid())
+  ticketId     String           @map("ticket_id")
+  authorId     String           @map("author_id")
+  authorType   TicketAuthorType @map("author_type")
+  content      String           @db.Text
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  ticket       Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author       User             @relation("TicketMessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  attachments  TicketAttachment[]
+
+  @@index([ticketId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("ticket_messages")
+}
+
+model TicketAttachment {
+  id           String        @id @default(cuid())
+  messageId     String        @map("message_id")
+  uploadedById  String        @map("uploaded_by_id")
+  fileName      String        @map("file_name")
+  fileUrl       String        @map("file_url")
+  mimeType      String?       @map("mime_type")
+  sizeBytes     Int?          @map("size_bytes")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  message       TicketMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  uploadedBy    User          @relation("TicketAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([uploadedById, createdAt])
+  @@map("ticket_attachments")
 }
 
 model CommunityForum {
