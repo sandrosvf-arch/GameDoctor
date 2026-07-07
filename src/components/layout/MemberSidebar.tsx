@@ -30,15 +30,13 @@ const mainNavItems = [
   { label: "Continuar Assistindo", href: "/dashboard#continuar", icon: Play },
   { label: "Progresso", href: "/progresso", icon: TrendingUp },
   { label: "Certificados", href: "/certificados", icon: Award },
-  { label: "Favoritos", href: "/favoritos", icon: Heart },
-  { label: "Meu Perfil", href: "/perfil", icon: UserCircle },
+  // { label: "Favoritos", href: "/favoritos", icon: Heart },
 ]
 
 const supportNavItems = [
   { label: "Central de Ajuda", href: "/suporte", icon: HeadphonesIcon },
   { label: "Tickets", href: "/tickets", icon: Ticket },
   { label: "Comunidade", href: "/comunidade", icon: Globe },
-  { label: "Configurações", href: "/configuracoes", icon: Settings },
 ]
 
 export function MemberSidebar() {

@@ -59,7 +59,7 @@ const navGroups = [
   {
     title: "Financeiro",
     items: [
-      { href: "/admin/relatorios", label: "Relatórios", icon: BarChart2 },
+      // { href: "/admin/relatorios", label: "Relatórios", icon: BarChart2 },
       { href: "/admin/pedidos", label: "Pedidos", icon: ShoppingCart },
       { href: "/admin/cupons", label: "Cupons", icon: Tag },
     ],

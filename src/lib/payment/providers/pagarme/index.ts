@@ -10,6 +10,7 @@
  * TODO: implement Pagar.me API calls
  */
 import type {
+  ParseWebhookInput,
   PaymentGatewayAdapter,
   CreatePixPaymentInput,
   CreateCardPaymentInput,
@@ -31,7 +32,7 @@ export const pagarmeGateway: PaymentGatewayAdapter = {
     throw new Error("Pagar.me Card not implemented")
   },
 
-  async parseWebhook(payload: unknown, signature?: string): Promise<WebhookEvent> {
+  async parseWebhook(_input: ParseWebhookInput): Promise<WebhookEvent> {
     // TODO: validate Pagar.me webhook signature
     throw new Error("Pagar.me webhook not implemented")
   },

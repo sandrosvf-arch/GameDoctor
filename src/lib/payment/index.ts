@@ -66,6 +66,13 @@ export interface WebhookEvent {
   rawPayload: Record<string, unknown>
 }
 
+export interface ParseWebhookInput {
+  payload: unknown
+  signature?: string
+  requestId?: string
+  dataId?: string
+}
+
 // ─── Adapter interface ────────────────────────────────────────
 
 export interface PaymentGatewayAdapter {
@@ -75,7 +82,7 @@ export interface PaymentGatewayAdapter {
    * Parse and validate the incoming webhook payload.
    * Throw if signature is invalid.
    */
-  parseWebhook(payload: unknown, signature?: string): Promise<WebhookEvent>
+  parseWebhook(input: ParseWebhookInput): Promise<WebhookEvent>
   getPaymentStatus(gatewayPaymentId: string): Promise<string>
 }
 

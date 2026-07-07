@@ -32,7 +32,7 @@ Dashboard(Aluno):
 - Aulas concluídas @done
 - Horas de estudo @done
 - Conquistas @done
-- Assinar um plano + Checkout
+- Assinar um plano + Checkout @done
 
 ---------------------------------
 
@@ -40,7 +40,7 @@ Admin:
 - Ver o que tá funcionando e o que não tá (Dash) @done
 - Construir área do usuário @done
 - Planos de assinatura @done
-    - Assinaturas (Cartão, pix, Boleto) - MP
+    - Assinaturas (Cartão, pix, Boleto) - MP @done
     - Pedidos @done
     - Cupons (Criar cupom) @done
 - Aulas (colocar uma paginação ~ 30 por página) @done
