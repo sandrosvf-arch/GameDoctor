@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
+import { differenceInCalendarDays, format } from "date-fns"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { differenceInCalendarDays, format } from "date-fns"
+import { getMemberProgressSummary } from "@/lib/member-progress"
 
 export async function GET() {
   const session = await auth()
@@ -12,7 +13,7 @@ export async function GET() {
   const userId = session.user.id
   const now = new Date()
 
-  const [user, activeAccess, accessPermissions, allProgress, totalCertificates] = await Promise.all([
+  const [user, activeAccess, totalCertificates, progressSummary, allProgress] = await Promise.all([
     db.user.findUnique({
       where: { id: userId },
       select: { name: true, avatarUrl: true, email: true },
@@ -27,24 +28,10 @@ export async function GET() {
       orderBy: [{ expiresAt: "asc" }],
       include: { plan: { select: { name: true } } },
     }),
-    db.accessPermission.findMany({
-      where: {
-        userId,
-        status: "ACTIVE",
-        startsAt: { lte: now },
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      },
-      select: {
-        courseId: true,
-        plan: {
-          select: {
-            planCourses: {
-              select: { courseId: true },
-            },
-          },
-        },
-      },
+    db.certificate.count({
+      where: { userId, status: "ISSUED" },
     }),
+    getMemberProgressSummary(userId, { continueLimit: 6 }),
     db.lessonProgress.findMany({
       where: { userId },
       select: {
@@ -55,58 +42,18 @@ export async function GET() {
         completedAt: true,
       },
     }),
-    db.certificate.count({
-      where: { userId, status: "ISSUED" },
-    }),
   ])
 
-  const accessibleCourseIds = Array.from(new Set(
-    accessPermissions.flatMap((permission) => [
-      ...(permission.courseId ? [permission.courseId] : []),
-      ...(permission.plan?.planCourses.map((item) => item.courseId) ?? []),
-    ])
-  ))
-
-  const accessibleCourses = accessibleCourseIds.length > 0
-    ? await db.course.findMany({
-        where: { id: { in: accessibleCourseIds } },
-        select: {
-          id: true,
-          title: true,
-          trailColorRgb: true,
-          platform: { select: { name: true } },
-          lessons: {
-            where: { status: "PUBLISHED" },
-            select: { id: true },
-          },
-        },
-        orderBy: [{ displayOrder: "asc" }, { title: "asc" }],
-      })
-    : []
-
-  const relevantProgress = allProgress.filter((progress) => accessibleCourseIds.includes(progress.courseId))
+  const relevantProgress = allProgress.filter((progress) =>
+    progressSummary.accessibleCourseIds.includes(progress.courseId)
+  )
 
   const totalStudySeconds = relevantProgress.reduce((sum, progress) => sum + progress.watchedSeconds, 0)
   const totalCompleted = relevantProgress.filter((progress) => progress.completed).length
-
-  const courseStats = accessibleCourses.map((course) => {
-    const totalLessons = course.lessons.length
-    const completedLessons = allProgress.filter(
-      (progress) => progress.courseId === course.id && progress.completed
-    ).length
-
-    return {
-      id: course.id,
-      title: course.title,
-      platformName: course.platform?.name ?? null,
-      platformColor: course.trailColorRgb ?? null,
-      totalLessons,
-      completedLessons,
-      progress: totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
-    }
-  })
-
-  const totalLessonsAvailable = courseStats.reduce((sum, course) => sum + course.totalLessons, 0)
+  const totalLessonsAvailable = progressSummary.courseProgress.reduce(
+    (sum, course) => sum + course.totalLessons,
+    0
+  )
   const overallProgress = totalLessonsAvailable > 0
     ? Math.round((totalCompleted / totalLessonsAvailable) * 100)
     : 0
@@ -128,9 +75,9 @@ export async function GET() {
     const firstDay = sortedDays[0]
     if (firstDay === todayStr || firstDay === yesterdayStr) {
       streak = 1
-      for (let i = 1; i < sortedDays.length; i++) {
-        const prev = new Date(sortedDays[i - 1])
-        const curr = new Date(sortedDays[i])
+      for (let index = 1; index < sortedDays.length; index++) {
+        const prev = new Date(sortedDays[index - 1])
+        const curr = new Date(sortedDays[index])
         if (differenceInCalendarDays(prev, curr) === 1) {
           streak++
         } else {
@@ -141,9 +88,9 @@ export async function GET() {
 
     let currentRun = 1
     bestStreak = 1
-    for (let i = 1; i < sortedDays.length; i++) {
-      const prev = new Date(sortedDays[i - 1])
-      const curr = new Date(sortedDays[i])
+    for (let index = 1; index < sortedDays.length; index++) {
+      const prev = new Date(sortedDays[index - 1])
+      const curr = new Date(sortedDays[index])
       if (differenceInCalendarDays(prev, curr) === 1) {
         currentRun++
       } else {
@@ -158,7 +105,11 @@ export async function GET() {
     { id: "first", label: "Primeiro passo", earned: totalCompleted >= 1 },
     { id: "ten", label: "10 aulas concluídas", earned: totalCompleted >= 10 },
     { id: "fifty", label: "50 aulas concluídas", earned: totalCompleted >= 50 },
-    { id: "course", label: "Curso 100%", earned: courseStats.some((course) => course.progress === 100) },
+    {
+      id: "course",
+      label: "Curso 100%",
+      earned: progressSummary.courseProgress.some((course) => course.progressPercent === 100),
+    },
     { id: "streak7", label: "7 dias seguidos", earned: streak >= 7 || bestStreak >= 7 },
     { id: "streak30", label: "30 dias seguidos", earned: bestStreak >= 30 },
   ]
@@ -205,6 +156,16 @@ export async function GET() {
       totalAchievements: achievements.length,
       achievements,
     },
-    myCourses: courseStats,
+    continueWatching: progressSummary.continueWatching,
+    courseProgress: progressSummary.courseProgress,
+    myCourses: progressSummary.courseProgress.map((course) => ({
+      id: course.id,
+      title: course.title,
+      platformName: course.platformName,
+      platformColor: null,
+      totalLessons: course.totalLessons,
+      completedLessons: course.completedLessons,
+      progress: course.progressPercent,
+    })),
   })
 }

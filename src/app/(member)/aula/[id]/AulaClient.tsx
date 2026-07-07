@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { useLessonProgress } from "@/lib/use-lesson-progress"
 
 interface Material {
   id: string
@@ -223,18 +224,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     })
   }
 
-  const markComplete = async () => {
-    if (!data || markingDone) return
-    setMarkingDone(true)
-    await fetch("/api/progress", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lessonId, completed: true }),
-    })
-    await load()
-    setMarkingDone(false)
-  }
-
   const loadComments = useCallback(async () => {
     setCommentsLoading(true)
     try {
@@ -298,7 +287,26 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   }
 
   const { lesson, course, prevLesson, nextLesson } = data
-  const isCompleted = !!lesson.progress?.completedAt
+  const {
+    completed: isCompleted,
+    handlePlaybackProgress,
+    flushProgress,
+    markCompleted,
+  } = useLessonProgress({
+    lessonId,
+    enabled: lesson.isAccessible,
+    durationSeconds: lesson.durationSeconds,
+    initialWatchedSeconds: lesson.progress?.watchedSeconds ?? 0,
+    initialCompleted: Boolean(lesson.progress?.completedAt),
+  })
+
+  const markComplete = async () => {
+    if (!data || markingDone || isCompleted) return
+    setMarkingDone(true)
+    await markCompleted()
+    await load()
+    setMarkingDone(false)
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -332,11 +340,28 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                   controls={lesson.isAccessible}
                   muted
                   playsInline
-                  config={{ file: { attributes: { playsInline: true, 'webkit-playsinline': true } } }}
+                  config={{ file: { attributes: { playsInline: true, "webkit-playsinline": "true" } } }}
                   width="100%"
                   height="100%"
                   className="absolute inset-0"
-                  onProgress={handleProgress}
+                  onProgress={(state) => {
+                    if (lesson.isAccessible) {
+                      handlePlaybackProgress(state.playedSeconds ?? 0)
+                    } else {
+                      handleProgress(state)
+                    }
+                  }}
+                  onPause={() => {
+                    if (lesson.isAccessible) flushProgress()
+                  }}
+                  onEnded={() => {
+                    if (lesson.isAccessible) {
+                      flushProgress({
+                        playedSeconds: lesson.durationSeconds ?? lesson.progress?.watchedSeconds ?? 0,
+                        completed: true,
+                      })
+                    }
+                  }}
                 />
               ) : !paywallVisible && lesson.videoEmbedUrl ? (
                 <iframe

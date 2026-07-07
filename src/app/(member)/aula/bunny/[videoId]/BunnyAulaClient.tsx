@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { BUNNY_CDN_HOST } from "@/lib/constants"
+import { useLessonProgress } from "@/lib/use-lesson-progress"
 
 export interface LessonMaterial {
   id: string
@@ -76,8 +77,8 @@ interface BunnyAulaClientProps {
   title: string
   subtitle: string | null
   duration: string | null
+  durationSeconds: number | null
   previewImage: string | null
-  playbackUrl: string
   embedUrl: string
   isAccessible: boolean
   canViewRestrictedContent: boolean
@@ -89,6 +90,7 @@ interface BunnyAulaClientProps {
   nextLesson: CourseLessonInfo | null
   materials: LessonMaterial[]
   initialCompleted: boolean
+  initialWatchedSeconds: number
 }
 
 export default function BunnyAulaClient({
@@ -97,8 +99,8 @@ export default function BunnyAulaClient({
   title,
   subtitle,
   duration,
+  durationSeconds,
   previewImage,
-  playbackUrl: _playbackUrl,
   embedUrl,
   isAccessible,
   canViewRestrictedContent,
@@ -110,6 +112,7 @@ export default function BunnyAulaClient({
   nextLesson,
   materials,
   initialCompleted,
+  initialWatchedSeconds,
 }: BunnyAulaClientProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
@@ -117,7 +120,6 @@ export default function BunnyAulaClient({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [autoAdvance, setAutoAdvance] = useState(false)
-  const [completed, setCompleted] = useState(initialCompleted)
   const [completingLesson, setCompletingLesson] = useState(false)
   const [listOpen, setListOpen] = useState(false)
   const [comments, setComments] = useState<CommentItem[]>([])
@@ -128,6 +130,19 @@ export default function BunnyAulaClient({
   const [commentError, setCommentError] = useState<string | null>(null)
   const [commentInfo, setCommentInfo] = useState<string | null>(null)
   const paywallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const {
+    completed,
+    handlePlaybackProgress,
+    flushProgress,
+    markCompleted,
+  } = useLessonProgress({
+    lessonId,
+    enabled: isAccessible,
+    durationSeconds,
+    initialWatchedSeconds,
+    initialCompleted,
+    trackingMode: "session",
+  })
 
   useEffect(() => {
     setMounted(true)
@@ -171,22 +186,15 @@ export default function BunnyAulaClient({
   }, [previewLoading, previewUrl, videoId])
 
   const handleMarkComplete = useCallback(async () => {
-    if (!lessonId || completingLesson) return
+    if (!lessonId || completingLesson || completed) return
 
     setCompletingLesson(true)
-    const nextValue = !completed
-
     try {
-      await fetch("/api/progress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lessonId, watchedSeconds: 0, completed: nextValue }),
-      })
-      setCompleted(nextValue)
+      await markCompleted()
     } finally {
       setCompletingLesson(false)
     }
-  }, [completed, completingLesson, lessonId])
+  }, [completed, completingLesson, lessonId, markCompleted])
 
   const toggleAutoAdvance = useCallback(() => {
     setAutoAdvance((prev) => {
@@ -205,19 +213,6 @@ export default function BunnyAulaClient({
 
     router.push(href)
   }, [autoAdvance, nextLesson, router])
-
-  useEffect(() => {
-    function onMessage(event: MessageEvent) {
-      if (typeof event.data !== "object" || !event.data) return
-      const action = event.data.action ?? event.data.event
-      if (action === "onVideoEnd" || action === "ended") {
-        handleEnded()
-      }
-    }
-
-    window.addEventListener("message", onMessage)
-    return () => window.removeEventListener("message", onMessage)
-  }, [handleEnded])
 
   const loadComments = useCallback(async () => {
     if (!lessonId) return
@@ -444,7 +439,7 @@ export default function BunnyAulaClient({
             {isAccessible && lessonId && (
               <button
                 onClick={handleMarkComplete}
-                disabled={completingLesson}
+                disabled={completingLesson || completed}
                 className={cn(
                   "flex h-11 w-full items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-60",
                   completed

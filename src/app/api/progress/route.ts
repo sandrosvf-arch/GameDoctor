@@ -14,7 +14,7 @@ import { z } from "zod"
 
 const schema = z.object({
   lessonId: z.string().min(1),
-  watchedSeconds: z.number().int().min(0),
+  watchedSeconds: z.number().int().min(0).optional(),
   completed: z.boolean().optional(),
 })
 
@@ -47,24 +47,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
   }
 
+  const existingProgress = await db.lessonProgress.findUnique({
+    where: { userId_lessonId: { userId, lessonId } },
+    select: {
+      watchedSeconds: true,
+      completed: true,
+      completedAt: true,
+    },
+  })
+
   const totalDuration = lesson.videoDurationSeconds ?? lesson.durationSeconds ?? 0
-  const isCompleted = completed ?? (totalDuration > 0 && watchedSeconds >= totalDuration * 0.9)
+  const nextWatchedSeconds = Math.max(existingProgress?.watchedSeconds ?? 0, watchedSeconds ?? 0)
+  const shouldCompleteAutomatically = totalDuration > 0 && nextWatchedSeconds >= totalDuration * 0.9
+  const isCompleted = Boolean(existingProgress?.completed || completed || shouldCompleteAutomatically)
+  const completedAt = existingProgress?.completedAt ?? (isCompleted ? new Date() : null)
 
   const progress = await db.lessonProgress.upsert({
     where: { userId_lessonId: { userId, lessonId } },
     update: {
-      watchedSeconds,
+      watchedSeconds: nextWatchedSeconds,
       completed: isCompleted,
-      completedAt: isCompleted ? new Date() : undefined,
+      completedAt,
       lastWatchedAt: new Date(),
     },
     create: {
       userId,
       lessonId,
       courseId: lesson.courseId,
-      watchedSeconds,
+      watchedSeconds: nextWatchedSeconds,
       completed: isCompleted,
-      completedAt: isCompleted ? new Date() : null,
+      completedAt,
       lastWatchedAt: new Date(),
     },
   })

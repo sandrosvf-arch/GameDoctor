@@ -1,7 +1,10 @@
 "use client"
 
 import type { ReactNode } from "react"
+import Link from "next/link"
 import { useEffect, useState } from "react"
+import { formatDistanceToNow } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import {
   Award,
   CalendarClock,
@@ -9,6 +12,7 @@ import {
   Clock3,
   Flame,
   Loader2,
+  PlayCircle,
   Shield,
   Star,
   Trophy,
@@ -29,6 +33,31 @@ interface Achievement {
   earned: boolean
 }
 
+interface ContinueWatchingItem {
+  id: string
+  title: string
+  href: string
+  thumbnailUrl: string | null
+  durationSeconds: number | null
+  courseTitle: string
+  watchedSeconds: number
+  progressPercent: number
+  completed: boolean
+  lastWatchedAt: string | null
+}
+
+interface CourseProgressSummary {
+  id: string
+  title: string
+  slug: string
+  totalLessons: number
+  completedLessons: number
+  progressPercent: number
+  studySeconds: number
+  lastWatchedAt: string | null
+  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"
+}
+
 interface Stats {
   totalCompleted: number
   totalStudySeconds: number
@@ -46,6 +75,8 @@ interface DashboardData {
   user: { name: string; avatarUrl: string | null; email: string }
   plan: PlanInfo | null
   stats: Stats
+  continueWatching: ContinueWatchingItem[]
+  courseProgress: CourseProgressSummary[]
 }
 
 const achievementVisuals: Record<string, { icon: React.ElementType; color: string; subtitle: string }> = {
@@ -62,6 +93,32 @@ function formatStudyTime(seconds: number) {
   const minutes = Math.floor((seconds % 3600) / 60)
   if (hours > 0) return `${hours}h${minutes > 0 ? ` ${minutes}m` : ""}`
   return `${minutes}m`
+}
+
+function formatDuration(seconds: number | null) {
+  if (!seconds) return "Sem duração"
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  }
+
+  if (minutes > 0) {
+    return `${minutes}min${remainingSeconds > 0 ? ` ${remainingSeconds}s` : ""}`
+  }
+
+  return `${remainingSeconds}s`
+}
+
+function formatRelativeDate(date: string | null) {
+  if (!date) return "Sem atividade recente"
+
+  return formatDistanceToNow(new Date(date), {
+    addSuffix: true,
+    locale: ptBR,
+  })
 }
 
 function formatDays(plan: PlanInfo | null) {
@@ -193,7 +250,7 @@ export function DashboardClient() {
             subtitle={`${data.stats.totalCompleted} de ${data.stats.totalLessonsAvailable} aulas concluídas`}
             icon={Shield}
             tone="bg-cyan-500/15 text-cyan-400"
-            extra={
+            extra={(
               <div className="space-y-2">
                 <div className="h-2.5 overflow-hidden rounded-full bg-muted">
                   <div
@@ -205,7 +262,7 @@ export function DashboardClient() {
                   Baseado apenas nas trilhas liberadas para o aluno.
                 </p>
               </div>
-            }
+            )}
           />
         </div>
 
@@ -233,6 +290,101 @@ export function DashboardClient() {
           />
         </div>
       </div>
+
+      <section id="continuar" className="rounded-[24px] border border-border bg-card/50 p-6 md:p-7">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">Continuar assistindo</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Retome rapidamente as aulas mais recentes do seu histórico.
+            </p>
+          </div>
+          <Link
+            href="/progresso"
+            className="text-sm font-semibold text-cyan-400 transition-colors hover:text-cyan-300"
+          >
+            Ver progresso completo
+          </Link>
+        </div>
+
+        {data.continueWatching.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-dashed border-border bg-background/35 p-8 text-center">
+            <p className="text-base font-medium">Você ainda não iniciou nenhuma aula.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Quando começar a estudar, suas retomadas mais recentes vão aparecer aqui.
+            </p>
+            <div className="mt-5">
+              <Link
+                href="/cursos"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              >
+                Explorar cursos
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+            {data.continueWatching.map((item) => (
+              <article
+                key={item.id}
+                className="overflow-hidden rounded-2xl border border-border bg-background/35 transition-colors hover:border-cyan-500/30"
+              >
+                <div className="relative aspect-video overflow-hidden bg-zinc-950">
+                  {item.thumbnailUrl ? (
+                    <img
+                      src={item.thumbnailUrl}
+                      alt={item.title}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : null}
+                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/85 to-transparent" />
+                  <div className="absolute left-4 top-4">
+                    <span className={cn(
+                      "inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium",
+                      item.completed ? "bg-emerald-500/15 text-emerald-400" : "bg-cyan-500/15 text-cyan-400"
+                    )}>
+                      {item.completed ? "Concluída" : `${item.progressPercent}% assistido`}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-5">
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-cyan-400">
+                      {item.courseTitle}
+                    </p>
+                    <h3 className="line-clamp-2 text-lg font-semibold leading-snug">{item.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Última atividade {formatRelativeDate(item.lastWatchedAt)}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-cyan-400 transition-all"
+                        style={{ width: `${item.progressPercent}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{formatStudyTime(item.watchedSeconds)} estudados</span>
+                      <span>{formatDuration(item.durationSeconds)}</span>
+                    </div>
+                  </div>
+
+                  <Link
+                    href={item.href}
+                    className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                  >
+                    <PlayCircle className="mr-2 h-4 w-4" />
+                    Continuar aula
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="rounded-[24px] border border-border bg-card/50 p-6 md:p-7">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
