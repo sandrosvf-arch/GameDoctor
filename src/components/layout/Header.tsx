@@ -194,7 +194,7 @@ export function Header() {
                   <ChevronDown className="h-3 w-3" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72 p-1.5">
+              <DropdownMenuContent align="start" className="w-72 overflow-visible p-1.5">
                 <DropdownMenuItem asChild>
                   <Link href="/cursos">Ver todos os cursos</Link>
                 </DropdownMenuItem>
@@ -214,7 +214,15 @@ export function Header() {
                       {root.children.length > 0 ? (
                         <button
                           type="button"
-                          onClick={() => handleDesktopRootToggle(root.id)}
+                          onMouseDown={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                          }}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            handleDesktopRootToggle(root.id)
+                          }}
                           className="mr-1 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
                           aria-label={`Abrir subcategorias de ${root.name}`}
                         >
@@ -240,7 +248,15 @@ export function Header() {
                               {child.children.length > 0 ? (
                                 <button
                                   type="button"
-                                  onClick={() => handleDesktopBranchToggle(child.id)}
+                                  onMouseDown={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                  }}
+                                  onClick={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                    handleDesktopBranchToggle(child.id)
+                                  }}
                                   className="mr-1 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
                                   aria-label={`Abrir subcategorias de ${child.name}`}
                                 >
