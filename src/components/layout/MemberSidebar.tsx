@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils"
 
 const mainNavItems = [
   { label: "Início", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Minhas Trilhas", href: "/meus-cursos", icon: BookMarked },
+  // { label: "Minhas Trilhas", href: "/meus-cursos", icon: BookMarked },
   { label: "Continuar Assistindo", href: "/dashboard#continuar", icon: Play },
   { label: "Progresso", href: "/progresso", icon: TrendingUp },
   { label: "Certificados", href: "/certificados", icon: Award },

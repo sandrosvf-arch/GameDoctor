@@ -60,9 +60,10 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
         course: { select: { title: true, slug: true } },
       },
     }),
-  ])
+  ]) 
 
   const userId = session?.user?.id ?? null
+  const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR"
 
   // Phase 2: parallel — all queries that depend on lesson + userId
   const [courseAccess, courseLessons, materials, completionRecord] = await Promise.all([
@@ -100,7 +101,8 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       : Promise.resolve(null),
   ])
 
-  const isAccessible = lesson ? lesson.isFree || !!courseAccess : true
+  const hasRestrictedContentAccess = Boolean(isStaff || courseAccess)
+  const isAccessible = lesson ? lesson.isFree || hasRestrictedContentAccess : true
   const title = titulo ?? lesson?.title ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
   const duration = meta?.length ? formatDuration(meta.length) : null
   const playbackUrl = bunnySignedPlaylistUrl(videoId)
@@ -127,6 +129,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       playbackUrl={playbackUrl}
       embedUrl={embedUrl}
       isAccessible={isAccessible}
+      canViewRestrictedContent={hasRestrictedContentAccess}
       isFree={lesson?.isFree ?? true}
       courseTitle={courseTitle}
       courseSlug={courseSlug}

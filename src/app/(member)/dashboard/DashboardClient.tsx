@@ -105,7 +105,7 @@ function MetricCard({
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {title}
           </p>
-          <p className="mt-5 text-4xl font-bold leading-none tracking-tight">{value}</p>
+          <p className="mt-5 text-2xl font-bold leading-none tracking-tight">{value}</p>
           {subtitle && (
             <p className="mt-3 max-w-[22ch] text-sm leading-relaxed text-muted-foreground">
               {subtitle}

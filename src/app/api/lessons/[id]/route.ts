@@ -16,6 +16,7 @@ export async function GET(
 ) {
   const session = await auth()
   const userId = session?.user?.id ?? null
+  const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR"
 
   const { id } = await params
 
@@ -79,7 +80,8 @@ export async function GET(
   }
 
   const courseAccess = userId ? await hasAccessToCourse(userId, lesson.courseId) : false
-  const isAccessible = lesson.isFree || courseAccess
+  const hasRestrictedContentAccess = Boolean(isStaff || courseAccess)
+  const isAccessible = lesson.isFree || hasRestrictedContentAccess
 
   // Find prev/next lessons flat across all modules
   const allLessons = lesson.course.modules.flatMap((m) => m.lessons)
@@ -109,7 +111,7 @@ export async function GET(
       previewEnabled: lesson.previewEnabled,
       // Non-accessible lessons show a 7-second preview before the paywall.
       previewDurationSeconds: isAccessible ? null : 7,
-      materials: isAccessible ? lesson.materials : [],
+      materials: hasRestrictedContentAccess ? lesson.materials : [],
       progress: Array.isArray(lesson.lessonProgress) ? (lesson.lessonProgress[0] ?? null) : null,
     },
     course: {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -18,6 +18,7 @@ import {
   Paperclip,
   Play,
   Repeat,
+  Send,
   SkipBack,
   SkipForward,
   Sparkles,
@@ -26,6 +27,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { BUNNY_CDN_HOST } from "@/lib/constants"
 
 export interface LessonMaterial {
   id: string
@@ -48,11 +50,24 @@ export interface CourseLessonInfo {
   module: { id: string; title: string } | null
 }
 
-function formatSecs(s: number | null | undefined): string | null {
-  if (!s) return null
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  return r > 0 ? `${m}min ${r}s` : `${m}min`
+interface CommentItem {
+  id: string
+  content: string
+  createdAt: string
+  user: { id: string; name: string; avatarUrl: string | null }
+  replies: Array<{
+    id: string
+    content: string
+    createdAt: string
+    user: { id: string; name: string; avatarUrl: string | null }
+  }>
+}
+
+function formatSecs(seconds: number | null | undefined): string | null {
+  if (!seconds) return null
+  const minutes = Math.floor(seconds / 60)
+  const remaining = seconds % 60
+  return remaining > 0 ? `${minutes}min ${remaining}s` : `${minutes}min`
 }
 
 interface BunnyAulaClientProps {
@@ -65,6 +80,7 @@ interface BunnyAulaClientProps {
   playbackUrl: string
   embedUrl: string
   isAccessible: boolean
+  canViewRestrictedContent: boolean
   isFree: boolean
   courseTitle: string
   courseSlug: string | null
@@ -75,8 +91,6 @@ interface BunnyAulaClientProps {
   initialCompleted: boolean
 }
 
-
-
 export default function BunnyAulaClient({
   videoId,
   lessonId,
@@ -84,8 +98,10 @@ export default function BunnyAulaClient({
   subtitle,
   duration,
   previewImage,
+  playbackUrl: _playbackUrl,
   embedUrl,
   isAccessible,
+  canViewRestrictedContent,
   isFree,
   courseTitle,
   courseSlug,
@@ -104,19 +120,34 @@ export default function BunnyAulaClient({
   const [completed, setCompleted] = useState(initialCompleted)
   const [completingLesson, setCompletingLesson] = useState(false)
   const [listOpen, setListOpen] = useState(false)
+  const [comments, setComments] = useState<CommentItem[]>([])
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentsVisible, setCommentsVisible] = useState(false)
+  const [commentText, setCommentText] = useState("")
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [commentError, setCommentError] = useState<string | null>(null)
+  const [commentInfo, setCommentInfo] = useState<string | null>(null)
   const paywallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setMounted(true)
     setPaywallVisible(false)
     setPreviewUrl(null)
+    setComments([])
+    setCommentsVisible(false)
+    setCommentText("")
+    setCommentError(null)
+    setCommentInfo(null)
+
     if (paywallTimerRef.current) {
       clearTimeout(paywallTimerRef.current)
       paywallTimerRef.current = null
     }
+
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
     const saved = localStorage.getItem("gamedoctor_autoadvance")
     if (saved === "1") setAutoAdvance(true)
+
     return () => {
       if (paywallTimerRef.current) {
         clearTimeout(paywallTimerRef.current)
@@ -127,51 +158,54 @@ export default function BunnyAulaClient({
 
   const handlePreviewPlay = useCallback(async () => {
     if (previewLoading || previewUrl) return
+
     setPreviewLoading(true)
     try {
       const res = await fetch(`/api/bunny/preview-embed?videoId=${videoId}`)
       const data = await res.json()
       setPreviewUrl(data.embedUrl)
-      // Start paywall timer immediately — iframe autoplays on load
       paywallTimerRef.current = setTimeout(() => setPaywallVisible(true), 7000)
     } finally {
       setPreviewLoading(false)
     }
-  }, [videoId, previewLoading, previewUrl])
+  }, [previewLoading, previewUrl, videoId])
 
   const handleMarkComplete = useCallback(async () => {
     if (!lessonId || completingLesson) return
+
     setCompletingLesson(true)
-    const next = !completed
+    const nextValue = !completed
+
     try {
       await fetch("/api/progress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lessonId, watchedSeconds: 0, completed: next }),
+        body: JSON.stringify({ lessonId, watchedSeconds: 0, completed: nextValue }),
       })
-      setCompleted(next)
+      setCompleted(nextValue)
     } finally {
       setCompletingLesson(false)
     }
-  }, [lessonId, completed, completingLesson])
+  }, [completed, completingLesson, lessonId])
 
   const toggleAutoAdvance = useCallback(() => {
-    setAutoAdvance(prev => {
-      const next = !prev
-      localStorage.setItem("gamedoctor_autoadvance", next ? "1" : "0")
-      return next
+    setAutoAdvance((prev) => {
+      const nextValue = !prev
+      localStorage.setItem("gamedoctor_autoadvance", nextValue ? "1" : "0")
+      return nextValue
     })
   }, [])
 
   const handleEnded = useCallback(() => {
     if (!autoAdvance || !nextLesson) return
+
     const href = nextLesson.videoProviderId
       ? `/aula/bunny/${nextLesson.videoProviderId}`
       : `/aula/${nextLesson.id}`
+
     router.push(href)
   }, [autoAdvance, nextLesson, router])
 
-  // Listen for Bunny embed player events (postMessage)
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (typeof event.data !== "object" || !event.data) return
@@ -180,27 +214,100 @@ export default function BunnyAulaClient({
         handleEnded()
       }
     }
+
     window.addEventListener("message", onMessage)
     return () => window.removeEventListener("message", onMessage)
   }, [handleEnded])
 
-  // Group lessons by module
+  const loadComments = useCallback(async () => {
+    if (!lessonId) return
+
+    setCommentsLoading(true)
+    setCommentError(null)
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}/comments`)
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        setCommentError(data?.error ?? "Não foi possível carregar os comentários.")
+        return
+      }
+
+      setComments(Array.isArray(data) ? data : [])
+    } finally {
+      setCommentsLoading(false)
+    }
+  }, [lessonId])
+
+  useEffect(() => {
+    if (commentsVisible && canViewRestrictedContent) {
+      void loadComments()
+    }
+  }, [canViewRestrictedContent, commentsVisible, loadComments])
+
+  const submitComment = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!lessonId || !commentText.trim()) return
+
+    setCommentError(null)
+    setCommentInfo(null)
+    setSubmittingComment(true)
+
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: commentText.trim() }),
+      })
+
+      if (res.status === 401) {
+        setCommentError("Faça login para comentar.")
+        return
+      }
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        setCommentError(data.error ?? "Erro ao enviar comentário.")
+        return
+      }
+
+      if (data.pending) {
+        setCommentInfo(data.message ?? "Comentário enviado para aprovação.")
+        setCommentText("")
+        return
+      }
+
+      setComments((prev) => [...prev, data.comment as CommentItem])
+      setCommentText("")
+      setCommentInfo("Comentário publicado com sucesso.")
+    } finally {
+      setSubmittingComment(false)
+    }
+  }, [commentText, lessonId])
+
   const groupedLessons = useMemo(() => {
-    const groups: { module: { id: string; title: string } | null; lessons: CourseLessonInfo[] }[] = []
-    for (const l of courseLessons) {
-      const key = l.moduleId ?? null
-      const existing = groups.find(g => (g.module?.id ?? null) === key)
+    const groups: Array<{
+      module: { id: string; title: string } | null
+      lessons: CourseLessonInfo[]
+    }> = []
+
+    for (const lesson of courseLessons) {
+      const key = lesson.moduleId ?? null
+      const existing = groups.find((group) => (group.module?.id ?? null) === key)
+
       if (existing) {
-        existing.lessons.push(l)
+        existing.lessons.push(lesson)
       } else {
-        groups.push({ module: l.module ?? null, lessons: [l] })
+        groups.push({ module: lesson.module ?? null, lessons: [lesson] })
       }
     }
+
     return groups
   }, [courseLessons])
 
   const currentIdx = useMemo(
-    () => courseLessons.findIndex(l => l.videoProviderId === videoId),
+    () => courseLessons.findIndex((lesson) => lesson.videoProviderId === videoId),
     [courseLessons, videoId]
   )
 
@@ -208,7 +315,7 @@ export default function BunnyAulaClient({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="hidden md:block border-b border-border/50 bg-muted/30">
+      <div className="hidden border-b border-border/50 bg-muted/30 md:block">
         <div className="container flex h-10 items-center gap-2 text-sm text-muted-foreground">
           <Link href="/cursos" className="transition-colors hover:text-foreground">
             Cursos
@@ -222,29 +329,36 @@ export default function BunnyAulaClient({
 
       <div className="container py-6 pb-24 md:pb-6">
         <div className="flex items-start gap-6">
-          <div className="flex-1 min-w-0 space-y-6">
-            {/* Mobile: back button */}
+          <div className="min-w-0 flex-1 space-y-6">
             <button
               onClick={() => router.back()}
-              className="flex md:hidden items-center gap-1.5 text-sm text-zinc-400 active:text-white"
+              className="flex items-center gap-1.5 text-sm text-zinc-400 active:text-white md:hidden"
             >
               <ArrowLeft className="h-4 w-4" />
               Voltar
             </button>
 
-            {/* Title */}
-            <h1 className="text-lg md:text-xl font-bold leading-snug">{title}</h1>
+            <div className="space-y-2">
+              <h1 className="text-lg font-bold leading-snug md:text-xl">{title}</h1>
+              {(subtitle || duration || isFree) && (
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  {duration && <span>{duration}</span>}
+                  {!isAccessible && isFree && (
+                    <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                      Prévia gratuita
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div
-              className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 overflow-hidden rounded-none md:rounded-xl bg-black shadow-xl"
+              className="relative -mx-8 w-[calc(100%+4rem)] overflow-hidden rounded-none bg-black shadow-xl md:mx-0 md:w-full md:rounded-xl"
               style={{ aspectRatio: "16/9" }}
             >
               {!isAccessible ? (
-                // Non-accessible: thumbnail → click → iframe preview (7s) → paywall
                 <div className="absolute inset-0">
-                  {/* Thumbnail always in background */}
                   {previewImage && (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={previewImage}
                       alt={title}
@@ -253,24 +367,23 @@ export default function BunnyAulaClient({
                     />
                   )}
 
-                  {/* State 1: play button (no preview yet) */}
                   {!previewUrl && !paywallVisible && (
                     <button
                       onClick={handlePreviewPlay}
                       disabled={previewLoading}
                       aria-label="Reproduzir vídeo"
-                      className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors disabled:cursor-wait"
+                      className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors hover:bg-black/40 disabled:cursor-wait"
                     >
-                      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur hover:bg-black/65 transition-colors">
-                        {previewLoading
-                          ? <Loader2 className="h-7 w-7 animate-spin" />
-                          : <Play className="h-7 w-7 fill-white" />
-                        }
+                      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
+                        {previewLoading ? (
+                          <Loader2 className="h-7 w-7 animate-spin" />
+                        ) : (
+                          <Play className="h-7 w-7 fill-white" />
+                        )}
                       </span>
                     </button>
                   )}
 
-                  {/* State 2: iframe playing (previewUrl set, paywall not yet visible) */}
                   {previewUrl && !paywallVisible && (
                     <iframe
                       src={previewUrl}
@@ -283,9 +396,8 @@ export default function BunnyAulaClient({
                     />
                   )}
 
-                  {/* State 3: paywall overlay */}
                   {paywallVisible && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 px-6 text-center backdrop-blur-[1px] animate-in fade-in duration-300">
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 px-6 text-center animate-in fade-in duration-300 backdrop-blur-[1px]">
                       <div className="w-full max-w-xl rounded-2xl border border-white/15 bg-zinc-950/70 p-5 shadow-2xl backdrop-blur-xl">
                         <div className="flex items-center justify-center gap-2 text-white">
                           <Play className="h-4 w-4 fill-white" />
@@ -329,72 +441,79 @@ export default function BunnyAulaClient({
               ) : null}
             </div>
 
-            {/* Concluir */}
             {isAccessible && lessonId && (
               <button
                 onClick={handleMarkComplete}
                 disabled={completingLesson}
                 className={cn(
-                  "flex w-full items-center justify-center gap-2 rounded-xl h-11 text-sm font-semibold border transition-colors disabled:opacity-60",
+                  "flex h-11 w-full items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-60",
                   completed
                     ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
                     : "border-border text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-400"
                 )}
               >
-                {completingLesson
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <CheckCircle2 className="h-4 w-4" />
-                }
+                {completingLesson ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
                 {completed ? "Aula concluída" : "Concluir aula"}
               </button>
             )}
 
-            {/* Description + Files */}
-            {!isAccessible ? (
-              <div className="rounded-xl border border-border bg-muted/20 px-5 py-6 flex flex-col items-center gap-3 text-center">
+            {!canViewRestrictedContent ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                   <Lock className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Descrição completa da aula</p>
-                  <p className="text-xs text-muted-foreground">Assine um plano para ver a descrição, materiais e conteúdo exclusivo desta aula.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Assine um plano para ver a descrição, materiais e conteúdo exclusivo desta aula.
+                  </p>
                 </div>
                 <Button size="sm" asChild>
                   <Link href="/planos">Ver planos</Link>
                 </Button>
               </div>
             ) : (description || materials.length > 0) && (
-              <div className="rounded-xl border border-border bg-muted/30 px-5 py-4 space-y-4">
+              <div className="space-y-4 rounded-xl border border-border bg-muted/30 px-5 py-4">
                 {description && (
                   <div className="space-y-1.5">
                     <h2 className="text-sm font-semibold">Descrição</h2>
-                    <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">{description}</p>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                      {description}
+                    </p>
                   </div>
                 )}
 
                 {materials.length > 0 && (
-                  <div className={description ? "border-t border-border/50 pt-4 space-y-2" : "space-y-2"}>
+                  <div className={description ? "space-y-2 border-t border-border/50 pt-4" : "space-y-2"}>
                     <h2 className="flex items-center gap-2 text-sm font-semibold">
                       <Paperclip className="h-4 w-4 text-muted-foreground" />
                       Arquivos da aula
                     </h2>
                     <div className="space-y-2">
-                      {materials.map(m => {
-                        const url = m.externalUrl ?? m.fileUrl ?? "#"
-                        const Icon = m.type === "PDF" ? FileText
-                          : m.type === "SPREADSHEET" ? FileSpreadsheet
-                          : m.type === "LINK" ? Link2
-                          : Paperclip
+                      {materials.map((material) => {
+                        const url = material.externalUrl ?? material.fileUrl ?? "#"
+                        const Icon = material.type === "PDF"
+                          ? FileText
+                          : material.type === "SPREADSHEET"
+                            ? FileSpreadsheet
+                            : material.type === "LINK"
+                              ? Link2
+                              : Paperclip
+
                         return (
                           <a
-                            key={m.id}
+                            key={material.id}
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-3 rounded-lg border border-border bg-background/60 px-4 py-3 text-sm transition-colors hover:bg-muted/60"
                           >
                             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span className="flex-1 truncate">{m.title}</span>
+                            <span className="flex-1 truncate">{material.title}</span>
                             <Download className="h-4 w-4 shrink-0 text-muted-foreground" />
                           </a>
                         )
@@ -409,35 +528,155 @@ export default function BunnyAulaClient({
               <h2 id="aula-comments" className="mb-4 flex items-center gap-2 text-sm font-semibold">
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 Comentários
+                {comments.length > 0 && (
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                    {comments.length}
+                  </span>
+                )}
               </h2>
-              <div className="rounded-xl border border-border bg-muted/20 px-5 py-6 flex flex-col items-center gap-3 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                  {isAccessible
-                    ? <User2 className="h-5 w-5 text-muted-foreground" />
-                    : <Lock className="h-5 w-5 text-muted-foreground" />
-                  }
+
+              {!canViewRestrictedContent ? (
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    <Lock className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Participe da discussão</p>
+                    <p className="text-xs text-muted-foreground">
+                      Assine um plano para acessar os comentários e participar das discussões desta aula.
+                    </p>
+                  </div>
+                  <Button size="sm" asChild>
+                    <Link href="/planos">Ver planos</Link>
+                  </Button>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Participe da discussão</p>
-                  <p className="text-xs text-muted-foreground">
-                    {isAccessible
-                      ? "Faça login para deixar sua dúvida ou comentário nesta aula."
-                      : "Assine um plano para acessar os comentários e participar das discussões."
-                    }
-                  </p>
+              ) : !commentsVisible ? (
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    <User2 className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Participe da discussão</p>
+                    <p className="text-xs text-muted-foreground">
+                      Carregue os comentários para acompanhar a conversa da aula e deixar sua dúvida.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setCommentsVisible(true)}>
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Carregar comentários
+                  </Button>
                 </div>
-                <Button size="sm" asChild>
-                  {isAccessible
-                    ? <Link href="/login">Entrar para comentar</Link>
-                    : <Link href="/planos">Ver planos</Link>
-                  }
-                </Button>
-              </div>
+              ) : (
+                <div className="space-y-5">
+                  <form onSubmit={submitComment} className="rounded-xl border border-border bg-muted/20 p-4">
+                    <div className="space-y-3">
+                      <textarea
+                        value={commentText}
+                        onChange={(event) => setCommentText(event.target.value)}
+                        placeholder="Deixe sua dúvida ou comentário sobre esta aula..."
+                        rows={4}
+                        className="w-full rounded-lg border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                      />
+                      {commentError && (
+                        <p className="text-xs text-destructive">{commentError}</p>
+                      )}
+                      {commentInfo && (
+                        <p className="text-xs text-emerald-400">{commentInfo}</p>
+                      )}
+                      <div className="flex justify-end">
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={submittingComment || !commentText.trim()}
+                        >
+                          {submittingComment ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="mr-2 h-4 w-4" />
+                          )}
+                          Publicar comentário
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+
+                  {commentsLoading ? (
+                    <div className="flex justify-center py-6">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border bg-muted/10 px-5 py-8 text-center">
+                      <p className="text-sm text-muted-foreground">Seja o primeiro a comentar nesta aula.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {comments.map((comment) => (
+                        <div key={comment.id} className="rounded-xl border border-border bg-muted/15 p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                              {comment.user.avatarUrl ? (
+                                <img
+                                  src={comment.user.avatarUrl}
+                                  alt={comment.user.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <User2 className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-1 flex flex-wrap items-baseline gap-2">
+                                <span className="text-sm font-medium text-foreground">{comment.user.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(comment.createdAt).toLocaleDateString("pt-BR", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}
+                                </span>
+                              </div>
+                              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                                {comment.content}
+                              </p>
+                            </div>
+                          </div>
+
+                          {comment.replies.length > 0 && (
+                            <div className="mt-4 space-y-3 pl-[52px]">
+                              {comment.replies.map((reply) => (
+                                <div
+                                  key={reply.id}
+                                  className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.06] px-4 py-3"
+                                >
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300/90">
+                                      Equipe GameDoctor
+                                    </span>
+                                    <span className="text-[11px] text-slate-400">
+                                      {new Date(reply.createdAt).toLocaleDateString("pt-BR", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        year: "numeric",
+                                      })}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
+                                    {reply.content}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           <aside className="sticky top-20 hidden max-h-[calc(100vh-5rem)] w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-border lg:flex xl:w-80">
-            {/* Header */}
             <div className="border-b border-border bg-muted/50 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Trilha de aprendizado
@@ -445,7 +684,6 @@ export default function BunnyAulaClient({
               <p className="mt-0.5 text-sm font-semibold">{courseTitle}</p>
             </div>
 
-            {/* Auto-advance toggle */}
             <div className="flex items-center justify-between border-b border-border/50 px-4 py-2.5">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <SkipForward className="h-3.5 w-3.5" />
@@ -459,37 +697,39 @@ export default function BunnyAulaClient({
                   autoAdvance ? "bg-primary" : "bg-muted-foreground/30"
                 )}
               >
-                <span className={cn(
-                  "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-                  autoAdvance ? "translate-x-4" : "translate-x-0.5"
-                )} />
+                <span
+                  className={cn(
+                    "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+                    autoAdvance ? "translate-x-4" : "translate-x-0.5"
+                  )}
+                />
               </button>
             </div>
 
-            {/* Lesson list */}
             <div className="flex-1 overflow-y-auto">
               {groupedLessons.length === 0 ? (
                 <p className="px-4 py-4 text-xs text-muted-foreground">Nenhuma aula encontrada.</p>
               ) : (
-                groupedLessons.map(({ module: mod, lessons: modLessons }) => (
-                  <div key={mod?.id ?? "no-module"}>
-                    {mod && (
+                groupedLessons.map(({ module, lessons }) => (
+                  <div key={module?.id ?? "no-module"}>
+                    {module && (
                       <div className="border-b border-border/40 bg-muted/30 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {mod.title}
+                        {module.title}
                       </div>
                     )}
-                    {modLessons.map(l => {
-                      const isCurrent = l.videoProviderId === videoId
-                      const href = l.videoProviderId
-                        ? `/aula/bunny/${l.videoProviderId}`
-                        : `/aula/${l.id}`
-                      const dur = formatSecs(l.videoDurationSeconds ?? l.durationSeconds)
-                      const thumb = l.thumbnail
-                        ?? (l.videoProviderId ? `https://${BUNNY_CDN_HOST}/${l.videoProviderId}/thumbnail.jpg` : null)
-                        ?? l.videoThumbnailUrl
+                    {lessons.map((lesson) => {
+                      const isCurrent = lesson.videoProviderId === videoId
+                      const href = lesson.videoProviderId
+                        ? `/aula/bunny/${lesson.videoProviderId}`
+                        : `/aula/${lesson.id}`
+                      const lessonDuration = formatSecs(lesson.videoDurationSeconds ?? lesson.durationSeconds)
+                      const thumb = lesson.thumbnail
+                        ?? (lesson.videoProviderId ? `https://${BUNNY_CDN_HOST}/${lesson.videoProviderId}/thumbnail.jpg` : null)
+                        ?? lesson.videoThumbnailUrl
+
                       return (
                         <Link
-                          key={l.id}
+                          key={lesson.id}
                           href={href}
                           className={cn(
                             "flex items-center gap-2.5 border-l-2 px-3 py-2 text-sm transition-colors",
@@ -498,8 +738,7 @@ export default function BunnyAulaClient({
                               : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                           )}
                         >
-                          {/* Thumbnail */}
-                          <div className="relative shrink-0 w-[76px] aspect-video rounded overflow-hidden bg-zinc-800">
+                          <div className="relative aspect-video w-[76px] shrink-0 overflow-hidden rounded bg-zinc-800">
                             {thumb && (
                               <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
                             )}
@@ -508,11 +747,12 @@ export default function BunnyAulaClient({
                                 <Play className="h-3.5 w-3.5 fill-white text-white" />
                               </div>
                             )}
-
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm leading-snug font-medium">{l.title}</p>
-                            {dur && <p className="mt-0.5 text-xs text-muted-foreground">{dur}</p>}
+                            <p className="truncate text-sm font-medium leading-snug">{lesson.title}</p>
+                            {lessonDuration && (
+                              <p className="mt-0.5 text-xs text-muted-foreground">{lessonDuration}</p>
+                            )}
                           </div>
                         </Link>
                       )
@@ -525,40 +765,36 @@ export default function BunnyAulaClient({
         </div>
       </div>
 
-      {/* ── Mobile: floating pill navbar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden pointer-events-none">
-        <div className="pointer-events-auto mx-4 mb-5 flex items-center justify-around rounded-2xl bg-zinc-900 border border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.6)] h-[60px] px-1">
-
-          {/* Anterior */}
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 md:hidden">
+        <div className="pointer-events-auto mx-4 mb-5 flex h-[60px] items-center justify-around rounded-2xl border border-white/[0.07] bg-zinc-900 px-1 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
           {prevLesson ? (
             <Link
               href={prevLesson.videoProviderId ? `/aula/bunny/${prevLesson.videoProviderId}` : `/aula/${prevLesson.id}`}
-              className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-300 active:text-white transition-colors"
+              className="flex h-full w-[19%] flex-col items-center justify-center gap-0.5 text-zinc-300 transition-colors active:text-white"
             >
               <SkipBack className="h-[18px] w-[18px]" />
               <span className="text-[10px] font-medium">Anterior</span>
             </Link>
           ) : (
-            <span className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-700 cursor-not-allowed select-none">
+            <span className="flex h-full w-[19%] select-none flex-col items-center justify-center gap-0.5 cursor-not-allowed text-zinc-700">
               <SkipBack className="h-[18px] w-[18px]" />
               <span className="text-[10px] font-medium">Anterior</span>
             </span>
           )}
 
-          {/* Trilha (mobile) */}
           {courseSlug ? (
             <Link
               href={`/trilhas/${courseSlug}`}
-              className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-300 active:text-white transition-colors"
+              className="flex h-full w-[19%] flex-col items-center justify-center gap-0.5 text-zinc-300 transition-colors active:text-white"
             >
               <List className="h-[18px] w-[18px]" />
               <span className="text-[10px] font-medium">Trilha</span>
             </Link>
           ) : (
             <button
-              onClick={() => setListOpen(v => !v)}
+              onClick={() => setListOpen((value) => !value)}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 w-[19%] h-full transition-colors active:opacity-70",
+                "flex h-full w-[19%] flex-col items-center justify-center gap-0.5 transition-colors active:opacity-70",
                 listOpen ? "text-primary" : "text-zinc-300"
               )}
             >
@@ -567,20 +803,18 @@ export default function BunnyAulaClient({
             </button>
           )}
 
-          {/* Perguntar */}
           <button
-            onClick={() => document.getElementById('aula-comments')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-300 active:text-white transition-colors"
+            onClick={() => document.getElementById("aula-comments")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="flex h-full w-[19%] flex-col items-center justify-center gap-0.5 text-zinc-300 transition-colors active:text-white"
           >
             <Sparkles className="h-[18px] w-[18px]" />
             <span className="text-[10px] font-medium">Perguntar</span>
           </button>
 
-          {/* Auto-advance */}
           <button
             onClick={toggleAutoAdvance}
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 w-[19%] h-full transition-colors active:opacity-70",
+              "flex h-full w-[19%] flex-col items-center justify-center gap-0.5 transition-colors active:opacity-70",
               autoAdvance ? "text-primary" : "text-zinc-300"
             )}
           >
@@ -588,17 +822,16 @@ export default function BunnyAulaClient({
             <span className="text-[10px] font-medium">Auto</span>
           </button>
 
-          {/* Próximo */}
           {nextLesson ? (
             <Link
               href={nextLesson.videoProviderId ? `/aula/bunny/${nextLesson.videoProviderId}` : `/aula/${nextLesson.id}`}
-              className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-300 active:text-white transition-colors"
+              className="flex h-full w-[19%] flex-col items-center justify-center gap-0.5 text-zinc-300 transition-colors active:text-white"
             >
               <SkipForward className="h-[18px] w-[18px]" />
               <span className="text-[10px] font-medium">Próximo</span>
             </Link>
           ) : (
-            <span className="flex flex-col items-center justify-center gap-0.5 w-[19%] h-full text-zinc-700 cursor-not-allowed select-none">
+            <span className="flex h-full w-[19%] select-none flex-col items-center justify-center gap-0.5 cursor-not-allowed text-zinc-700">
               <SkipForward className="h-[18px] w-[18px]" />
               <span className="text-[10px] font-medium">Próximo</span>
             </span>
@@ -606,41 +839,45 @@ export default function BunnyAulaClient({
         </div>
       </div>
 
-      {/* ── Mobile: lesson list sheet ── */}
       {listOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setListOpen(false)} />
-          <div className="absolute bottom-0 left-0 right-0 flex flex-col bg-zinc-900 rounded-t-2xl max-h-[78vh]">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 shrink-0">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Trilha de aprendizado</p>
-                <p className="text-sm font-semibold mt-0.5">{courseTitle}</p>
+          <div className="absolute bottom-0 left-0 right-0 flex max-h-[78vh] flex-col rounded-t-2xl bg-zinc-900">
+            <div className="shrink-0 border-b border-border/50 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Trilha de aprendizado
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold">{courseTitle}</p>
+                </div>
+                <button onClick={() => setListOpen(false)} className="p-1 text-zinc-400">
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <button onClick={() => setListOpen(false)} className="p-1 text-zinc-400">
-                <X className="h-5 w-5" />
-              </button>
             </div>
-            <div className="overflow-y-auto flex-1 pb-4">
+            <div className="flex-1 overflow-y-auto pb-4">
               {groupedLessons.length === 0 ? (
                 <p className="px-4 py-4 text-xs text-muted-foreground">Nenhuma aula encontrada.</p>
               ) : (
-                groupedLessons.map(({ module: mod, lessons: modLessons }) => (
-                  <div key={mod?.id ?? "no-module"}>
-                    {mod && (
+                groupedLessons.map(({ module, lessons }) => (
+                  <div key={module?.id ?? "no-module"}>
+                    {module && (
                       <div className="border-b border-border/40 bg-muted/30 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {mod.title}
+                        {module.title}
                       </div>
                     )}
-                    {modLessons.map(l => {
-                      const isCurrent = l.videoProviderId === videoId
-                      const dur = formatSecs(l.videoDurationSeconds ?? l.durationSeconds)
-                      const thumb = l.thumbnail
-                        ?? (l.videoProviderId ? `https://${BUNNY_CDN_HOST}/${l.videoProviderId}/thumbnail.jpg` : null)
-                        ?? l.videoThumbnailUrl
+                    {lessons.map((lesson) => {
+                      const isCurrent = lesson.videoProviderId === videoId
+                      const lessonDuration = formatSecs(lesson.videoDurationSeconds ?? lesson.durationSeconds)
+                      const thumb = lesson.thumbnail
+                        ?? (lesson.videoProviderId ? `https://${BUNNY_CDN_HOST}/${lesson.videoProviderId}/thumbnail.jpg` : null)
+                        ?? lesson.videoThumbnailUrl
+
                       return (
                         <Link
-                          key={l.id}
-                          href={l.videoProviderId ? `/aula/bunny/${l.videoProviderId}` : `/aula/${l.id}`}
+                          key={lesson.id}
+                          href={lesson.videoProviderId ? `/aula/bunny/${lesson.videoProviderId}` : `/aula/${lesson.id}`}
                           onClick={() => setListOpen(false)}
                           className={cn(
                             "flex items-center gap-2.5 border-l-2 px-3 py-2.5 transition-colors",
@@ -649,9 +886,8 @@ export default function BunnyAulaClient({
                               : "border-transparent text-muted-foreground active:bg-muted/40"
                           )}
                         >
-                          <div className="relative shrink-0 w-[72px] aspect-video rounded overflow-hidden bg-zinc-800">
+                          <div className="relative aspect-video w-[72px] shrink-0 overflow-hidden rounded bg-zinc-800">
                             {thumb && (
-                              // eslint-disable-next-line @next/next/no-img-element
                               <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
                             )}
                             {isCurrent && (
@@ -661,8 +897,10 @@ export default function BunnyAulaClient({
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="line-clamp-2 text-sm leading-snug font-medium">{l.title}</p>
-                            {dur && <p className="mt-0.5 text-xs text-muted-foreground">{dur}</p>}
+                            <p className="line-clamp-2 text-sm font-medium leading-snug">{lesson.title}</p>
+                            {lessonDuration && (
+                              <p className="mt-0.5 text-xs text-muted-foreground">{lessonDuration}</p>
+                            )}
                           </div>
                         </Link>
                       )

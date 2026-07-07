@@ -2,6 +2,7 @@
 // Protected by middleware
 
 import { auth } from "@/lib/auth"
+import { db } from "@/lib/db"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -9,26 +10,33 @@ import { AdminLogoutButton } from "@/components/layout/AdminLogoutButton"
 import {
   Home,
   Users,
-  CreditCard,
   Image as ImageIcon,
   BookOpen,
   Map,
   Ticket,
   HelpCircle,
   Globe,
-  BarChart2,
   ShoppingCart,
   Tag,
   Shield,
-  Settings,
-  Plug,
-  ScrollText,
   MessageSquare,
   MessageSquarePlus,
   Tags,
 } from "lucide-react"
 
-const navGroups = [
+type AdminBadgeKey = "tickets" | "comments" | "community" | "suggestions" | "ordersToday"
+type AdminNavItem = {
+  href: string
+  label: string
+  icon: typeof Home
+  badgeKey?: AdminBadgeKey
+}
+type AdminNavGroup = {
+  title?: string
+  items: AdminNavItem[]
+}
+
+const navGroups: AdminNavGroup[] = [
   {
     items: [
       { href: "/admin/dashboard", label: "Início", icon: Home },
@@ -38,7 +46,6 @@ const navGroups = [
     title: "Gerenciamento",
     items: [
       { href: "/admin/alunos", label: "Usuários", icon: Users },
-      // { href: "/admin/acessos", label: "Assinaturas", icon: CreditCard },
       { href: "/admin/planos", label: "Planos de assinatura", icon: Tags },
       { href: "/admin/banners", label: "Fullbanner", icon: ImageIcon },
       { href: "/admin/aulas", label: "Conteúdo", icon: BookOpen },
@@ -49,18 +56,17 @@ const navGroups = [
   {
     title: "Suporte",
     items: [
-      { href: "/admin/tickets", label: "Tickets", icon: Ticket },
-      { href: "/admin/comentarios", label: "Comentários", icon: MessageSquare },
+      { href: "/admin/tickets", label: "Tickets", icon: Ticket, badgeKey: "tickets" as const },
+      { href: "/admin/comentarios", label: "Comentários", icon: MessageSquare, badgeKey: "comments" as const },
       { href: "/admin/ajuda", label: "Central de ajuda", icon: HelpCircle },
-      { href: "/admin/comunidade", label: "Comunidade", icon: Globe },
-      { href: "/admin/sugestoes", label: "Sugestões de aula", icon: MessageSquarePlus },
+      { href: "/admin/comunidade", label: "Comunidade", icon: Globe, badgeKey: "community" as const },
+      { href: "/admin/sugestoes", label: "Sugestões de aula", icon: MessageSquarePlus, badgeKey: "suggestions" as const },
     ],
   },
   {
     title: "Financeiro",
     items: [
-      // { href: "/admin/relatorios", label: "Relatórios", icon: BarChart2 },
-      { href: "/admin/pedidos", label: "Pedidos", icon: ShoppingCart },
+      { href: "/admin/pedidos", label: "Pedidos", icon: ShoppingCart, badgeKey: "ordersToday" as const },
       { href: "/admin/cupons", label: "Cupons", icon: Tag },
     ],
   },
@@ -68,12 +74,45 @@ const navGroups = [
     title: "Sistema",
     items: [
       { href: "/admin/perfil", label: "Administradores", icon: Shield },
-      // { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
-      // { href: "/admin/integracoes", label: "Integrações", icon: Plug }]
-      // { href: "/admin/logs", label: "Logs", icon: ScrollText },
     ],
   },
 ]
+
+function getSaoPauloDayRange(referenceDate = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
+
+  const parts = Object.fromEntries(
+    formatter
+      .formatToParts(referenceDate)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  )
+
+  const zonedNow = new Date(
+    `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`
+  )
+  const offset = referenceDate.getTime() - zonedNow.getTime()
+
+  const startOfDay = new Date(zonedNow)
+  startOfDay.setHours(0, 0, 0, 0)
+
+  const endOfDay = new Date(zonedNow)
+  endOfDay.setHours(23, 59, 59, 999)
+
+  return {
+    start: new Date(startOfDay.getTime() + offset),
+    end: new Date(endOfDay.getTime() + offset),
+  }
+}
 
 export default async function AdminLayout({
   children,
@@ -86,10 +125,37 @@ export default async function AdminLayout({
     redirect("/dashboard")
   }
 
+  const dayRange = getSaoPauloDayRange()
+
+  const [ticketsCount, commentsCount, pendingTopicsCount, pendingPostsCount, suggestionsCount, ordersTodayCount] =
+    await Promise.all([
+      db.ticket.count({ where: { status: "AGUARDANDO_RESPOSTA" } }),
+      db.comment.count({ where: { parentId: null, status: "PENDING" } }),
+      db.communityTopic.count({ where: { status: "PENDING" } }),
+      db.communityPost.count({ where: { status: "PENDING" } }),
+      db.lessonSuggestion.count(),
+      db.order.count({
+        where: {
+          createdAt: {
+            gte: dayRange.start,
+            lte: dayRange.end,
+          },
+        },
+      }),
+    ])
+
+  const badgeCounts: Record<AdminBadgeKey, number> = {
+    tickets: ticketsCount,
+    comments: commentsCount,
+    community: pendingTopicsCount + pendingPostsCount,
+    suggestions: suggestionsCount,
+    ordersToday: ordersTodayCount,
+  }
+
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-56 shrink-0 flex-col border-r border-border p-4 lg:flex">
-        <div className="mb-6 px-1">
+        <Link href="/" className="mb-6 block cursor-pointer rounded-xl px-1 py-1 transition hover:bg-accent/40">
           <Image
             src="/doctor-oficial.png"
             alt="GameDoctor"
@@ -99,7 +165,7 @@ export default async function AdminLayout({
             priority
           />
           <p className="mt-2 text-xs text-muted-foreground">Painel Administrativo</p>
-        </div>
+        </Link>
         <nav className="flex-1 space-y-4 overflow-y-auto">
           {navGroups.map((group, index) => (
             <div key={index}>
@@ -118,7 +184,12 @@ export default async function AdminLayout({
                       className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
                       <Icon className="h-4 w-4 shrink-0" />
-                      {item.label}
+                      <span className="min-w-0 flex-1">{item.label}</span>
+                      {item.badgeKey && badgeCounts[item.badgeKey] > 0 ? (
+                        <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-cyan-300">
+                          {badgeCounts[item.badgeKey]}
+                        </span>
+                      ) : null}
                     </Link>
                   )
                 })}
