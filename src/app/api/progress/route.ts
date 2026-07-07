@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { hasAccessToLesson } from "@/lib/access"
+import { hasAccessToCourse } from "@/lib/access"
 import { z } from "zod"
 
 const schema = z.object({
@@ -32,19 +32,33 @@ export async function POST(request: Request) {
 
   const { lessonId, watchedSeconds, completed } = result.data
   const userId = session.user.id
-
-  // Validate user has access before saving progress
-  const { hasAccess, isPreview } = await hasAccessToLesson(userId, lessonId)
-  if (!hasAccess) {
-    return NextResponse.json({ error: "NO_ACCESS" }, { status: 403 })
-  }
+  const isStaff = session.user.role === "ADMIN" || session.user.role === "EDITOR"
 
   const lesson = await db.lesson.findUnique({
     where: { id: lessonId },
-    select: { courseId: true, durationSeconds: true, videoDurationSeconds: true },
+    select: {
+      courseId: true,
+      isFree: true,
+      status: true,
+      durationSeconds: true,
+      videoDurationSeconds: true,
+    },
   })
   if (!lesson) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
+  }
+  if (lesson.status !== "PUBLISHED") {
+    return NextResponse.json({ error: "NOT_AVAILABLE" }, { status: 403 })
+  }
+
+  const courseAccess = lesson.isFree
+    ? true
+    : isStaff
+      ? true
+      : await hasAccessToCourse(userId, lesson.courseId)
+
+  if (!courseAccess) {
+    return NextResponse.json({ error: "NO_ACCESS" }, { status: 403 })
   }
 
   const existingProgress = await db.lessonProgress.findUnique({

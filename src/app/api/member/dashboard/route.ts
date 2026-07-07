@@ -31,7 +31,10 @@ export async function GET() {
     db.certificate.count({
       where: { userId, status: "ISSUED" },
     }),
-    getMemberProgressSummary(userId, { continueLimit: 6 }),
+    getMemberProgressSummary(userId, {
+      continueLimit: 6,
+      role: session.user.role,
+    }),
     db.lessonProgress.findMany({
       where: { userId },
       select: {

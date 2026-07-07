@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
 import { BUNNY_CDN_HOST } from "@/lib/constants"
+import type { UserRole } from "@prisma/client"
 
 export interface MemberLessonLinkSummary {
   id: string
@@ -119,7 +120,23 @@ function toIsoDate(date: Date | null | undefined) {
   return date ? date.toISOString() : null
 }
 
-async function getAccessibleCourseIds(userId: string) {
+async function getAccessibleCourseIds(userId: string, role?: UserRole) {
+  if (role === "ADMIN" || role === "EDITOR") {
+    const courses = await db.course.findMany({
+      where: {
+        status: "PUBLISHED",
+        lessons: {
+          some: {
+            status: "PUBLISHED",
+          },
+        },
+      },
+      select: { id: true },
+    })
+
+    return courses.map((course) => course.id)
+  }
+
   const now = new Date()
 
   const accessPermissions = await db.accessPermission.findMany({
@@ -149,9 +166,12 @@ async function getAccessibleCourseIds(userId: string) {
   ))
 }
 
-export async function getMemberProgressSummary(userId: string, options?: { continueLimit?: number }) {
+export async function getMemberProgressSummary(
+  userId: string,
+  options?: { continueLimit?: number; role?: UserRole }
+) {
   const continueLimit = options?.continueLimit ?? 6
-  const accessibleCourseIds = await getAccessibleCourseIds(userId)
+  const accessibleCourseIds = await getAccessibleCourseIds(userId, options?.role)
 
   if (accessibleCourseIds.length === 0) {
     return {
