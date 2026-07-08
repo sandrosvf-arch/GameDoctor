@@ -5,13 +5,23 @@ import Image from "next/image"
 import { useSession, signOut } from "next-auth/react"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { Menu, ChevronDown, ChevronRight, Search, LayoutGrid } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { cn } from "@/lib/utils"
 
-// ── ECG / Heartbeat line (continuous, slow) ───────────────────────────────────
 function HeartbeatLine() {
   const [tick, setTick] = useState(-1)
 
   useEffect(() => {
-    // Delay first pulse so page loads cleanly, then repeat
     let interval: ReturnType<typeof setInterval>
     const timeout = setTimeout(() => {
       setTick(0)
@@ -33,11 +43,9 @@ function HeartbeatLine() {
       viewBox="0 0 112 16"
       fill="none"
       aria-hidden="true"
-      className="overflow-visible mt-1"
+      className="mt-1 overflow-visible"
     >
-      {/* dim baseline */}
       <polyline points={points} stroke="rgba(0,207,255,0.15)" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      {/* animated ECG draw — only after first tick */}
       {tick >= 0 && (
         <polyline
           key={tick}
@@ -55,7 +63,6 @@ function HeartbeatLine() {
           }}
         />
       )}
-      {/* glowing dot */}
       {tick >= 0 && (
         <circle
           key={`d-${tick}`}
@@ -80,19 +87,6 @@ function HeartbeatLine() {
     </svg>
   )
 }
-// ─────────────────────────────────────────────────────────────────────────────
-import { Menu, X, ChevronDown, ChevronRight, Search, LayoutGrid } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { cn } from "@/lib/utils"
 
 const navLinks = [
   { label: "Cursos", href: "/cursos" },
@@ -114,7 +108,9 @@ export function Header() {
   const [search, setSearch] = useState("")
   const [isSearching, setIsSearching] = useState(false)
   const [categories, setCategories] = useState<CatalogCategoryNode[]>([])
-  const [openDesktopCategoryId, setOpenDesktopCategoryId] = useState<string | null>(null)
+  const [desktopCategoriesOpen, setDesktopCategoriesOpen] = useState(false)
+  const [openDesktopRootId, setOpenDesktopRootId] = useState<string | null>(null)
+  const [openDesktopBranchId, setOpenDesktopBranchId] = useState<string | null>(null)
   const [openMobileCategoryId, setOpenMobileCategoryId] = useState<string | null>(null)
   const router = useRouter()
   const searchRef = useRef<HTMLInputElement>(null)
@@ -134,7 +130,6 @@ export function Header() {
     if (!q) return
     setIsSearching(true)
     router.push(`/busca?q=${encodeURIComponent(q)}`)
-    // Reset after navigation
     setTimeout(() => setIsSearching(false), 1500)
   }
 
@@ -149,103 +144,179 @@ export function Header() {
   const isAdminUser = ["ADMIN", "EDITOR"].includes((session?.user as { role?: string } | undefined)?.role ?? "")
   const memberHome = isAdminUser ? "/admin/dashboard" : "/dashboard"
 
+  function resetDesktopCategoryState() {
+    setOpenDesktopRootId(null)
+    setOpenDesktopBranchId(null)
+  }
+
+  function handleDesktopDropdownOpenChange(open: boolean) {
+    setDesktopCategoriesOpen(open)
+    if (!open) {
+      resetDesktopCategoryState()
+    }
+  }
+
+  function handleDesktopRootToggle(rootId: string) {
+    setOpenDesktopRootId((current) => {
+      const next = current === rootId ? null : rootId
+      setOpenDesktopBranchId(null)
+      return next
+    })
+  }
+
+  function handleDesktopBranchToggle(branchId: string) {
+    setOpenDesktopBranchId((current) => current === branchId ? null : branchId)
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center gap-3">
-        {/* Logo + heartbeat */}
-        <div className="flex items-center shrink-0">
+        <div className="flex shrink-0 items-center">
           <Link href="/" className="flex items-center">
             <Image
               src="/doctor-oficial.png"
               alt="GameDoctor"
               width={240}
               height={48}
-              className="h-7 md:h-9 w-auto"
+              className="h-7 w-auto md:h-9"
             />
           </Link>
           <HeartbeatLine />
         </div>
 
-        {/* Desktop nav — center, grows */}
-        <nav className="hidden md:flex flex-1 items-center justify-between gap-2 mx-4">
-
-          {/* Categorias dropdown */}
+        <nav className="mx-4 hidden flex-1 items-center justify-between gap-2 md:flex">
           <div className="flex items-center gap-1">
-            <DropdownMenu>
+            <DropdownMenu open={desktopCategoriesOpen} onOpenChange={handleDesktopDropdownOpenChange}>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                <button className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white">
                   <LayoutGrid className="h-4 w-4" />
                   Categorias
                   <ChevronDown className="h-3 w-3" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72 p-1.5">
+              <DropdownMenuContent align="start" className="w-72 overflow-visible p-1.5">
                 <DropdownMenuItem asChild>
                   <Link href="/cursos">Ver todos os cursos</Link>
                 </DropdownMenuItem>
                 {categories.length > 0 && <DropdownMenuSeparator />}
                 {categories.map((root) => (
-                  <div key={root.id} className="rounded-lg border border-transparent hover:border-white/5">
-                    <button
-                      type="button"
-                      onClick={() => setOpenDesktopCategoryId((current) => current === root.id ? null : root.id)}
-                      className="flex w-full cursor-pointer items-center justify-between rounded-md px-2.5 py-2 text-left text-sm hover:bg-accent"
-                    >
-                      <Link href={`/cursos?categoria=${root.slug}`} className="flex-1" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    key={root.id}
+                    className="relative rounded-lg border border-transparent hover:border-white/5"
+                  >
+                    <div className="flex items-center rounded-md hover:bg-accent">
+                      <Link
+                        href={`/cursos?categoria=${root.slug}`}
+                        className="flex-1 px-2.5 py-2 text-left text-sm"
+                      >
                         {root.name}
                       </Link>
-                      {root.children.length > 0 && (
-                        <ChevronDown
-                          className={`h-4 w-4 text-muted-foreground transition-transform ${openDesktopCategoryId === root.id ? "rotate-180" : ""}`}
-                        />
-                      )}
-                    </button>
-                    {root.children.length > 0 && openDesktopCategoryId === root.id && (
-                      <div className="mb-1 space-y-1 pl-2">
+                      {root.children.length > 0 ? (
+                        <button
+                          type="button"
+                          onMouseDown={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                          }}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            handleDesktopRootToggle(root.id)
+                          }}
+                          className="mr-1 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
+                          aria-label={`Abrir subcategorias de ${root.name}`}
+                        >
+                          <ChevronRight
+                            className={`h-4 w-4 transition-transform ${openDesktopRootId === root.id ? "translate-x-0.5" : ""}`}
+                          />
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {root.children.length > 0 && openDesktopRootId === root.id ? (
+                      <div className="absolute left-full top-0 z-50 ml-2 w-64 rounded-xl border border-border/60 bg-popover p-1.5 shadow-2xl">
                         {root.children.map((child) => (
-                          <DropdownMenuItem key={child.id} asChild className="pl-6">
-                            <Link href={`/cursos?categoria=${child.slug}`} className="flex w-full cursor-pointer items-center gap-2">
-                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                              {child.name}
-                            </Link>
-                          </DropdownMenuItem>
+                          <div key={child.id} className="relative">
+                            <div className="flex items-center rounded-md hover:bg-accent">
+                              <Link
+                                href={`/cursos?categoria=${child.slug}`}
+                                className="flex flex-1 cursor-pointer items-center gap-2 px-3 py-2 text-sm"
+                              >
+                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                {child.name}
+                              </Link>
+                              {child.children.length > 0 ? (
+                                <button
+                                  type="button"
+                                  onMouseDown={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                  }}
+                                  onClick={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                    handleDesktopBranchToggle(child.id)
+                                  }}
+                                  className="mr-1 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
+                                  aria-label={`Abrir subcategorias de ${child.name}`}
+                                >
+                                  <ChevronRight
+                                    className={`h-4 w-4 transition-transform ${openDesktopBranchId === child.id ? "translate-x-0.5" : ""}`}
+                                  />
+                                </button>
+                              ) : null}
+                            </div>
+
+                            {child.children.length > 0 && openDesktopBranchId === child.id ? (
+                              <div className="absolute left-full top-0 z-50 ml-2 w-64 rounded-xl border border-border/60 bg-popover p-1.5 shadow-2xl">
+                                {child.children.map((grandchild) => (
+                                  <DropdownMenuItem key={grandchild.id} asChild className="px-2.5 py-2">
+                                    <Link
+                                      href={`/cursos?categoria=${grandchild.slug}`}
+                                      className="flex w-full cursor-pointer items-center gap-2"
+                                    >
+                                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                      {grandchild.name}
+                                    </Link>
+                                  </DropdownMenuItem>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
                         ))}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
 
-          {/* Search bar — grows to fill available space */}
-          <form onSubmit={handleSearch} className="flex-1 max-w-sm mx-4">
-            {/* Border wrapper — static blue at rest, spinning when searching */}
+          <form onSubmit={handleSearch} className="mx-4 flex-1 max-w-sm">
             <div className={cn(
-              "p-px rounded-xl",
+              "rounded-xl p-px",
               isSearching ? "search-spinning" : "search-static"
             )}>
               <div className="relative rounded-[11px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70 pointer-events-none z-10" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
                 <input
                   ref={searchRef}
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="O que você procura?"
-                  className="h-9 w-full rounded-[11px] bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none transition-all"
+                  className="h-9 w-full rounded-[11px] bg-background pl-9 pr-3 text-sm transition-all placeholder:text-muted-foreground/50 focus:outline-none"
                 />
               </div>
             </div>
           </form>
 
-          {/* Nav links */}
           <div className="flex items-center gap-1">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-lg px-3 py-1.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap"
+                className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
               >
                 {link.label}
               </Link>
@@ -253,38 +324,37 @@ export function Header() {
           </div>
         </nav>
 
-        {/* Desktop auth */}
-        <div className="hidden md:flex items-center gap-3 ml-auto shrink-0">
+        <div className="ml-auto hidden shrink-0 items-center gap-3 md:flex">
           {status === "loading" ? null : session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex cursor-pointer items-center gap-2 rounded-full pr-1 hover:bg-secondary/50 transition-colors">
+                <button className="flex cursor-pointer items-center gap-2 rounded-full pr-1 transition-colors hover:bg-secondary/50">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={session.user?.image ?? ""} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                    <AvatarFallback className="bg-primary/20 text-xs text-primary">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium max-w-[120px] truncate">
+                  <span className="max-w-[120px] truncate text-sm font-medium">
                     {session.user?.name?.split(" ")[0]}
                   </span>
                   <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {!isAdminUser && (
-                    <DropdownMenuItem asChild>
-                      <Link href={memberHome}>Minha área</Link>
-                    </DropdownMenuItem>
-                  )}
+              <DropdownMenuContent align="end" className="w-48">
+                {!isAdminUser ? (
                   <DropdownMenuItem asChild>
-                    <Link href="/minha-conta">Minha conta</Link>
+                    <Link href={memberHome}>Minha área</Link>
                   </DropdownMenuItem>
-                  {isAdminUser && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin/dashboard">Painel Admin</Link>
-                    </DropdownMenuItem>
-                  )}
+                ) : null}
+                <DropdownMenuItem asChild>
+                  <Link href="/minha-conta">Minha conta</Link>
+                </DropdownMenuItem>
+                {isAdminUser ? (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/dashboard">Painel Admin</Link>
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -306,7 +376,6 @@ export function Header() {
           )}
         </div>
 
-        {/* Mobile menu */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild className="md:hidden">
             <Button variant="ghost" size="icon">
@@ -323,9 +392,8 @@ export function Header() {
                 <Image src="/doctor-oficial.png" alt="GameDoctor" width={180} height={36} className="h-8 w-auto" />
               </Link>
               <nav className="flex flex-col gap-1">
-                {/* Mobile search */}
                 <form onSubmit={handleSearch} className="relative mb-2">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="search"
                     value={search}
@@ -337,7 +405,7 @@ export function Header() {
                 <Link
                   href="/cursos"
                   onClick={() => setMobileOpen(false)}
-                  className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                  className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
                 >
                   Categorias
                 </Link>
@@ -351,7 +419,7 @@ export function Header() {
                       >
                         {root.name}
                       </Link>
-                      {root.children.length > 0 && (
+                      {root.children.length > 0 ? (
                         <button
                           type="button"
                           onClick={() => setOpenMobileCategoryId((current) => current === root.id ? null : root.id)}
@@ -359,23 +427,23 @@ export function Header() {
                         >
                           <ChevronDown className={`h-4 w-4 transition-transform ${openMobileCategoryId === root.id ? "rotate-180" : ""}`} />
                         </button>
-                      )}
+                      ) : null}
                     </div>
-                    {root.children.length > 0 && openMobileCategoryId === root.id && (
+                    {root.children.length > 0 && openMobileCategoryId === root.id ? (
                       <div className="border-t border-border/40 px-2 py-1">
                         {root.children.map((child) => (
                           <Link
                             key={child.id}
                             href={`/cursos?categoria=${child.slug}`}
                             onClick={() => setMobileOpen(false)}
-                            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                           >
                             <ChevronRight className="h-3.5 w-3.5" />
                             {child.name}
                           </Link>
                         ))}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 ))}
                 {navLinks.map((link) => (
@@ -383,7 +451,7 @@ export function Header() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileOpen(false)}
-                    className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                    className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
                   >
                     {link.label}
                   </Link>
@@ -392,34 +460,34 @@ export function Header() {
               <div className="flex flex-col gap-2 border-t border-border pt-4">
                 {session ? (
                   <>
-                    {!isAdminUser && (
+                    {!isAdminUser ? (
                       <Link
                         href={memberHome}
                         onClick={() => setMobileOpen(false)}
-                        className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                        className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
                       >
                         Minha área
                       </Link>
-                    )}
+                    ) : null}
                     <Link
                       href="/minha-conta"
                       onClick={() => setMobileOpen(false)}
-                      className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                      className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
                     >
                       Minha conta
                     </Link>
-                    {isAdminUser && (
+                    {isAdminUser ? (
                       <Link
                         href="/admin/dashboard"
                         onClick={() => setMobileOpen(false)}
-                        className="px-3 py-2 rounded-md text-sm hover:bg-secondary transition-colors"
+                        className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
                       >
                         Painel Admin
                       </Link>
-                    )}
+                    ) : null}
                     <button
                       onClick={() => signOut({ callbackUrl: "/" })}
-                      className="cursor-pointer px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 text-left transition-colors"
+                      className="cursor-pointer rounded-md px-3 py-2 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
                     >
                       Sair
                     </button>

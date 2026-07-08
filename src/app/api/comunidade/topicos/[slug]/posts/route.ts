@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import { hasActivePlanAccess } from "@/lib/access"
 import { db } from "@/lib/db"
 import { getCommunityActiveBanWhere, isCommunityWriterBanned } from "@/lib/community"
 
@@ -11,6 +12,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const session = await auth()
   const { slug } = await params
 
   const topic = await db.communityTopic.findUnique({
@@ -20,6 +22,20 @@ export async function GET(
 
   if (!topic || topic.status !== "APPROVED") {
     return NextResponse.json({ error: "Topico nao encontrado." }, { status: 404 })
+  }
+
+  const canViewReplies = isAdminRole(session?.user?.role)
+    || (session?.user?.id ? await hasActivePlanAccess(session.user.id) : false)
+
+  if (!canViewReplies) {
+    return NextResponse.json(
+      {
+        error: "As respostas da comunidade estão disponíveis apenas para assinantes.",
+        requiresPlan: true,
+        upgradeUrl: "/planos",
+      },
+      { status: 403 }
+    )
   }
 
   const posts = await db.communityPost.findMany({
@@ -56,6 +72,7 @@ export async function POST(
   }
 
   const { slug } = await params
+  const hasRepliesAccess = isAdminRole(session.user.role) || await hasActivePlanAccess(session.user.id)
 
   const topic = await db.communityTopic.findUnique({
     where: { slug },
@@ -75,6 +92,17 @@ export async function POST(
 
   if (!topic || topic.status !== "APPROVED") {
     return NextResponse.json({ error: "Topico nao encontrado." }, { status: 404 })
+  }
+
+  if (!hasRepliesAccess) {
+    return NextResponse.json(
+      {
+        error: "Você precisa de um plano ativo para responder na comunidade.",
+        requiresPlan: true,
+        upgradeUrl: "/planos",
+      },
+      { status: 403 }
+    )
   }
 
   if (topic.isLocked) {

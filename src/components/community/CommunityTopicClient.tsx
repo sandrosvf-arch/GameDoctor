@@ -67,6 +67,8 @@ export function CommunityTopicClient({
   topic,
   initialPosts,
   canReply,
+  canViewReplies,
+  requiresPlan,
   banMessage,
   isAdminUser,
   topicSlug,
@@ -74,12 +76,15 @@ export function CommunityTopicClient({
   topic: TopicMeta
   initialPosts: TopicPost[]
   canReply: boolean
+  canViewReplies: boolean
+  requiresPlan: boolean
   banMessage?: string | null
   isAdminUser: boolean
   topicSlug: string
 }) {
   const router = useRouter()
   const [posts, setPosts] = useState(initialPosts)
+  const [replyCount, setReplyCount] = useState(topic.repliesCount)
   const [content, setContent] = useState("")
   const [attachments, setAttachments] = useState<CommunityUploadedImage[]>([])
   const [saving, setSaving] = useState(false)
@@ -149,6 +154,7 @@ export function CommunityTopicClient({
         },
       },
     ])
+    setReplyCount((current) => current + 1)
     setInfo("Resposta publicada com sucesso.")
   }
 
@@ -281,10 +287,11 @@ export function CommunityTopicClient({
     }
 
     setPosts((current) => current.filter((post) => post.id !== postId))
+    setReplyCount((current) => Math.max(0, current - 1))
   }
 
   const views = topic.viewsCount + 1
-  const replies = posts.length
+  const replies = replyCount
 
   return (
     <div className="min-w-0 space-y-5">
@@ -368,7 +375,15 @@ export function CommunityTopicClient({
           <span className="text-sm text-slate-500">{plural(replies, "resposta", "respostas")}</span>
         </div>
 
-        {posts.length === 0 ? (
+        {!canViewReplies ? (
+          <div className="px-6 py-8">
+            <PlanRequiredCard
+              title="Respostas exclusivas para assinantes"
+              description="Ative um plano para liberar as respostas técnicas, acompanhar os diagnósticos completos e participar da conversa da comunidade."
+              ctaLabel="Quero ver os planos"
+            />
+          </div>
+        ) : posts.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <p className="text-sm font-medium text-slate-300">Nenhuma resposta publicada ainda.</p>
             <p className="mt-1 text-sm text-slate-500">Seja o primeiro a contribuir com essa discussão.</p>
@@ -405,14 +420,22 @@ export function CommunityTopicClient({
 
         <div className="p-5">
           {!canReply ? (
-            <div className="rounded-md border border-dashed border-white/[0.12] px-4 py-10 text-center">
-              <p className="text-sm font-medium text-slate-300">
-                {banMessage ? "Sua participacao esta temporariamente bloqueada." : "Entre na sua conta para participar."}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {banMessage ? banMessage : "Apenas membros autenticados podem responder discussoes."}
-              </p>
-            </div>
+            requiresPlan ? (
+              <PlanRequiredCard
+                title="Participe da comunidade com um plano ativo"
+                description="Assine para responder tópicos, trocar experiências com outros alunos e acessar todo o histórico das respostas."
+                ctaLabel="Ver planos de assinatura"
+              />
+            ) : (
+              <div className="rounded-md border border-dashed border-white/[0.12] px-4 py-10 text-center">
+                <p className="text-sm font-medium text-slate-300">
+                  {banMessage ? "Sua participação está temporariamente bloqueada." : "Entre na sua conta para participar."}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {banMessage ? banMessage : "Apenas membros autenticados podem responder discussões."}
+                </p>
+              </div>
+            )
           ) : topic.isLocked ? (
             <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-sm text-amber-200">
               Esta discussão esta encerrada para novas respostas.
@@ -650,4 +673,36 @@ function MetaItem({
 
 function plural(value: number, singular: string, pluralText: string) {
   return `${value} ${value === 1 ? singular : pluralText}`
+}
+
+function PlanRequiredCard({
+  title,
+  description,
+  ctaLabel,
+}: {
+  title: string
+  description: string
+  ctaLabel: string
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-cyan-500/20 bg-[linear-gradient(135deg,rgba(34,211,238,0.14),rgba(8,11,16,0.96)_48%,rgba(8,11,16,1))]">
+      <div className="flex flex-col gap-5 px-5 py-6 md:flex-row md:items-center md:justify-between md:px-6">
+        <div className="max-w-2xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan-300">Acesso premium</p>
+          <h3 className="mt-3 text-xl font-semibold text-white md:text-2xl">{title}</h3>
+          <p className="mt-3 text-sm leading-7 text-slate-300">{description}</p>
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-3">
+          <Link
+            href="/planos"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+          >
+            {ctaLabel}
+          </Link>
+          <p className="text-center text-xs text-slate-400">Desbloqueie a comunidade completa</p>
+        </div>
+      </div>
+    </div>
+  )
 }

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import { unstable_noStore as noStore } from "next/cache"
 import { auth } from "@/lib/auth"
+import { hasActivePlanAccess } from "@/lib/access"
 import { db } from "@/lib/db"
 import { getCommunityActiveBanWhere, isCommunityWriterBanned } from "@/lib/community"
 import { CommunityForumClient } from "@/components/community/CommunityForumClient"
@@ -19,6 +20,8 @@ export default async function CommunityForumPage({
   noStore()
   const session = await auth()
   const { slug } = await params
+  const hasRepliesAccess = isAdminRole(session?.user?.role)
+    || (session?.user?.id ? await hasActivePlanAccess(session.user.id) : false)
 
   const forum = await db.communityForum.findUnique({
     where: { slug },
@@ -72,6 +75,7 @@ export default async function CommunityForumPage({
         replyApprovalRequired: forum.replyApprovalRequired,
       }}
       canCreate={Boolean(session?.user?.id) && !activeBanMessage}
+      requiresPlan={!hasRepliesAccess}
       banMessage={activeBanMessage}
       isAdminUser={isAdminRole(session?.user?.role)}
     />

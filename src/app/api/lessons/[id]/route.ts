@@ -8,6 +8,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { hasAccessToCourse } from "@/lib/access"
+import { bunnySignedPlaylistUrl, bunnySignedEmbedUrl } from "@/lib/bunny"
 
 export async function GET(
   _request: Request,
@@ -15,6 +16,7 @@ export async function GET(
 ) {
   const session = await auth()
   const userId = session?.user?.id ?? null
+  const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR"
 
   const { id } = await params
 
@@ -78,7 +80,8 @@ export async function GET(
   }
 
   const courseAccess = userId ? await hasAccessToCourse(userId, lesson.courseId) : false
-  const isAccessible = lesson.isFree || courseAccess
+  const hasRestrictedContentAccess = Boolean(isStaff || courseAccess)
+  const isAccessible = lesson.isFree || hasRestrictedContentAccess
 
   // Find prev/next lessons flat across all modules
   const allLessons = lesson.course.modules.flatMap((m) => m.lessons)
@@ -95,15 +98,20 @@ export async function GET(
       durationSeconds: lesson.videoDurationSeconds ?? lesson.durationSeconds,
       // Video URL is always returned so the 7-second preview can play.
       // The paywall overlay is enforced client-side after the preview window.
-      videoEmbedUrl: lesson.videoEmbedUrl,
-      videoPlaybackUrl: lesson.videoPlaybackUrl,
+      // For Bunny, generate signed URLs at serve time (CDN/embed token auth).
+      videoEmbedUrl: lesson.videoProvider === "BUNNY" && lesson.videoProviderId
+        ? bunnySignedEmbedUrl(lesson.videoProviderId)
+        : lesson.videoEmbedUrl,
+      videoPlaybackUrl: lesson.videoProvider === "BUNNY" && lesson.videoProviderId
+        ? bunnySignedPlaylistUrl(lesson.videoProviderId)
+        : lesson.videoPlaybackUrl,
       videoThumbnailUrl: lesson.videoThumbnailUrl,
       isFree: lesson.isFree,
       isAccessible,
       previewEnabled: lesson.previewEnabled,
       // Non-accessible lessons show a 7-second preview before the paywall.
       previewDurationSeconds: isAccessible ? null : 7,
-      materials: isAccessible ? lesson.materials : [],
+      materials: hasRestrictedContentAccess ? lesson.materials : [],
       progress: Array.isArray(lesson.lessonProgress) ? (lesson.lessonProgress[0] ?? null) : null,
     },
     course: {

@@ -12,6 +12,7 @@
  * SDK: npm install stripe
  */
 import type {
+  ParseWebhookInput,
   PaymentGatewayAdapter,
   CreatePixPaymentInput,
   CreateCardPaymentInput,
@@ -33,7 +34,7 @@ export const stripeGateway: PaymentGatewayAdapter = {
     throw new Error("Stripe Card not implemented")
   },
 
-  async parseWebhook(payload: unknown, signature?: string): Promise<WebhookEvent> {
+  async parseWebhook(_input: ParseWebhookInput): Promise<WebhookEvent> {
     // TODO: validate using stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET)
     throw new Error("Stripe webhook not implemented")
   },

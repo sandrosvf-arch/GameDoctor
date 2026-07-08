@@ -56,11 +56,13 @@ interface ForumResponse {
 export function CommunityForumClient({
   initialForum,
   canCreate,
+  requiresPlan,
   banMessage,
   isAdminUser,
 }: {
   initialForum: CommunityForumMeta
   canCreate: boolean
+  requiresPlan: boolean
   banMessage?: string | null
   isAdminUser: boolean
 }) {
@@ -292,6 +294,20 @@ export function CommunityForumClient({
               <p className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                 {banMessage}
               </p>
+            )}
+
+            {requiresPlan && !banMessage && (
+              <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.08] px-4 py-3 text-sm text-cyan-100">
+                <p className="font-medium text-white">Você pode navegar pelos fóruns e tópicos, mas as respostas são exclusivas para assinantes.</p>
+                <div className="mt-2">
+                  <Link
+                    href="/planos"
+                    className="inline-flex items-center rounded-full bg-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300"
+                  >
+                    Ver planos
+                  </Link>
+                </div>
+              </div>
             )}
           </div>
 

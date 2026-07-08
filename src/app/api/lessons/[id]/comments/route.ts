@@ -1,12 +1,49 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { hasAccessToCourse } from "@/lib/access"
+
+async function canAccessLessonComments(
+  lessonId: string,
+  userId: string | null,
+  role?: string | null
+) {
+  const lesson = await db.lesson.findUnique({
+    where: { id: lessonId },
+    select: { id: true, courseId: true },
+  })
+
+  if (!lesson) {
+    return { allowed: false, lesson: null }
+  }
+
+  if (role === "ADMIN" || role === "EDITOR") {
+    return { allowed: true, lesson }
+  }
+
+  if (!userId) {
+    return { allowed: false, lesson }
+  }
+
+  const hasAccess = await hasAccessToCourse(userId, lesson.courseId)
+  return { allowed: hasAccess, lesson }
+}
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth()
   const { id } = await params
+  const access = await canAccessLessonComments(id, session?.user?.id ?? null, session?.user?.role)
+
+  if (!access.lesson) {
+    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
+  }
+
+  if (!access.allowed) {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
+  }
 
   const comments = await db.comment.findMany({
     where: {
@@ -69,13 +106,17 @@ export async function POST(
     return NextResponse.json({ error: "Comentario muito longo" }, { status: 400 })
   }
 
-  const lesson = await db.lesson.findUnique({
-    where: { id },
-    select: { id: true },
-  })
+  const access = await canAccessLessonComments(id, session.user.id, session.user.role)
 
-  if (!lesson) {
+  if (!access.lesson) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
+  }
+
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: "Seu plano atual não permite comentar nesta aula." },
+      { status: 403 }
+    )
   }
 
   const shouldAutoApprove =

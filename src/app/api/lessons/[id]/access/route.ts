@@ -12,6 +12,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { hasAccessToLesson } from "@/lib/access"
+import { bunnySignedPlaylistUrl, bunnySignedEmbedUrl } from "@/lib/bunny"
 
 export async function GET(
   _request: Request,
@@ -54,22 +55,17 @@ export async function GET(
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
   }
 
-  // TODO: When a video provider is configured, call getVideoPlaybackInfo() here
-  // to get a fresh signed/tokenized URL instead of the raw stored URL.
-  // Example:
-  // if (lesson.videoProvider && lesson.videoProviderId) {
-  //   const info = await getVideoPlaybackInfo(lesson.videoProvider, lesson.videoProviderId, {
-  //     userId: userId ?? undefined,
-  //     isPreview,
-  //     previewDurationSeconds: previewDurationSeconds ?? undefined,
-  //   })
-  //   return NextResponse.json({ ...info, lessonId: lesson.id })
-  // }
+  // For Bunny, generate signed URLs at serve time (CDN/embed token auth).
+  const isBunny = lesson.videoProvider === "BUNNY" && !!lesson.videoProviderId
 
   return NextResponse.json({
     lessonId: lesson.id,
-    embedUrl: lesson.videoEmbedUrl,
-    playbackUrl: lesson.videoPlaybackUrl,
+    embedUrl: isBunny
+      ? bunnySignedEmbedUrl(lesson.videoProviderId!)
+      : lesson.videoEmbedUrl,
+    playbackUrl: isBunny
+      ? bunnySignedPlaylistUrl(lesson.videoProviderId!)
+      : lesson.videoPlaybackUrl,
     thumbnailUrl: lesson.videoThumbnailUrl,
     durationSeconds: lesson.videoDurationSeconds ?? lesson.durationSeconds,
     isPreview,

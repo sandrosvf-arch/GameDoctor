@@ -5,6 +5,7 @@ Categorização: @done
 - 2 níveis de categorias, ex: @done
 - Playstation > Playstation 1~5 @done
 - Controles > "Categorias" @done
+- Nivel 3, abrir para o lado @done
 ---------------------------------
 
 Busca:
@@ -31,7 +32,7 @@ Dashboard(Aluno):
 - Aulas concluídas @done
 - Horas de estudo @done
 - Conquistas @done
-- Assinar um plano + Checkout
+- Assinar um plano + Checkout @done
 
 ---------------------------------
 
@@ -39,22 +40,25 @@ Admin:
 - Ver o que tá funcionando e o que não tá (Dash) @done
 - Construir área do usuário @done
 - Planos de assinatura @done
-    - Assinaturas (Cartão, pix, Boleto) - MP
+    - Assinaturas (Cartão, pix, Boleto) - MP @done
     - Pedidos @done
     - Cupons (Criar cupom) @done
 - Aulas (colocar uma paginação ~ 30 por página) @done
-- Trilhas (colocar uma paginação ~ 30 por página) (O problema é que tem ordenação, qual seria a sugestão?)
+- Trilhas (colocar uma paginação ~ 30 por página) (O problema é que tem ordenação, qual seria a sugestão?) (Manter da forma que tá) @done
 - Remover cursos @done
 - Central de ajuda (FAQ) @done
 - Comentários @done
 - Comunidade (Fórum) (Tópicos ordenados) + subtópicos com opção e criar, anexar mídia + richText, ... @done
-- Fale com o professor (mensagens)
-- Tickets
-- Configurações (Validar o que é útil manter)
-- Integrações (A validar)
+    - Caso não tenha assinatura, não vai conseguir acessar um tópico, vai alertar sobre assinar um plano, ... com uma chamada forte @done
+- Fale com o professor (mensagens) (Ver com o Thiago)
+- Tickets @done
+- Configurações (Validar o que é útil manter) (Removido) @done
+- Integrações (A validar) (Removido) @done
+- Badges @done
 
 ---------------------------------
 
 Validar área da aula:
-- Super admin está com tudo bloqueado, sendo que não deveria
-- Validar os endpoints, validar se está correto
+- Super admin está com tudo bloqueado, sendo que não deveria @done
+- Validar os endpoints, validar se está correto @done
+- Apagar trilha Diagnostico Completo PS5 @done

@@ -1,6 +1,6 @@
 import BunnyAulaClient, { type CourseLessonInfo, type LessonMaterial } from "./BunnyAulaClient"
 import { auth } from "@/lib/auth"
-import { bunnyPlaybackUrl } from "@/lib/bunny"
+import { bunnySignedEmbedUrl } from "@/lib/bunny"
 import { hasAccessToCourse } from "@/lib/access"
 import { db } from "@/lib/db"
 
@@ -60,9 +60,10 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
         course: { select: { title: true, slug: true } },
       },
     }),
-  ])
+  ]) 
 
   const userId = session?.user?.id ?? null
+  const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR"
 
   // Phase 2: parallel — all queries that depend on lesson + userId
   const [courseAccess, courseLessons, materials, completionRecord] = await Promise.all([
@@ -95,15 +96,17 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
     userId && lesson?.id
       ? db.lessonProgress.findUnique({
           where: { userId_lessonId: { userId, lessonId: lesson.id } },
-          select: { completed: true },
+          select: { completed: true, watchedSeconds: true },
         })
       : Promise.resolve(null),
   ])
 
-  const isAccessible = lesson ? lesson.isFree || !!courseAccess : true
+  const hasRestrictedContentAccess = Boolean(isStaff || courseAccess)
+  const isAccessible = lesson ? lesson.isFree || hasRestrictedContentAccess : true
   const title = titulo ?? lesson?.title ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
+  const durationSeconds = meta?.length ?? null
   const duration = meta?.length ? formatDuration(meta.length) : null
-  const playbackUrl = bunnyPlaybackUrl(videoId)
+  const embedUrl = bunnySignedEmbedUrl(videoId)
   const courseTitle = lesson?.course.title ?? "Início da Jornada"
   const courseSlug = lesson?.course.slug ?? null
   const previewImage = lesson?.thumbnail ?? lesson?.videoThumbnailUrl ?? null
@@ -122,9 +125,11 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       title={title}
       subtitle={legenda ?? null}
       duration={duration}
+      durationSeconds={durationSeconds}
       previewImage={previewImage}
-      playbackUrl={playbackUrl}
+      embedUrl={embedUrl}
       isAccessible={isAccessible}
+      canViewRestrictedContent={hasRestrictedContentAccess}
       isFree={lesson?.isFree ?? true}
       courseTitle={courseTitle}
       courseSlug={courseSlug}
@@ -133,6 +138,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       nextLesson={nextLesson}
       materials={materials}
       initialCompleted={initialCompleted}
+      initialWatchedSeconds={completionRecord?.watchedSeconds ?? 0}
     />
   )
 }

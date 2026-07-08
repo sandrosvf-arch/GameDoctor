@@ -10,6 +10,7 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getPaymentGateway } from "@/lib/payment"
 import { grantAccess, resolvePlanAccessWindow, suspendUserAccess } from "@/lib/access"
+import { ensurePaymentGatewaysRegistered } from "@/lib/payment/register"
 import type { PaymentGatewayName } from "@/lib/payment"
 
 export async function POST(request: Request) {
@@ -36,8 +37,14 @@ export async function POST(request: Request) {
   })
 
   try {
+    ensurePaymentGatewaysRegistered()
     const gateway = getPaymentGateway(gatewayParam)
-    const event = await gateway.parseWebhook(JSON.parse(rawBody), signature)
+    const event = await gateway.parseWebhook({
+      payload: JSON.parse(rawBody),
+      signature,
+      requestId: request.headers.get("x-request-id") ?? undefined,
+      dataId: url.searchParams.get("data.id") ?? undefined,
+    })
 
     // Update webhook record
     await db.paymentWebhook.update({
