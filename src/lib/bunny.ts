@@ -106,7 +106,7 @@ export function bunnyMp4Url(videoId: string, resolution: "480p" | "720p" | "1080
  */
 export function bunnySignedMp4Url(
   videoId: string,
-  resolution: "480p" | "720p" = "480p",
+  resolution: "480p" | "720p" | "1080p" = "480p",
   expiresInSeconds = 4 * 3600,
 ): string {
   const tokenKey = process.env.BUNNY_TOKEN_AUTH_KEY ?? ""

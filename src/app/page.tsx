@@ -23,6 +23,7 @@ import { TrailRowView } from "@/components/TrailRowView"
 import { LazyMoreRows } from "@/components/LazyMoreRows"
 import { fetchHomeRows, type HomeRowDto } from "@/lib/home-rows"
 import { unstable_cache } from "next/cache"
+import { bunnySignedMp4Url } from "@/lib/bunny"
 
 // ── Server-side data cache (works even with force-dynamic) ─────────────────
 const getCachedBanners = unstable_cache(
@@ -192,6 +193,16 @@ const HOME_SECTION_FLAGS = {
   showFaq: false,
 } as const
 
+function resolveSignedBannerVideoUrl(videoUrl: string | null | undefined) {
+  if (!videoUrl) return null
+
+  const match = videoUrl.match(/\/([0-9a-f-]{36})\/play_(480p|720p|1080p)\.mp4(?:\?.*)?$/i)
+  if (!match) return videoUrl
+
+  const [, videoId, resolution] = match
+  return bunnySignedMp4Url(videoId, resolution as "480p" | "720p")
+}
+
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export default async function HomePage() {
   // Phase 1 – independent queries run in parallel (cached banners, session, cached rows)
@@ -236,7 +247,10 @@ export default async function HomePage() {
     },
   ]
 
-  const banners = dbBanners.length > 0 ? dbBanners : fallbackBanners
+  const banners = (dbBanners.length > 0 ? dbBanners : fallbackBanners).map((banner) => ({
+    ...banner,
+    videoUrl: resolveSignedBannerVideoUrl(banner.videoUrl),
+  }))
 
   // ── "Continue assistindo" row ──────────────────────────────────────────
   let continueWatchingCourses: CourseCard[] = ps5
