@@ -98,6 +98,17 @@ function formatDuration(seconds: number | null | undefined): string {
 
 const ReactPlayer = dynamic(() => import("react-player"), { ssr: false })
 
+function buildAutoplayUrl(value: string) {
+  try {
+    const url = new URL(value)
+    url.searchParams.set("autoplay", "true")
+    url.searchParams.set("muted", "true")
+    return url.toString()
+  } catch {
+    return value
+  }
+}
+
 const materialIcon: Record<string, React.ReactNode> = {
   PDF: <FileText className="h-4 w-4 text-red-400" />,
   SPREADSHEET: <FileText className="h-4 w-4 text-green-400" />,
@@ -328,9 +339,9 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
 
               {!paywallVisible && lesson.videoEmbedUrl ? (
                 <iframe
-                  src={`${lesson.videoEmbedUrl}${lesson.videoEmbedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1`}
+                  src={buildAutoplayUrl(lesson.videoEmbedUrl)}
                   className="absolute inset-0 h-full w-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
                   allowFullScreen={lesson.isAccessible}
                   title={lesson.title}
                 />

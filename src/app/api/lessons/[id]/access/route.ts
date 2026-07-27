@@ -61,7 +61,7 @@ export async function GET(
   return NextResponse.json({
     lessonId: lesson.id,
     embedUrl: isBunny
-      ? bunnySignedEmbedUrl(lesson.videoProviderId!)
+      ? bunnySignedEmbedUrl(lesson.videoProviderId!, 4 * 3600, { autoplay: true, muted: true })
       : lesson.videoEmbedUrl,
     playbackUrl: isBunny
       ? bunnySignedPlaylistUrl(lesson.videoProviderId!)

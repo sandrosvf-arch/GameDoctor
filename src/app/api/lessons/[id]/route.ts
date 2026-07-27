@@ -100,7 +100,7 @@ export async function GET(
       // The paywall overlay is enforced client-side after the preview window.
       // For Bunny, generate signed URLs at serve time (CDN/embed token auth).
       videoEmbedUrl: lesson.videoProvider === "BUNNY" && lesson.videoProviderId
-        ? bunnySignedEmbedUrl(lesson.videoProviderId)
+        ? bunnySignedEmbedUrl(lesson.videoProviderId, 4 * 3600, { autoplay: true, muted: true })
         : lesson.videoEmbedUrl,
       videoPlaybackUrl: lesson.videoProvider === "BUNNY" && lesson.videoProviderId
         ? bunnySignedPlaylistUrl(lesson.videoProviderId)

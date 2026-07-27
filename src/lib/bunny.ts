@@ -15,7 +15,7 @@ const CDN_HOST   = process.env.BUNNY_CDN_HOSTNAME ?? ""
 
 /** URL do player iframe embed do Bunny Stream — sem token */
 export function bunnyEmbedUrl(videoId: string): string {
-  return `https://iframe.mediadelivery.net/embed/${LIBRARY_ID}/${videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`
+  return `https://player.mediadelivery.net/embed/${LIBRARY_ID}/${videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`
 }
 
 /**
@@ -34,7 +34,7 @@ export function bunnySignedEmbedUrl(
 ): string {
   const { autoplay = false, muted = false } = options
   const signingKey = process.env.BUNNY_TOKEN_AUTH_KEY ?? ""
-  const baseUrl = `https://iframe.mediadelivery.net/embed/${LIBRARY_ID}/${videoId}`
+  const baseUrl = `https://player.mediadelivery.net/embed/${LIBRARY_ID}/${videoId}`
   const params = `autoplay=${autoplay}&loop=false&muted=${muted}&preload=true&responsive=true`
 
   if (!signingKey) {
