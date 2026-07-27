@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       durationSeconds: true, videoDurationSeconds: true,
       videoProvider: true, videoProviderId: true,
       videoEmbedUrl: true, videoThumbnailUrl: true,
-      isFree: true, status: true, order: true,
+      isFree: true, releaseAfterDays: true, status: true, order: true,
     },
   })
 
@@ -37,9 +37,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id: courseId } = await params
   const body = await request.json().catch(() => ({}))
 
-  const { title, description, bunnyVideoId, isFree = false, order, thumbnail } = body as {
+  const { title, description, bunnyVideoId, isFree = false, order, thumbnail, releaseAfterDays: rawReleaseAfterDays } = body as {
     title?: string; description?: string; bunnyVideoId?: string
-    isFree?: boolean; order?: number; thumbnail?: string
+    isFree?: boolean; order?: number; thumbnail?: string; releaseAfterDays?: number
   }
 
   if (!title?.trim()) return NextResponse.json({ error: "Título obrigatório" }, { status: 400 })
@@ -48,6 +48,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const count = await db.lesson.count({ where: { courseId } })
 
   const videoFields = bunnyVideoId ? bunnyVideoFields(bunnyVideoId) : {}
+  const releaseAfterDays = rawReleaseAfterDays === undefined ? 7 : Number(rawReleaseAfterDays)
+  if (!Number.isInteger(releaseAfterDays) || releaseAfterDays < 0 || releaseAfterDays > 3650) {
+    return NextResponse.json({ error: "O prazo de liberação deve estar entre 0 e 3650 dias." }, { status: 400 })
+  }
 
   const lesson = await db.lesson.create({
     data: {

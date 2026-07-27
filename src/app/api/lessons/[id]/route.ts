@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { hasAccessToCourse } from "@/lib/access"
+import { hasAccessToLesson } from "@/lib/access"
 import { bunnySignedPlaylistUrl, bunnySignedEmbedUrl } from "@/lib/bunny"
 
 export async function GET(
@@ -79,9 +79,9 @@ export async function GET(
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
   }
 
-  const courseAccess = userId ? await hasAccessToCourse(userId, lesson.courseId) : false
-  const hasRestrictedContentAccess = Boolean(isStaff || courseAccess)
-  const isAccessible = lesson.isFree || hasRestrictedContentAccess
+  const lessonAccess = await hasAccessToLesson(userId, id, { isStaff })
+  const isAccessible = lessonAccess.hasAccess && !lessonAccess.isPreview
+  const canExposeVideo = isAccessible || lessonAccess.isPreview
 
   // Find prev/next lessons flat across all modules
   const allLessons = lesson.course.modules.flatMap((m) => m.lessons)
@@ -94,25 +94,27 @@ export async function GET(
     lesson: {
       id: lesson.id,
       title: lesson.title,
-      description: lesson.description,
+      description: isAccessible ? lesson.description : null,
       durationSeconds: lesson.videoDurationSeconds ?? lesson.durationSeconds,
-      // Video URL is always returned so the 7-second preview can play.
-      // The paywall overlay is enforced client-side after the preview window.
-      // For Bunny, generate signed URLs at serve time (CDN/embed token auth).
-      videoEmbedUrl: lesson.videoProvider === "BUNNY" && lesson.videoProviderId
+      // Only full access or the short preview may receive a video URL.
+      // Scheduled lessons never expose a signed URL before release.
+      videoEmbedUrl: canExposeVideo && lesson.videoProvider === "BUNNY" && lesson.videoProviderId
         ? bunnySignedEmbedUrl(lesson.videoProviderId, 4 * 3600, { autoplay: true, muted: true })
-        : lesson.videoEmbedUrl,
-      videoPlaybackUrl: lesson.videoProvider === "BUNNY" && lesson.videoProviderId
+        : canExposeVideo ? lesson.videoEmbedUrl : null,
+      videoPlaybackUrl: canExposeVideo && lesson.videoProvider === "BUNNY" && lesson.videoProviderId
         ? bunnySignedPlaylistUrl(lesson.videoProviderId)
-        : lesson.videoPlaybackUrl,
+        : canExposeVideo ? lesson.videoPlaybackUrl : null,
       videoThumbnailUrl: lesson.videoThumbnailUrl,
       isFree: lesson.isFree,
       isAccessible,
       previewEnabled: lesson.previewEnabled,
-      // Non-accessible lessons show a 7-second preview before the paywall.
-      previewDurationSeconds: isAccessible ? null : 7,
-      materials: hasRestrictedContentAccess ? lesson.materials : [],
-      progress: Array.isArray(lesson.lessonProgress) ? (lesson.lessonProgress[0] ?? null) : null,
+      releaseAfterDays: lesson.releaseAfterDays,
+      isReleaseLocked: lessonAccess.isReleaseLocked,
+      releaseAt: lessonAccess.releaseAt,
+      releaseDaysRemaining: lessonAccess.releaseDaysRemaining,
+      previewDurationSeconds: lessonAccess.isPreview ? lessonAccess.previewDurationSeconds : null,
+      materials: isAccessible ? lesson.materials : [],
+      progress: isAccessible && Array.isArray(lesson.lessonProgress) ? (lesson.lessonProgress[0] ?? null) : null,
     },
     course: {
       id: lesson.course.id,

@@ -23,6 +23,7 @@ interface LessonWithCourse {
   videoThumbnailUrl: string | null
   thumbnail: string | null
   isFree: boolean
+  releaseAfterDays: number
   status: string
   order: number
   videoDurationSeconds: number | null
@@ -54,6 +55,7 @@ type LessonEdits = {
   bunnyVideoId?: string
   thumbnail?: string
   isFree?: boolean
+  releaseAfterDays?: number
   status?: string
 }
 
@@ -202,6 +204,7 @@ export default function TodasAsAulasPage() {
         bunnyVideoId: lesson.videoProviderId ?? "",
         thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
+        releaseAfterDays: lesson.releaseAfterDays,
         status: lesson.status,
       },
     }))
@@ -592,6 +595,21 @@ export default function TodasAsAulasPage() {
                       )}
                     </div>
 
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-muted-foreground" htmlFor={`release-days-${lesson.id}`}>
+                        Liberar após (dias)
+                      </label>
+                      <input
+                        id={`release-days-${lesson.id}`}
+                        type="number"
+                        min={0}
+                        max={3650}
+                        className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        value={String((e.releaseAfterDays as number) ?? lesson.releaseAfterDays ?? 7)}
+                        onChange={ev => patch(lesson.id, "releaseAfterDays", Number(ev.target.value))}
+                      />
+                      <span className="text-xs text-muted-foreground">0 = imediato</span>
+                    </div>
                     {/* Materials section */}
                     <div className="border-t border-border/40 pt-3 space-y-2">
                       <div className="flex items-center justify-between">

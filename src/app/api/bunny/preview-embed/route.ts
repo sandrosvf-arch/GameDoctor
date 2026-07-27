@@ -6,6 +6,9 @@
  * Public endpoint — no auth required (it's just a preview, not full access).
  */
 import { NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
+import { db } from "@/lib/db"
+import { hasAccessToLesson } from "@/lib/access"
 import { bunnySignedEmbedUrl } from "@/lib/bunny"
 
 export async function GET(request: Request) {
@@ -14,6 +17,27 @@ export async function GET(request: Request) {
 
   if (!videoId || !/^[0-9a-f-]{36}$/i.test(videoId)) {
     return NextResponse.json({ error: "Invalid videoId" }, { status: 400 })
+  }
+
+  const lesson = await db.lesson.findFirst({
+    where: { videoProvider: "BUNNY", videoProviderId: videoId, status: "PUBLISHED" },
+    select: { id: true },
+  })
+
+  if (lesson) {
+    const session = await auth()
+    const access = await hasAccessToLesson(
+      session?.user?.id ?? null,
+      lesson.id,
+      { isStaff: session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR" },
+    )
+
+    if (access.isReleaseLocked) {
+      return NextResponse.json(
+        { error: "RELEASE_LOCKED", releaseAt: access.releaseAt },
+        { status: 403 },
+      )
+    }
   }
 
   // 20 seconds: enough for the 7s preview + buffer, useless if copied afterward

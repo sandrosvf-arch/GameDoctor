@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
+import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 
 interface Material {
   id: string
@@ -63,6 +64,10 @@ interface LessonData {
   videoThumbnailUrl: string | null
   isFree: boolean
   isAccessible: boolean
+  releaseAfterDays: number
+  isReleaseLocked: boolean
+  releaseAt: string | null
+  releaseDaysRemaining: number | null
   previewEnabled: boolean
   previewDurationSeconds: number
   materials: Material[]
@@ -202,7 +207,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
       )
       if (activeModule) setOpenModules(new Set([activeModule.id]))
 
-      if (!json.lesson.isAccessible) {
+      if (!json.lesson.isAccessible && !json.lesson.isReleaseLocked) {
         const secs = json.lesson.previewDurationSeconds ?? 7
         previewTimerRef.current = setTimeout(() => setPaywallVisible(true), secs * 1000)
       }
@@ -221,7 +226,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   }, [load])
 
   const handleProgress = useCallback((state: { playedSeconds?: number }) => {
-    if (!data || data.lesson.isAccessible) return
+    if (!data || data.lesson.isAccessible || data.lesson.isReleaseLocked) return
     const playedSeconds = state.playedSeconds ?? 0
     if (playedSeconds >= data.lesson.previewDurationSeconds) {
       showPaywall()
@@ -337,7 +342,23 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
             <div className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 rounded-none md:rounded-xl overflow-hidden bg-black shadow-xl" style={{ aspectRatio: "16/9" }}>
               {paywallVisible && <PaywallOverlay lessonId={lessonId} />}
 
-              {!paywallVisible && lesson.videoEmbedUrl ? (
+              {lesson.isReleaseLocked ? (
+                <div className="absolute inset-0">
+                  {lesson.videoThumbnailUrl && (
+                    <img
+                      src={lesson.videoThumbnailUrl}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover opacity-60"
+                    />
+                  )}
+                  {lesson.releaseAt && (
+                    <LessonReleaseLock
+                      releaseAt={lesson.releaseAt}
+                      onReleased={() => void load()}
+                    />
+                  )}
+                </div>
+              ) : !paywallVisible && lesson.videoEmbedUrl ? (
                 <iframe
                   src={buildAutoplayUrl(lesson.videoEmbedUrl)}
                   className="absolute inset-0 h-full w-full"
@@ -391,7 +412,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                   {lesson.durationSeconds && (
                     <span className="text-sm text-muted-foreground">{formatDuration(lesson.durationSeconds)}</span>
                   )}
-                  {!lesson.isAccessible && (
+                  {!lesson.isReleaseLocked && !lesson.isAccessible && (
                     <span className="text-xs bg-primary/15 text-primary border border-primary/30 px-2 py-0.5 rounded-full">
                       Prévia gratuita
                     </span>
@@ -425,14 +446,14 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
             </div>
 
             {/* Description */}
-            {lesson.description && (
+            {lesson.isAccessible && lesson.description && (
               <div className="prose prose-sm prose-invert max-w-none">
                 <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{lesson.description}</p>
               </div>
             )}
 
             {/* Materials */}
-            {lesson.materials.length > 0 && (
+            {lesson.isAccessible && lesson.materials.length > 0 && (
               <div>
                 <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <Download className="h-4 w-4 text-muted-foreground" />
@@ -480,6 +501,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
             )}
 
             {/* Comments */}
+            {!lesson.isReleaseLocked && (
             <div>
               <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -617,9 +639,10 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                 </>
               )}
             </div>
+            )}
           </div>
 
-          {/* ── Right / Module Sidebar ── */}
+          {/* Right / Module Sidebar */}
           <aside className="hidden lg:flex flex-col w-72 xl:w-80 shrink-0 sticky top-20 max-h-[calc(100vh-5rem)] rounded-xl border border-border overflow-hidden">
             <div className="bg-muted/50 px-4 py-3 border-b border-border">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

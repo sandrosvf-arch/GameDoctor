@@ -52,6 +52,7 @@ export async function GET(request: Request) {
         videoThumbnailUrl: true,
         thumbnail: true,
         isFree: true,
+        releaseAfterDays: true,
         status: true,
         order: true,
         videoDurationSeconds: true,

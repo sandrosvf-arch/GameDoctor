@@ -445,6 +445,7 @@ model Lesson {
   previewEnabled         Boolean             @default(false) @map("preview_enabled")
   previewDurationSeconds Int?                @map("preview_duration_seconds")
   previewPercentage      Int?                @map("preview_percentage")
+  releaseAfterDays       Int                 @default(7) @map("release_after_days")
   requiresPlan           Boolean             @default(false) @map("requires_plan")
   requiredPlanId         String?             @map("required_plan_id")
   transcription          String?

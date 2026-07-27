@@ -20,7 +20,7 @@ export async function PATCH(
   const { id } = await params
   const body = await request.json().catch(() => ({}))
 
-  const { title, description, searchKeywords, bunnyVideoId, isFree, status, thumbnail } = body as {
+  const { title, description, searchKeywords, bunnyVideoId, isFree, status, thumbnail, releaseAfterDays: rawReleaseAfterDays } = body as {
     title?: string
     description?: string
     searchKeywords?: string
@@ -28,9 +28,14 @@ export async function PATCH(
     isFree?: boolean
     status?: string
     thumbnail?: string
+    releaseAfterDays?: number
   }
 
   const videoFields = bunnyVideoId ? bunnyVideoFields(bunnyVideoId) : {}
+  const releaseAfterDays = rawReleaseAfterDays === undefined ? undefined : Number(rawReleaseAfterDays)
+  if (releaseAfterDays !== undefined && (!Number.isInteger(releaseAfterDays) || releaseAfterDays < 0 || releaseAfterDays > 3650)) {
+    return NextResponse.json({ error: "O prazo de liberação deve estar entre 0 e 3650 dias." }, { status: 400 })
+  }
 
   const lesson = await db.lesson.update({
     where: { id },
@@ -39,6 +44,7 @@ export async function PATCH(
       ...(description !== undefined && { description }),
       ...(searchKeywords !== undefined && { searchKeywords: searchKeywords || null }),
       ...(isFree !== undefined && { isFree }),
+      ...(releaseAfterDays !== undefined && { releaseAfterDays }),
       ...(status !== undefined && { status: status as never }),
       ...(thumbnail !== undefined && { thumbnail: thumbnail || null }),
       ...videoFields,

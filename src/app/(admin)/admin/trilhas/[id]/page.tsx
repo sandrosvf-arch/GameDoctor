@@ -26,6 +26,7 @@ interface Lesson {
   videoThumbnailUrl: string | null
   thumbnail: string | null
   isFree: boolean
+  releaseAfterDays: number
   status: string
   order: number
 }
@@ -308,6 +309,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [newBunnyId, setNewBunnyId] = useState("")
   const [newThumbnail, setNewThumbnail] = useState("")
   const [newIsFree, setNewIsFree] = useState(false)
+  const [newReleaseAfterDays, setNewReleaseAfterDays] = useState(7)
   const [creatingLesson, setCreatingLesson] = useState(false)
 
   // Lesson inline edit
@@ -415,10 +417,11 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
         bunnyVideoId: newBunnyId.trim() || undefined,
         thumbnail: newThumbnail.trim() || undefined,
         isFree: newIsFree,
+        releaseAfterDays: newReleaseAfterDays,
       }),
     })
     setCreatingLesson(false)
-    setNewLessonTitle(""); setNewLessonDescription(""); setNewBunnyId(""); setNewThumbnail(""); setNewIsFree(false)
+    setNewLessonTitle(""); setNewLessonDescription(""); setNewBunnyId(""); setNewThumbnail(""); setNewIsFree(false); setNewReleaseAfterDays(7)
     setShowLessonForm(false)
     load(trilhaId)
   }
@@ -454,6 +457,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
         bunnyVideoId: lesson.videoProviderId ?? "",
         thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
+        releaseAfterDays: lesson.releaseAfterDays,
         status: lesson.status,
       },
     }))
@@ -662,6 +666,13 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
               </div>
             </div>
 
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-muted-foreground" htmlFor="new-release-days">Liberar após (dias)</label>
+              <input id="new-release-days" type="number" min={0} max={3650}
+                className="w-24 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                value={newReleaseAfterDays} onChange={e => setNewReleaseAfterDays(Number(e.target.value))} />
+              <span className="text-xs text-muted-foreground">0 = imediato</span>
+            </div>
             {/* Descrição */}
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Descrição</label>
@@ -811,6 +822,14 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                       />
                     </div>
 
+                      <label className="flex items-center gap-2 text-sm">
+                        Liberar após
+                        <input type="number" min={0} max={3650}
+                          className="w-20 bg-background border border-border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                          value={String((edits.releaseAfterDays as number) ?? lesson.releaseAfterDays ?? 7)}
+                          onChange={e => patchEdit(lesson.id, "releaseAfterDays", Number(e.target.value))} />
+                        dias
+                      </label>
                     <div className="flex items-center gap-4">
                       <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                         <input type="checkbox"

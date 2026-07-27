@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { BUNNY_CDN_HOST } from "@/lib/constants"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
+import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 
 export interface LessonMaterial {
   id: string
@@ -82,6 +83,8 @@ interface BunnyAulaClientProps {
   previewImage: string | null
   embedUrl: string
   isAccessible: boolean
+  isReleaseLocked: boolean
+  releaseAt: string | null
   canViewRestrictedContent: boolean
   isFree: boolean
   courseTitle: string
@@ -104,6 +107,8 @@ export default function BunnyAulaClient({
   previewImage,
   embedUrl,
   isAccessible,
+  isReleaseLocked,
+  releaseAt,
   canViewRestrictedContent,
   isFree,
   courseTitle,
@@ -353,7 +358,16 @@ export default function BunnyAulaClient({
               className="relative -mx-8 w-[calc(100%+4rem)] overflow-hidden rounded-none bg-black shadow-xl md:mx-0 md:w-full md:rounded-xl"
               style={{ aspectRatio: "16/9" }}
             >
-              {!isAccessible ? (
+              {isReleaseLocked ? (
+                <div className="absolute inset-0">
+                  {previewImage && (
+                    <img src={previewImage} alt={title} className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+                  )}
+                  {releaseAt && (
+                    <LessonReleaseLock releaseAt={releaseAt} onReleased={() => router.refresh()} />
+                  )}
+                </div>
+              ) : !isAccessible ? (
                 <div className="absolute inset-0">
                   {previewImage && (
                     <img
@@ -458,7 +472,7 @@ export default function BunnyAulaClient({
               </button>
             )}
 
-            {!canViewRestrictedContent ? (
+            {!isReleaseLocked && !canViewRestrictedContent ? (
               <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                   <Lock className="h-5 w-5 text-muted-foreground" />
@@ -521,6 +535,7 @@ export default function BunnyAulaClient({
               </div>
             )}
 
+            {!isReleaseLocked && (
             <div>
               <h2 id="aula-comments" className="mb-4 flex items-center gap-2 text-sm font-semibold">
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -680,6 +695,7 @@ export default function BunnyAulaClient({
                 </div>
               )}
             </div>
+            )}
           </div>
 
           <aside className="sticky top-20 hidden max-h-[calc(100vh-5rem)] w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-border lg:flex xl:w-80">

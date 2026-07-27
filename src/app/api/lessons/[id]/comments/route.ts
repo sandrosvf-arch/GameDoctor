@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { hasAccessToCourse } from "@/lib/access"
+import { hasAccessToLesson } from "@/lib/access"
 
 async function canAccessLessonComments(
   lessonId: string,
@@ -17,16 +17,14 @@ async function canAccessLessonComments(
     return { allowed: false, lesson: null }
   }
 
-  if (role === "ADMIN" || role === "EDITOR") {
-    return { allowed: true, lesson }
-  }
+  const lessonAccess = await hasAccessToLesson(userId, lessonId, {
+    isStaff: role === "ADMIN" || role === "EDITOR",
+  })
 
-  if (!userId) {
-    return { allowed: false, lesson }
+  return {
+    allowed: lessonAccess.hasAccess && !lessonAccess.isPreview && !lessonAccess.isReleaseLocked,
+    lesson,
   }
-
-  const hasAccess = await hasAccessToCourse(userId, lesson.courseId)
-  return { allowed: hasAccess, lesson }
 }
 
 export async function GET(

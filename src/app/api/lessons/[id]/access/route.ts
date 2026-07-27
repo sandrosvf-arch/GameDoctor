@@ -20,17 +20,20 @@ export async function GET(
 ) {
   const session = await auth()
   const userId = session?.user?.id ?? null
+  const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR"
   const { id } = await params
 
-  const { hasAccess, isPreview, previewDurationSeconds } =
-    await hasAccessToLesson(userId, id)
+  const lessonAccess = await hasAccessToLesson(userId, id, { isStaff })
+  const { hasAccess, isPreview, previewDurationSeconds } = lessonAccess
 
   if (!hasAccess) {
     return NextResponse.json(
       {
-        error: "NO_ACCESS",
+        error: lessonAccess.isReleaseLocked ? "RELEASE_LOCKED" : "NO_ACCESS",
+        releaseAt: lessonAccess.releaseAt,
+        releaseDaysRemaining: lessonAccess.releaseDaysRemaining,
         message:
-          "Você não tem acesso a esta aula. Escolha um plano para continuar assistindo.",
+          "Você não tem acesso disponível a esta aula neste momento.",
       },
       { status: 403 }
     )
@@ -68,6 +71,9 @@ export async function GET(
       : lesson.videoPlaybackUrl,
     thumbnailUrl: lesson.videoThumbnailUrl,
     durationSeconds: lesson.videoDurationSeconds ?? lesson.durationSeconds,
+    isReleaseLocked: lessonAccess.isReleaseLocked,
+    releaseAt: lessonAccess.releaseAt,
+    releaseDaysRemaining: lessonAccess.releaseDaysRemaining,
     isPreview,
     previewDurationSeconds,
   })

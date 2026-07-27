@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { hasAccessToCourse, hasAccessToLesson } from "@/lib/access"
+import { hasAccessToLesson } from "@/lib/access"
 import { z } from "zod"
 
 const schema = z.object({
@@ -51,18 +51,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "NOT_AVAILABLE" }, { status: 403 })
   }
 
-  const lessonAccess = await hasAccessToLesson(userId, lessonId)
-  if (lessonAccess.isPreview && !isStaff) {
+  const lessonAccess = await hasAccessToLesson(userId, lessonId, { isStaff })
+  if (lessonAccess.isReleaseLocked && !isStaff) {
+    return NextResponse.json(
+      { error: "LESSON_NOT_RELEASED", releaseAt: lessonAccess.releaseAt },
+      { status: 403 }
+    )
+  }
+
+  if ((!lessonAccess.hasAccess || lessonAccess.isPreview) && !isStaff) {
     return NextResponse.json({ error: "PREVIEW_PROGRESS_DISABLED" }, { status: 403 })
   }
 
-  const courseAccess = lesson.isFree
-    ? true
-    : isStaff
-      ? true
-      : await hasAccessToCourse(userId, lesson.courseId)
-
-  if (!courseAccess) {
+  if (!lessonAccess.hasAccess && !isStaff) {
     return NextResponse.json({ error: "NO_ACCESS" }, { status: 403 })
   }
 

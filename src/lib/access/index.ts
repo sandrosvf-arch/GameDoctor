@@ -55,12 +55,18 @@ export async function hasAccessToCourse(
  */
 export async function hasAccessToLesson(
   userId: string | null,
-  lessonId: string
+  lessonId: string,
+  options?: { isStaff?: boolean }
 ): Promise<{
   hasAccess: boolean
   isPreview: boolean
   previewDurationSeconds: number | null
+  isReleaseLocked: boolean
+  releaseAt: string | null
+  releaseDaysRemaining: number | null
 }> {
+  const now = new Date()
+
   const lesson = await db.lesson.findUnique({
     where: { id: lessonId },
     select: {
@@ -68,47 +74,124 @@ export async function hasAccessToLesson(
       isFree: true,
       previewEnabled: true,
       previewDurationSeconds: true,
+      releaseAfterDays: true,
       status: true,
     },
   })
 
-  if (!lesson || lesson.status !== "PUBLISHED") {
-    return { hasAccess: false, isPreview: false, previewDurationSeconds: null }
+  const noAccess = {
+    hasAccess: false,
+    isPreview: false,
+    previewDurationSeconds: null,
+    isReleaseLocked: false,
+    releaseAt: null,
+    releaseDaysRemaining: null,
   }
 
-  // Free lesson — always accessible
-  if (lesson.isFree) {
-    return { hasAccess: true, isPreview: false, previewDurationSeconds: null }
+  if (!lesson || lesson.status !== "PUBLISHED") return noAccess
+
+  if (lesson.isFree || options?.isStaff) {
+    return {
+      hasAccess: true,
+      isPreview: false,
+      previewDurationSeconds: null,
+      isReleaseLocked: false,
+      releaseAt: null,
+      releaseDaysRemaining: null,
+    }
   }
 
-  // User not logged in — only preview
   if (!userId) {
     if (lesson.previewEnabled && lesson.previewDurationSeconds) {
       return {
         hasAccess: true,
         isPreview: true,
         previewDurationSeconds: lesson.previewDurationSeconds,
+        isReleaseLocked: false,
+        releaseAt: null,
+        releaseDaysRemaining: null,
       }
     }
-    return { hasAccess: false, isPreview: false, previewDurationSeconds: null }
+    return noAccess
   }
 
-  // Logged in — check course access
-  const courseAccess = await hasAccessToCourse(userId, lesson.courseId)
-  if (courseAccess) {
-    return { hasAccess: true, isPreview: false, previewDurationSeconds: null }
+  const permissions = await db.accessPermission.findMany({
+    where: {
+      userId,
+      status: "ACTIVE",
+      startsAt: { lte: now },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      AND: [
+        {
+          OR: [
+            { courseId: lesson.courseId },
+            { plan: { planCourses: { some: { courseId: lesson.courseId } } } },
+          ],
+        },
+      ],
+    },
+    select: {
+      courseId: true,
+      planId: true,
+      startsAt: true,
+    },
+  })
+
+  if (permissions.some((permission) => permission.courseId === lesson.courseId)) {
+    return {
+      hasAccess: true,
+      isPreview: false,
+      previewDurationSeconds: null,
+      isReleaseLocked: false,
+      releaseAt: null,
+      releaseDaysRemaining: null,
+    }
   }
 
-  // No course access — preview only
+  const planReleaseDates = permissions
+    .filter((permission) => permission.planId)
+    .map((permission) => {
+      const releaseAt = new Date(permission.startsAt)
+      releaseAt.setUTCDate(releaseAt.getUTCDate() + lesson.releaseAfterDays)
+      return releaseAt
+    })
+
+  if (planReleaseDates.length > 0) {
+    const releaseAt = new Date(Math.min(...planReleaseDates.map((date) => date.getTime())))
+
+    if (releaseAt <= now) {
+      return {
+        hasAccess: true,
+        isPreview: false,
+        previewDurationSeconds: null,
+        isReleaseLocked: false,
+        releaseAt: null,
+        releaseDaysRemaining: null,
+      }
+    }
+
+    return {
+      hasAccess: false,
+      isPreview: false,
+      previewDurationSeconds: null,
+      isReleaseLocked: true,
+      releaseAt: releaseAt.toISOString(),
+      releaseDaysRemaining: Math.ceil((releaseAt.getTime() - now.getTime()) / 86400000),
+    }
+  }
+
   if (lesson.previewEnabled && lesson.previewDurationSeconds) {
     return {
       hasAccess: true,
       isPreview: true,
       previewDurationSeconds: lesson.previewDurationSeconds,
+      isReleaseLocked: false,
+      releaseAt: null,
+      releaseDaysRemaining: null,
     }
   }
 
-  return { hasAccess: false, isPreview: false, previewDurationSeconds: null }
+  return noAccess
 }
 
 /**
