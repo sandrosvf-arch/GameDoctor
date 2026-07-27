@@ -6,6 +6,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Search, BookOpen, Play, Clock, Tag, Loader2, X, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { BUNNY_CDN_HOST } from "@/lib/constants"
 import { Header } from "@/components/layout/Header"
 
 interface CourseResult {
@@ -33,7 +34,7 @@ interface LessonResult {
   durationSeconds: number | null
   videoDurationSeconds: number | null
   videoProviderId: string | null
-  course: { id: string; title: string; slug: string; trailColorRgb: string | null; badgeLabel: string | null }
+  course: { id: string; title: string; slug: string; trailColorRgb: string | null; badgeLabel: string | null; coverImage: string | null; bannerImage: string | null }
 }
 
 function formatDur(secs: number | null | undefined) {
@@ -302,7 +303,11 @@ export default function BuscaPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {lessons.map((lesson) => {
                 const accent = lesson.course.trailColorRgb ? `rgb(${lesson.course.trailColorRgb})` : "#06b6d4"
-                const thumb = lesson.videoThumbnailUrl ?? lesson.thumbnail
+                const thumb = lesson.thumbnail
+                  ?? (lesson.videoProviderId ? `https://${BUNNY_CDN_HOST}/${lesson.videoProviderId}/thumbnail.jpg` : null)
+                  ?? lesson.videoThumbnailUrl
+                  ?? lesson.course.bannerImage
+                  ?? lesson.course.coverImage
                 const dur = formatDur(lesson.videoDurationSeconds ?? lesson.durationSeconds)
                 const href = lesson.videoProviderId
                   ? `/aula/bunny/${lesson.videoProviderId}`

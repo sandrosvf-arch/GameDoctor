@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { hasAccessToCourse } from "@/lib/access"
+import { hasAccessToCourse, hasAccessToLesson } from "@/lib/access"
 import { z } from "zod"
 
 const schema = z.object({
@@ -49,6 +49,11 @@ export async function POST(request: Request) {
   }
   if (lesson.status !== "PUBLISHED") {
     return NextResponse.json({ error: "NOT_AVAILABLE" }, { status: 403 })
+  }
+
+  const lessonAccess = await hasAccessToLesson(userId, lessonId)
+  if (lessonAccess.isPreview && !isStaff) {
+    return NextResponse.json({ error: "PREVIEW_PROGRESS_DISABLED" }, { status: 403 })
   }
 
   const courseAccess = lesson.isFree

@@ -305,10 +305,10 @@ export default async function CursosPage({
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-12">
         <div className="mb-10">
           <h1 className="text-3xl font-bold">
-            {currentCategoryName ? `Cursos em ${currentCategoryName}` : "Todos os cursos"}
+            {currentCategoryName ? `Trilhas em ${currentCategoryName}` : "Todas as trilhas"}
           </h1>
           <p className="text-muted-foreground mt-2">
-            Escolha por especialidade, console ou fundamento e comece a aprender agora.
+            Escolha por especialidade, console ou fundamento e comece a aprender agora nas trilhas.
           </p>
           {currentCategoryName && (
             <div className="mt-4">
@@ -321,17 +321,17 @@ export default async function CursosPage({
 
         <div className="mb-10 rounded-xl bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border border-primary/20 px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <p className="font-semibold text-lg">Desbloqueie todos os cursos</p>
-            <p className="text-muted-foreground text-sm mt-0.5">Acesso vitalicio a todo o conteudo por um unico pagamento.</p>
+            <p className="font-semibold text-lg">Desbloqueie todos as trilhas</p>
+            <p className="text-muted-foreground text-sm mt-0.5">Acesso vitalicio a todo o conteudo das trilhas por um unico pagamento.</p>
           </div>
           <Button asChild size="lg" className="shrink-0">
-            <Link href="/planos">Ver planos</Link>
+            <Link href="/planos">Ver plano</Link>
           </Button>
         </div>
 
         {sections.length === 0 ? (
           <div className="py-20 text-center text-muted-foreground">
-            <p>Nenhum curso publicado para essa categoria ainda.</p>
+            <p>Nenhuma trilha publicada para essa categoria ainda.</p>
             <p className="text-sm mt-1">Volte em breve ou escolha outra categoria.</p>
           </div>
         ) : (
@@ -361,7 +361,7 @@ export default async function CursosPage({
                     </div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-5">
                   {section.courses.map((course) => (
                     <CourseCard key={course.id} course={course} />
                   ))}

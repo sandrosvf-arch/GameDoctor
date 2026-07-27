@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import {
   ArrowLeft,
   CheckCircle2,
@@ -115,6 +116,7 @@ export default function BunnyAulaClient({
   initialWatchedSeconds,
 }: BunnyAulaClientProps) {
   const router = useRouter()
+  const { data: session } = useSession()
   const [mounted, setMounted] = useState(false)
   const [paywallVisible, setPaywallVisible] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -564,7 +566,15 @@ export default function BunnyAulaClient({
               ) : (
                 <div className="space-y-5">
                   <form onSubmit={submitComment} className="rounded-xl border border-border bg-muted/20 p-4">
-                    <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                        {session?.user?.image ? (
+                          <img src={session.user.image} alt={session.user.name ?? "Avatar"} className="h-full w-full object-cover" />
+                        ) : (
+                          <User2 className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-3">
                       <textarea
                         value={commentText}
                         onChange={(event) => setCommentText(event.target.value)}
@@ -591,6 +601,7 @@ export default function BunnyAulaClient({
                           )}
                           Publicar comentário
                         </Button>
+                      </div>
                       </div>
                     </div>
                   </form>
