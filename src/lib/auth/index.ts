@@ -1,5 +1,4 @@
-﻿import NextAuth from "next-auth"
-import { PrismaAdapter } from "@auth/prisma-adapter"
+import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
@@ -7,9 +6,56 @@ import { db } from "@/lib/db"
 import type { UserRole } from "@prisma/client"
 import { authConfig } from "./config"
 
+async function syncGoogleUser(input: {
+  googleId: string
+  email: string
+  name: string | null | undefined
+  image: string | null | undefined
+}) {
+  const email = input.email.trim().toLowerCase()
+  const existingByGoogle = await db.user.findUnique({
+    where: { googleId: input.googleId },
+  })
+  const existing = existingByGoogle ?? await db.user.findUnique({
+    where: { email },
+  })
+
+  if (existing?.status === "BLOCKED") {
+    return null
+  }
+
+  const name = existing?.name || input.name?.trim() || email.split("@")[0]
+  const avatarUrl = existing?.avatarUrl ?? input.image ?? null
+
+  if (existing) {
+    return db.user.update({
+      where: { id: existing.id },
+      data: {
+        googleId: input.googleId,
+        name,
+        authProvider: "GOOGLE",
+        lastLoginAt: new Date(),
+        avatarUrl,
+      },
+    })
+  }
+
+  return db.user.create({
+    data: {
+      name,
+      email,
+      googleId: input.googleId,
+      avatarUrl,
+      authProvider: "GOOGLE",
+      role: "STUDENT",
+      status: "ACTIVE",
+      lastLoginAt: new Date(),
+    },
+  })
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: PrismaAdapter(db),
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -64,20 +110,71 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  events: {
+  callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === "google" && user.id) {
-        await db.user
-          .update({
-            where: { id: user.id },
-            data: {
-              lastLoginAt: new Date(),
-              authProvider: "GOOGLE",
-              avatarUrl: user.image ?? undefined,
-            },
-          })
-          .catch(() => {})
+      if (account?.provider !== "google") return true
+
+      if (!user.email || !account.providerAccountId) return false
+
+      const currentUser = await syncGoogleUser({
+        googleId: account.providerAccountId,
+        email: user.email,
+        name: user.name,
+        image: user.image,
+      })
+
+      if (!currentUser) return false
+
+      user.id = currentUser.id
+      user.name = currentUser.name
+      user.email = currentUser.email
+      user.image = currentUser.avatarUrl
+      user.role = currentUser.role
+
+      return true
+    },
+    async jwt({ token, user, trigger, session }) {
+      if (user) {
+        token.id = user.id
+        token.role = (user as { role: UserRole }).role
+        token.picture = user.image ?? token.picture
       }
+
+      if (trigger === "update") {
+        const sessionImage = session?.image ?? session?.user?.image
+        const sessionName = session?.name ?? session?.user?.name
+        const sessionEmail = session?.email ?? session?.user?.email
+
+        if (sessionImage !== undefined) {
+          token.picture = sessionImage ?? null
+        }
+        if (sessionName) {
+          token.name = sessionName
+        }
+        if (sessionEmail) {
+          token.email = sessionEmail
+        }
+      }
+
+      return token
+    },
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string
+        session.user.role = token.role as UserRole
+
+        const currentUser = token.id
+          ? await db.user.findUnique({
+              where: { id: token.id as string },
+              select: { name: true, email: true, avatarUrl: true },
+            })
+          : null
+
+        session.user.name = currentUser?.name ?? session.user.name ?? null
+        session.user.email = currentUser?.email ?? session.user.email ?? null
+        session.user.image = currentUser?.avatarUrl ?? (typeof token.picture === "string" ? token.picture : null)
+      }
+      return session
     },
   },
 })

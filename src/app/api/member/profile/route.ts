@@ -18,6 +18,7 @@ export async function GET() {
       phone: true,
       cpf: true,
       authProvider: true,
+      avatarUrl: true,
     },
   })
 
@@ -97,6 +98,7 @@ export async function PATCH(request: Request) {
       phone: true,
       cpf: true,
       authProvider: true,
+      avatarUrl: true,
     },
   })
 

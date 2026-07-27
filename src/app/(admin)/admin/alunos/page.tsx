@@ -10,6 +10,7 @@ import {
   KeyRound,
   Loader2,
   MoreHorizontal,
+  PackagePlus,
   RefreshCw,
   Search,
   ShieldAlert,
@@ -36,6 +37,15 @@ interface StudentItem {
     daysRemaining: number | null
     label: string
   }
+}
+
+interface PlanOption {
+  id: string
+  name: string
+  status: "ACTIVE" | "INACTIVE" | "ARCHIVED"
+  monthlyEnabled: boolean
+  annualAccessDurationDays: number
+  monthlyAccessDurationDays: number | null
 }
 
 interface Summary {
@@ -173,12 +183,22 @@ export default function AdminAlunosPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [passwordLoading, setPasswordLoading] = useState(false)
 
+  const [planModalUser, setPlanModalUser] = useState<StudentItem | null>(null)
+  const [availablePlans, setAvailablePlans] = useState<PlanOption[]>([])
+  const [planId, setPlanId] = useState("")
+  const [planPeriod, setPlanPeriod] = useState<"annual" | "monthly">("annual")
+  const [planDurationDays, setPlanDurationDays] = useState("365")
+  const [planLoading, setPlanLoading] = useState(false)
+  const [planSubmitting, setPlanSubmitting] = useState(false)
+
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null)
   const [detailsUser, setDetailsUser] = useState<StudentItem | null>(null)
   const [detailsView, setDetailsView] = useState<DetailView>("purchases")
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
   const [details, setDetails] = useState<StudentDetails | null>(null)
+
+  const selectedPlan = availablePlans.find((plan) => plan.id === planId) ?? null
 
   const pageNumbers = useMemo(() => {
     if (!pagination) return []
@@ -284,6 +304,56 @@ export default function AdminAlunosPage() {
     setPasswordModalUser(null)
   }
 
+  async function openPlanModal(student: StudentItem) {
+    setOpenActionMenuId(null)
+    setPlanModalUser(student)
+    setPlanLoading(true)
+    setPlanSubmitting(false)
+    setAvailablePlans([])
+    setPlanId("")
+    setPlanPeriod("annual")
+    setPlanDurationDays("365")
+
+    const response = await fetch("/api/admin/planos", { cache: "no-store" })
+    const payload = (await response.json().catch(() => null)) as {
+      plans?: PlanOption[]
+      error?: string
+    } | null
+
+    if (!response.ok) {
+      setPlanModalUser(null)
+      alert(payload?.error ?? "Não foi possível carregar os planos.")
+      setPlanLoading(false)
+      return
+    }
+
+    const activePlans = (payload?.plans ?? []).filter((plan) => plan.status === "ACTIVE")
+    setAvailablePlans(activePlans)
+    setPlanId(activePlans[0]?.id ?? "")
+    setPlanDurationDays(String(activePlans[0]?.annualAccessDurationDays ?? 365))
+    setPlanLoading(false)
+  }
+
+  async function handlePlanSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    if (!planModalUser || !planId) return
+
+    setPlanSubmitting(true)
+    const success = await updateStudent(planModalUser.id, {
+      action: "assign-plan",
+      planId,
+      period: planPeriod,
+      durationDays: Number(planDurationDays),
+    })
+    setPlanSubmitting(false)
+
+    if (success) {
+      setPlanModalUser(null)
+      setPlanId("")
+      setPlanPeriod("annual")
+      setPlanDurationDays("365")
+    }
+  }
   return (
     <div className="max-w-7xl space-y-6 p-6 md:p-8">
       <div>
@@ -469,6 +539,13 @@ export default function AdminAlunosPage() {
                                     </button>
 
                                     <button
+                                      onClick={() => openPlanModal(student)}
+                                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+                                    >
+                                      <PackagePlus className="h-4 w-4 text-cyan-400" />
+                                      Atribuir plano
+                                    </button>
+                                    <button
                                       onClick={() => openDetails(student, "purchases")}
                                       className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
                                     >
@@ -632,6 +709,135 @@ export default function AdminAlunosPage() {
         </div>
       ) : null}
 
+      {planModalUser ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Atribuir plano</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Libere um período de acesso para <strong>{planModalUser.name}</strong>.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!planSubmitting) setPlanModalUser(null)
+                }}
+                className="rounded-lg border border-border p-2 hover:bg-accent"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {planLoading ? (
+              <div className="flex h-40 items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : availablePlans.length === 0 ? (
+              <div className="mt-6 rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
+                Nenhum plano ativo disponível para atribuição.
+              </div>
+            ) : (
+              <form onSubmit={handlePlanSubmit} className="mt-6 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Plano
+                  </label>
+                  <select
+                    value={planId}
+                    onChange={(event) => {
+                      const nextPlanId = event.target.value
+                      const nextPlan = availablePlans.find((plan) => plan.id === nextPlanId)
+                      setPlanId(nextPlanId)
+                      setPlanPeriod("annual")
+                      setPlanDurationDays(String(nextPlan?.annualAccessDurationDays ?? 365))
+                    }}
+                    className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm"
+                    required
+                  >
+                    {availablePlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>{plan.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Período de acesso
+                  </label>
+                  <select
+                    value={planPeriod}
+                    onChange={(event) => {
+                      const nextPeriod = event.target.value as "annual" | "monthly"
+                      setPlanPeriod(nextPeriod)
+                      setPlanDurationDays(String(
+                        nextPeriod === "monthly"
+                          ? selectedPlan?.monthlyAccessDurationDays ?? 30
+                          : selectedPlan?.annualAccessDurationDays ?? 365
+                      ))
+                    }}
+                    className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm"
+                  >
+                    <option value="annual">Anual · {selectedPlan?.annualAccessDurationDays ?? 365} dias</option>
+                    {selectedPlan?.monthlyEnabled && selectedPlan.monthlyAccessDurationDays ? (
+                      <option value="monthly">Mensal · {selectedPlan.monthlyAccessDurationDays} dias</option>
+                    ) : null}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Prazo personalizado
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="1"
+                      max="3650"
+                      value={planDurationDays}
+                      onChange={(event) => setPlanDurationDays(event.target.value)}
+                      className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm"
+                      required
+                    />
+                    <span className="shrink-0 text-sm text-muted-foreground">dias</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Você pode conceder de 1 a 3650 dias.</p>
+                </div>
+
+                <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3 text-xs leading-5 text-cyan-200">
+                  O acesso começa agora. Se o aluno já tiver este plano ativo, o novo período será somado à validade atual.
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!planSubmitting) setPlanModalUser(null)
+                    }}
+                    className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={planSubmitting || !planId}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {planSubmitting ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Atribuindo
+                      </span>
+                    ) : (
+                      "Atribuir plano"
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      ) : null}
       {detailsUser ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-4xl rounded-2xl border border-border bg-background p-5 shadow-2xl">

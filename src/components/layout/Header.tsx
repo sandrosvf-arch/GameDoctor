@@ -89,7 +89,7 @@ function HeartbeatLine() {
 }
 
 const navLinks = [
-  { label: "Cursos", href: "/cursos" },
+  { label: "Trilhas", href: "/cursos" },
   { label: "Planos", href: "/planos" },
   { label: "Comunidade", href: "/comunidade" },
   { label: "FAQ", href: "/suporte" },
@@ -156,16 +156,13 @@ export function Header() {
     }
   }
 
-  function handleDesktopRootToggle(rootId: string) {
-    setOpenDesktopRootId((current) => {
-      const next = current === rootId ? null : rootId
-      setOpenDesktopBranchId(null)
-      return next
-    })
+  function handleDesktopRootHover(rootId: string) {
+    setOpenDesktopRootId(rootId)
+    setOpenDesktopBranchId(null)
   }
 
-  function handleDesktopBranchToggle(branchId: string) {
-    setOpenDesktopBranchId((current) => current === branchId ? null : branchId)
+  function handleDesktopBranchHover(branchId: string) {
+    setOpenDesktopBranchId(branchId)
   }
 
   return (
@@ -203,6 +200,7 @@ export function Header() {
                   <div
                     key={root.id}
                     className="relative rounded-lg border border-transparent hover:border-white/5"
+                    onMouseEnter={() => handleDesktopRootHover(root.id)}
                   >
                     <div className="flex items-center rounded-md hover:bg-accent">
                       <Link
@@ -210,33 +208,21 @@ export function Header() {
                         className="flex-1 px-2.5 py-2 text-left text-sm"
                       >
                         {root.name}
-                      </Link>
-                      {root.children.length > 0 ? (
-                        <button
-                          type="button"
-                          onMouseDown={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
-                          }}
-                          onClick={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            handleDesktopRootToggle(root.id)
-                          }}
-                          className="mr-1 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
-                          aria-label={`Abrir subcategorias de ${root.name}`}
-                        >
-                          <ChevronRight
-                            className={`h-4 w-4 transition-transform ${openDesktopRootId === root.id ? "translate-x-0.5" : ""}`}
-                          />
-                        </button>
+                      </Link>{root.children.length > 0 ? (
+                        <span className="mr-2 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground">
+                          <ChevronRight className="h-4 w-4" />
+                        </span>
                       ) : null}
                     </div>
 
                     {root.children.length > 0 && openDesktopRootId === root.id ? (
                       <div className="absolute left-full top-0 z-50 ml-2 w-64 rounded-xl border border-border/60 bg-popover p-1.5 shadow-2xl">
                         {root.children.map((child) => (
-                          <div key={child.id} className="relative">
+                          <div
+                            key={child.id}
+                            className="relative"
+                            onMouseEnter={() => child.children.length > 0 && handleDesktopBranchHover(child.id)}
+                          >
                             <div className="flex items-center rounded-md hover:bg-accent">
                               <Link
                                 href={`/cursos?categoria=${child.slug}`}
@@ -244,26 +230,10 @@ export function Header() {
                               >
                                 <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                                 {child.name}
-                              </Link>
-                              {child.children.length > 0 ? (
-                                <button
-                                  type="button"
-                                  onMouseDown={(event) => {
-                                    event.preventDefault()
-                                    event.stopPropagation()
-                                  }}
-                                  onClick={(event) => {
-                                    event.preventDefault()
-                                    event.stopPropagation()
-                                    handleDesktopBranchToggle(child.id)
-                                  }}
-                                  className="mr-1 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
-                                  aria-label={`Abrir subcategorias de ${child.name}`}
-                                >
-                                  <ChevronRight
-                                    className={`h-4 w-4 transition-transform ${openDesktopBranchId === child.id ? "translate-x-0.5" : ""}`}
-                                  />
-                                </button>
+                              </Link>{child.children.length > 0 ? (
+                                <span className="mr-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground">
+                                  <ChevronRight className="h-4 w-4" />
+                                </span>
                               ) : null}
                             </div>
 

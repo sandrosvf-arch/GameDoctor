@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
+import { useSession } from "next-auth/react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -156,8 +157,8 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [paywallVisible, setPaywallVisible] = useState(false)
   const [openModules, setOpenModules] = useState<Set<string>>(new Set())
-  const [markingDone, setMarkingDone] = useState(false)
 
+  const { data: session } = useSession()
   const [comments, setComments] = useState<CommentItem[]>([])
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [commentsVisible, setCommentsVisible] = useState(false)
@@ -266,6 +267,18 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     setCommentInfo("Comentario publicado com sucesso.")
   }
 
+  const {
+    completed: isCompleted,
+    handlePlaybackProgress,
+    flushProgress,
+  } = useLessonProgress({
+    lessonId,
+    enabled: data?.lesson.isAccessible ?? false,
+    durationSeconds: data?.lesson.durationSeconds,
+    initialWatchedSeconds: data?.lesson.progress?.watchedSeconds ?? 0,
+    initialCompleted: Boolean(data?.lesson.progress?.completedAt),
+  })
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -287,26 +300,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   }
 
   const { lesson, course, prevLesson, nextLesson } = data
-  const {
-    completed: isCompleted,
-    handlePlaybackProgress,
-    flushProgress,
-    markCompleted,
-  } = useLessonProgress({
-    lessonId,
-    enabled: lesson.isAccessible,
-    durationSeconds: lesson.durationSeconds,
-    initialWatchedSeconds: lesson.progress?.watchedSeconds ?? 0,
-    initialCompleted: Boolean(lesson.progress?.completedAt),
-  })
-
-  const markComplete = async () => {
-    if (!data || markingDone || isCompleted) return
-    setMarkingDone(true)
-    await markCompleted()
-    await load()
-    setMarkingDone(false)
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -333,7 +326,15 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
             <div className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 rounded-none md:rounded-xl overflow-hidden bg-black shadow-xl" style={{ aspectRatio: "16/9" }}>
               {paywallVisible && <PaywallOverlay lessonId={lessonId} />}
 
-              {!paywallVisible && lesson.videoPlaybackUrl ? (
+              {!paywallVisible && lesson.videoEmbedUrl ? (
+                <iframe
+                  src={`${lesson.videoEmbedUrl}${lesson.videoEmbedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1`}
+                  className="absolute inset-0 h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen={lesson.isAccessible}
+                  title={lesson.title}
+                />
+              ) : !paywallVisible && lesson.videoPlaybackUrl ? (
                 <ReactPlayer
                   src={lesson.videoPlaybackUrl}
                   playing
@@ -363,18 +364,10 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     }
                   }}
                 />
-              ) : !paywallVisible && lesson.videoEmbedUrl ? (
-                <iframe
-                  src={`${lesson.videoEmbedUrl}${lesson.videoEmbedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1`}
-                  className="absolute inset-0 w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen={lesson.isAccessible}
-                  title={lesson.title}
-                />
               ) : !paywallVisible ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900">
                   <Play className="h-14 w-14 opacity-20" />
-                  <p className="text-zinc-500 text-sm">Vídeo em processamento</p>
+                  <p className="text-zinc-500 text-sm">V?deo em processamento</p>
                 </div>
               ) : null}
             </div>
@@ -407,23 +400,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                       <ChevronLeft className="h-4 w-4 mr-1" />
                       Anterior
                     </Link>
-                  </Button>
-                )}
-                {lesson.isAccessible && (
-                  <Button
-                    size="sm"
-                    variant={isCompleted ? "secondary" : "default"}
-                    onClick={markComplete}
-                    disabled={markingDone || isCompleted}
-                  >
-                    {markingDone ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : isCompleted ? (
-                      <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-400" />
-                    ) : (
-                      <Circle className="h-4 w-4 mr-2" />
-                    )}
-                    {isCompleted ? "Concluída" : "Concluir aula"}
                   </Button>
                 )}
                 {nextLesson && (
@@ -516,8 +492,12 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
               {/* Comment form */}
               <form onSubmit={submitComment} className="mb-6">
                 <div className="flex gap-3">
-                  <div className="shrink-0 w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-                    <User2 className="h-4 w-4 text-muted-foreground" />
+                  <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                    {session?.user?.image ? (
+                      <img src={session.user.image} alt={session.user.name ?? "Avatar"} className="w-full h-full object-cover" />
+                    ) : (
+                      <User2 className="h-4 w-4 text-muted-foreground" />
+                    )}
                   </div>
                   <div className="flex-1">
                     <textarea

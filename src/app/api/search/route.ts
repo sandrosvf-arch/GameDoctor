@@ -81,6 +81,8 @@ export async function GET(req: NextRequest) {
             slug: true,
             trailColorRgb: true,
             badgeLabel: true,
+            coverImage: true,
+            bannerImage: true,
           },
         },
       },

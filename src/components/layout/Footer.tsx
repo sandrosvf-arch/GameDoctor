@@ -10,9 +10,9 @@ const footerLinks = {
     { label: "Cadastrar", href: "/cadastro" },
   ],
   suporte: [
-    { label: "Fale conosco", href: "/#suporte" },
-    { label: "Termos de uso", href: "/termos" },
-    { label: "Privacidade", href: "/privacidade" },
+    { label: "Fale conosco", href: "/faq" },
+    { label: "Termos de uso", href: "/termos-de-uso" },
+    { label: "Privacidade", href: "/politica-privacidade" },
   ],
 }
 
