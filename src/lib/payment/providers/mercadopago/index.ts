@@ -30,12 +30,76 @@ export type MercadoPagoPaymentDetails = {
   metadata?: Record<string, unknown> | null
 }
 
+export type MercadoPagoOrderDetails = {
+  id: string
+  status?: string | null
+  external_reference?: string | null
+  total_amount?: number | string | null
+  transactions?: {
+    payments?: Array<{
+      id?: string | number
+      status?: string | null
+      status_detail?: string | null
+      amount?: number | string | null
+      payment_method?: {
+        id?: string | null
+        type?: string | null
+        installments?: number | null
+      } | null
+    }>
+  } | null
+}
+
+export type MercadoPagoSubscriptionDetails = {
+  id: string
+  status?: string | null
+  external_reference?: string | null
+  payer_email?: string | null
+  date_created?: string | null
+  next_payment_date?: string | null
+  auto_recurring?: {
+    transaction_amount?: number | null
+    currency_id?: string | null
+    start_date?: string | null
+  } | null
+}
+
+export type MercadoPagoAuthorizedPaymentDetails = {
+  id: string | number
+  status?: string | null
+  external_reference?: string | null
+  preapproval_id?: string | null
+  transaction_amount?: number | null
+  date_created?: string | null
+  date_approved?: string | null
+  payment?: {
+    id?: string | number
+  } | null
+}
+
 function getMercadoPagoAccessToken() {
   const token = process.env.MERCADOPAGO_ACCESS_TOKEN?.trim()
   if (!token) {
     throw new Error("MERCADOPAGO_ACCESS_TOKEN não configurado.")
   }
   return token
+}
+
+export function getMercadoPagoPayerEmail(accountEmail: string) {
+  if (process.env.NODE_ENV !== "development") {
+    return accountEmail
+  }
+
+  const sandboxEmail = process.env.MERCADOPAGO_SANDBOX_PAYER_EMAIL?.trim()
+  if (!sandboxEmail) {
+    throw new Error("MERCADOPAGO_SANDBOX_PAYER_EMAIL não configurado.")
+  }
+
+  if (!sandboxEmail.toLowerCase().endsWith("@testuser.com")) {
+    throw new Error("MERCADOPAGO_SANDBOX_PAYER_EMAIL deve terminar com @testuser.com.")
+  }
+
+  return sandboxEmail
 }
 
 function getMercadoPagoWebhookSecret() {
@@ -57,18 +121,45 @@ async function mercadoPagoRequest<T>(path: string, init?: RequestInit): Promise<
     cache: "no-store",
   })
 
-  const data = await response.json().catch(() => null)
+  const rawBody = await response.text()
+  let data: {
+    message?: unknown
+    error?: unknown
+    cause?: unknown
+    details?: unknown
+  } | null = null
 
-  if (!response.ok) {
-    const message =
-      (typeof data?.message === "string" && data.message)
-      || (Array.isArray(data?.cause) && typeof data.cause[0]?.description === "string" && data.cause[0].description)
-      || "Falha na comunicação com o Mercado Pago."
-
-    throw new Error(message)
+  try {
+    data = rawBody ? JSON.parse(rawBody) as { message?: unknown; error?: unknown; cause?: unknown; details?: unknown } : null
+  } catch {
+    data = null
   }
 
-  return data as T
+  if (!response.ok) {
+    const rawCauses = Array.isArray(data?.cause) ? data.cause : data?.cause ? [data.cause] : []
+    const causes = rawCauses
+      .map((cause: unknown) => {
+        if (!cause || typeof cause !== "object") return null
+        const value = cause as { description?: unknown; code?: unknown }
+        if (typeof value.description !== "string") return null
+        return typeof value.code === "string"
+          ? value.code + ": " + value.description
+          : value.description
+      })
+      .filter((cause: string | null): cause is string => Boolean(cause))
+
+    const message =
+      (typeof data?.message === "string" && data.message)
+      || (typeof data?.error === "string" && data.error)
+      || (causes.length > 0 && causes.join(" | "))
+      || (typeof data?.details === "string" && data.details)
+      || (rawBody.trim() && rawBody.trim().slice(0, 500))
+      || "Falha na comunicação com o Mercado Pago."
+
+    throw new Error("Mercado Pago (" + response.status + "): " + message)
+  }
+
+  return (data ?? {}) as T
 }
 
 function parseSignatureHeader(signature: string | undefined) {
@@ -110,7 +201,6 @@ export function validateMercadoPagoWebhookSignature(input: {
 
   const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`
   const expected = createHmac("sha256", getMercadoPagoWebhookSecret()).update(manifest).digest("hex")
-
   const receivedBuffer = Buffer.from(v1, "hex")
   const expectedBuffer = Buffer.from(expected, "hex")
 
@@ -121,15 +211,17 @@ export function validateMercadoPagoWebhookSignature(input: {
 
 export function normalizeMercadoPagoEventType(status: string | null | undefined) {
   if (status === "approved") return "payment_approved"
-  if (status === "refunded" || status === "charged_back") return status === "charged_back" ? "payment_chargeback" : "payment_refunded"
+  if (status === "refunded" || status === "charged_back") {
+    return status === "charged_back" ? "payment_chargeback" : "payment_refunded"
+  }
   if (status === "rejected") return "payment_refused"
   if (status === "cancelled") return "payment_cancelled"
   return "payment_pending"
 }
 
 export function mapMercadoPagoStatusToInternal(status: string | null | undefined) {
-  if (status === "approved") return "APPROVED" as const
-  if (status === "pending" || status === "in_process") return "PENDING" as const
+  if (status === "approved" || status === "processed" || status === "completed") return "APPROVED" as const
+  if (status === "pending" || status === "in_process" || status === "authorized") return "PENDING" as const
   if (status === "rejected") return "REFUSED" as const
   if (status === "cancelled") return "CANCELLED" as const
   if (status === "refunded") return "REFUNDED" as const
@@ -146,7 +238,7 @@ export function mapMercadoPagoMethodToInternal(input: {
 
   if (paymentTypeId === "bank_transfer" || paymentMethodId === "pix") return "PIX" as const
   if (paymentTypeId === "ticket" || paymentMethodId === "bolbradesco") return "BOLETO" as const
-  if (paymentTypeId === "credit_card" || paymentTypeId === "debit_card") return "CREDIT_CARD" as const
+  if (paymentTypeId === "credit_card" || paymentMethodId === "debit_card") return "CREDIT_CARD" as const
 
   return null
 }
@@ -196,6 +288,108 @@ export async function createMercadoPagoPreference(input: {
   })
 }
 
+export async function createMercadoPagoOrder(input: {
+  externalReference: string
+  amount: number
+  description: string
+  cardToken: string
+  paymentMethodId: string
+
+  installments: number
+  payer: {
+    email: string
+    identification?: { type: string; number: string } | null
+  }
+  idempotencyKey: string
+}) {
+  return mercadoPagoRequest<MercadoPagoOrderDetails>("/v1/orders", {
+    method: "POST",
+    headers: {
+      "X-Idempotency-Key": input.idempotencyKey,
+    },
+    body: JSON.stringify({
+      type: "online",
+      processing_mode: "automatic",
+      capture_mode: "automatic",
+      total_amount: input.amount.toFixed(2),
+      external_reference: input.externalReference,
+      description: input.description,
+      payer: {
+        email: input.payer.email,
+        identification: input.payer.identification || undefined,
+      },
+      transactions: {
+        payments: [
+          {
+            amount: input.amount.toFixed(2),
+            payment_method: {
+              id: input.paymentMethodId,
+              type: "credit_card",
+              token: input.cardToken,
+
+              installments: input.installments,
+            },
+          },
+        ],
+      },
+    }),
+  })
+}
+
+export async function getMercadoPagoOrder(orderId: string) {
+  return mercadoPagoRequest<MercadoPagoOrderDetails>(`/v1/orders/${encodeURIComponent(orderId)}`)
+}
+
+export async function createMercadoPagoSubscription(input: {
+  externalReference: string
+  payerEmail: string
+  reason: string
+  annualAmount: number
+  cardToken: string
+  startDate: Date
+  backUrl: string
+}) {
+  return mercadoPagoRequest<MercadoPagoSubscriptionDetails>("/preapproval", {
+    method: "POST",
+    body: JSON.stringify({
+      reason: input.reason,
+      external_reference: input.externalReference,
+      payer_email: input.payerEmail,
+      card_token_id: input.cardToken,
+      auto_recurring: {
+        frequency: 12,
+        frequency_type: "months",
+        transaction_amount: Number(input.annualAmount.toFixed(2)),
+        currency_id: "BRL",
+        start_date: input.startDate.toISOString(),
+      },
+      back_url: input.backUrl,
+    }),
+  })
+}
+
+export async function getMercadoPagoSubscription(subscriptionId: string) {
+  return mercadoPagoRequest<MercadoPagoSubscriptionDetails>(
+    `/preapproval/${encodeURIComponent(subscriptionId)}`
+  )
+}
+
+export async function cancelMercadoPagoSubscription(subscriptionId: string) {
+  return mercadoPagoRequest<MercadoPagoSubscriptionDetails>(
+    `/preapproval/${encodeURIComponent(subscriptionId)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ status: "cancelled" }),
+    }
+  )
+}
+
+export async function getMercadoPagoAuthorizedPayment(paymentId: string) {
+  return mercadoPagoRequest<MercadoPagoAuthorizedPaymentDetails>(
+    `/v1/authorized_payments/${encodeURIComponent(paymentId)}`
+  )
+}
+
 export async function getMercadoPagoPayment(gatewayPaymentId: string) {
   return mercadoPagoRequest<MercadoPagoPaymentDetails>(`/v1/payments/${gatewayPaymentId}`)
 }
@@ -206,7 +400,7 @@ export const mercadoPagoGateway: PaymentGatewayAdapter = {
   },
 
   async createCardPayment(_input: CreateCardPaymentInput): Promise<CardPaymentResult> {
-    throw new Error("Mercado Pago cartão direto não é usado neste checkout.")
+    throw new Error("Use o pedido transparente do Mercado Pago para pagamentos com cartão.")
   },
 
   async parseWebhook(input: ParseWebhookInput): Promise<WebhookEvent> {

@@ -298,8 +298,24 @@ export async function createPendingPlanCheckout(input: {
   planSlug: string
   period: CheckoutPeriod
   couponCode?: string | null
+  idempotencyKey?: string | null
 }) {
+  const existingOrder = input.idempotencyKey
+    ? await db.order.findUnique({
+        where: { idempotencyKey: input.idempotencyKey },
+        select: { id: true, finalTotal: true, payments: { take: 1, select: { id: true } } },
+      })
+    : null
   const quote = await buildCheckoutQuote(input)
+
+  if (existingOrder) {
+    return {
+      orderId: existingOrder.id,
+      paymentId: existingOrder.payments[0]?.id ?? null,
+      quote,
+    }
+  }
+
   const couponId = quote.coupon.applied
     ? (
       await db.coupon.findUnique({
@@ -317,6 +333,7 @@ export async function createPendingPlanCheckout(input: {
       finalTotal: quote.finalTotal,
       paymentStatus: "PENDING",
       gateway: "MERCADOPAGO",
+      idempotencyKey: input.idempotencyKey || undefined,
       couponId,
       orderItems: {
         create: {
@@ -329,6 +346,7 @@ export async function createPendingPlanCheckout(input: {
         create: {
           userId: input.userId,
           gateway: "MERCADOPAGO",
+          paymentMethod: "CREDIT_CARD",
           paymentStatus: "PENDING",
           amount: quote.finalTotal,
           installments: 1,

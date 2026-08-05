@@ -122,6 +122,14 @@ enum PaymentStatus {
   FAILED
 }
 
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  CANCELLED
+  FAILED
+}
+
 enum PaymentGateway {
   MERCADOPAGO
   PAGARME
@@ -257,6 +265,7 @@ model User {
 
   orders            Order[]
   payments          Payment[]
+  subscriptions     Subscription[]
   accessPermissions AccessPermission[]
   lessonProgress    LessonProgress[]
   certificates      Certificate[]
@@ -515,6 +524,7 @@ model Plan {
   planCourses       PlanCourse[]
   planLessons       PlanLesson[]
   orderItems        OrderItem[]
+  subscriptions     Subscription[]
   accessPermissions AccessPermission[]
   coupons           Coupon[]
   requiredByLessons Lesson[]     @relation("RequiredPlan")
@@ -585,12 +595,42 @@ model Order {
 
   user       User        @relation(fields: [userId], references: [id])
   coupon     Coupon?     @relation(fields: [couponId], references: [id])
-  orderItems OrderItem[]
-  payments   Payment[]
+  orderItems           OrderItem[]
+  payments             Payment[]
+  subscriptionId       String?        @map("subscription_id")
+  subscription         Subscription?  @relation("SubscriptionOrders", fields: [subscriptionId], references: [id])
+  initialSubscription  Subscription?  @relation("SubscriptionInitialOrder")
+  idempotencyKey       String?        @unique @map("idempotency_key")
 
   @@map("orders")
 }
 
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String             @map("user_id")
+  planId                String             @map("plan_id")
+  initialOrderId        String             @unique @map("initial_order_id")
+  gatewaySubscriptionId String             @unique @map("gateway_subscription_id")
+  period                PlanCheckoutPeriod @default(ANNUAL)
+  amount                Decimal            @db.Decimal(10, 2)
+  accessDurationDays    Int                @map("access_duration_days")
+  status                SubscriptionStatus @default(PENDING)
+  autoRenew             Boolean            @default(true) @map("auto_renew")
+  startsAt              DateTime           @map("starts_at")
+  nextBillingAt         DateTime?          @map("next_billing_at")
+  cancelledAt           DateTime?          @map("cancelled_at")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+
+  user         User  @relation(fields: [userId], references: [id])
+  plan         Plan  @relation(fields: [planId], references: [id])
+  initialOrder Order @relation("SubscriptionInitialOrder", fields: [initialOrderId], references: [id])
+  orders       Order[] @relation("SubscriptionOrders")
+
+  @@index([userId, status])
+  @@index([nextBillingAt, status])
+  @@map("subscriptions")
+}
 model OrderItem {
   id        String   @id @default(cuid())
   orderId   String   @map("order_id")

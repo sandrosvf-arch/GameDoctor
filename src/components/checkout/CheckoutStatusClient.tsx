@@ -1,8 +1,20 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { CheckCircle2, Clock3, Loader2, RefreshCcw, ShieldAlert, XCircle } from "lucide-react"
+import {
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  Loader2,
+  Receipt,
+  RefreshCcw,
+  ShieldAlert,
+  Sparkles,
+  XCircle,
+} from "lucide-react"
 
 type CheckoutStatusResponse = {
   canView: boolean
@@ -60,6 +72,23 @@ function isPendingStatus(status: string | undefined) {
   return status === "PENDING"
 }
 
+function formatPaymentMethod(value: string | null | undefined) {
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase()
+
+  if (!normalized) return "Definido no checkout"
+  if (normalized === "PIX") return "Pix"
+  if (normalized === "CREDIT_CARD") return "Cartão de crédito"
+  if (normalized === "DEBIT_CARD") return "Cartão de débito"
+  if (normalized === "BOLETO") return "Boleto"
+
+  return normalized
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
 export function CheckoutStatusClient({ orderId }: { orderId: string }) {
   const [data, setData] = useState<CheckoutStatusResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -79,26 +108,30 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
       setLoading(true)
     }
 
-    const response = await fetch(`/api/checkout/status?orderId=${encodeURIComponent(orderId)}`, {
-      cache: "no-store",
-    })
+    try {
+      const response = await fetch(`/api/checkout/status?orderId=${encodeURIComponent(orderId)}`, {
+        cache: "no-store",
+      })
 
-    const payload = (await response.json().catch(() => null)) as CheckoutStatusResponse | null
+      const payload = (await response.json().catch(() => null)) as CheckoutStatusResponse | null
 
-    if (showRefreshState) {
-      setRefreshing(false)
-    } else {
-      setLoading(false)
-    }
+      if (!response.ok) {
+        setData(payload)
+        setError(payload?.error ?? "Não foi possível consultar o status do pedido.")
+        return
+      }
 
-    if (!response.ok) {
       setData(payload)
-      setError(payload?.error ?? "Não foi possível consultar o status do pedido.")
-      return
+      setError(null)
+    } catch {
+      setError("Não foi possível consultar o status do pedido.")
+    } finally {
+      if (showRefreshState) {
+        setRefreshing(false)
+      } else {
+        setLoading(false)
+      }
     }
-
-    setData(payload)
-    setError(null)
   }
 
   useEffect(() => {
@@ -106,83 +139,90 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
   }, [orderId])
 
   useEffect(() => {
-    if (!data?.order || !isPendingStatus(data.order.paymentStatus)) {
-      return
-    }
+    if (!data?.order || !isPendingStatus(data.order.paymentStatus)) return
 
     const interval = window.setInterval(() => {
       void loadStatus(true)
     }, 5000)
 
     return () => window.clearInterval(interval)
-  }, [data?.order?.paymentStatus, data?.order])
+  }, [data?.order])
 
   const statusMeta = useMemo(() => {
     const status = data?.order?.paymentStatus
 
     if (status === "APPROVED") {
       return {
-        tone: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
+        tone: "border-emerald-400/20 bg-emerald-400/[0.08]",
         icon: <CheckCircle2 className="h-5 w-5 text-emerald-300" />,
-        title: "Pagamento aprovado",
-        description: "Seu pedido foi confirmado e o acesso já pode ser liberado automaticamente na plataforma.",
+        eyebrow: "Tudo certo",
+        title: "Inscrição confirmada",
+        description:
+          "Seu pagamento foi aprovado. Agora é só acessar a plataforma e continuar seus estudos.",
       }
     }
 
     if (status === "REFUSED" || status === "FAILED") {
       return {
-        tone: "border-red-400/20 bg-red-400/10 text-red-100",
+        tone: "border-red-400/20 bg-red-400/[0.08]",
         icon: <XCircle className="h-5 w-5 text-red-300" />,
-        title: "Pagamento não aprovado",
-        description: "A operadora ou o gateway recusou a compra. Você pode tentar novamente com outro meio de pagamento.",
+        eyebrow: "Não foi dessa vez",
+        title: "Não conseguimos concluir o pagamento",
+        description:
+          "Você pode tentar novamente com outra forma de pagamento para finalizar sua inscrição.",
       }
     }
 
     if (status === "CANCELLED" || status === "EXPIRED") {
       return {
-        tone: "border-amber-400/20 bg-amber-400/10 text-amber-100",
+        tone: "border-amber-400/20 bg-amber-400/[0.08]",
         icon: <ShieldAlert className="h-5 w-5 text-amber-300" />,
-        title: "Checkout encerrado",
-        description: "Esse pedido não foi concluído. Se ainda quiser contratar o plano, reinicie a compra.",
+        eyebrow: "Sessão encerrada",
+        title: "Este pedido foi encerrado",
+        description: "Se ainda quiser continuar, é só refazer a inscrição e concluir o pagamento.",
       }
     }
 
     if (status === "REFUNDED" || status === "CHARGEBACK") {
       return {
-        tone: "border-slate-400/20 bg-slate-400/10 text-slate-100",
+        tone: "border-slate-400/20 bg-slate-400/[0.08]",
         icon: <ShieldAlert className="h-5 w-5 text-slate-300" />,
-        title: "Pagamento revertido",
-        description: "Esse pedido foi reembolsado ou sofreu chargeback. O acesso vinculado pode ter sido suspenso.",
+        eyebrow: "Pagamento revertido",
+        title: "Houve uma reversão neste pedido",
+        description:
+          "Esse pagamento foi revertido. Se precisar continuar seus estudos, você pode fazer uma nova inscrição.",
       }
     }
 
     return {
-      tone: "border-cyan-400/20 bg-cyan-400/10 text-cyan-100",
+      tone: "border-cyan-400/20 bg-cyan-400/[0.08]",
       icon: <Clock3 className="h-5 w-5 text-cyan-300" />,
-      title: "Aguardando confirmação",
-      description: "Estamos aguardando o retorno oficial do Mercado Pago. Esta tela atualiza automaticamente por alguns instantes.",
+      eyebrow: "Estamos acompanhando",
+      title: "Estamos aguardando a confirmação do pagamento",
+      description:
+        "Assim que o pagamento for confirmado, seu acesso será liberado automaticamente. Esta tela atualiza sozinha por alguns instantes.",
     }
   }, [data?.order?.paymentStatus])
 
   if (loading) {
     return (
-      <div className="rounded-[30px] border border-white/8 bg-white/[0.03] px-6 py-14 text-center">
+      <div className="rounded-2xl border border-white/[0.07] bg-[#0b1016] px-6 py-12 text-center shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
         <Loader2 className="mx-auto h-8 w-8 animate-spin text-cyan-300" />
-        <p className="mt-4 text-sm text-slate-400">Consultando o status do seu pedido...</p>
+        <p className="mt-4 text-sm text-slate-400">Consultando o status da sua inscrição...</p>
       </div>
     )
   }
 
   if (!orderId) {
     return (
-      <div className="rounded-[30px] border border-white/8 bg-white/[0.03] px-6 py-14 text-center">
-        <p className="text-lg font-semibold text-white">Pedido não encontrado</p>
-        <p className="mt-3 text-sm text-slate-400">Abra o checkout novamente a partir da tela de planos.</p>
+      <div className="rounded-2xl border border-white/[0.07] bg-[#0b1016] px-6 py-12 text-center shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+        <p className="text-base font-semibold text-white">Pedido não encontrado</p>
+        <p className="mt-3 text-sm text-slate-400">Abra novamente a página de checkout para continuar.</p>
         <Link
           href="/planos"
-          className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
         >
-          Voltar para planos
+          Voltar para os planos
         </Link>
       </div>
     )
@@ -192,14 +232,14 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
     const callbackUrl = `/checkout/status?orderId=${encodeURIComponent(orderId)}`
 
     return (
-      <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-6 md:p-8">
-        <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 p-6">
+      <div className="rounded-2xl border border-white/[0.07] bg-[#0b1016] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.18)] md:p-7">
+        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] p-6">
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
             <div>
               <p className="text-lg font-semibold text-white">Acesso protegido</p>
-              <p className="mt-2 text-sm leading-7 text-slate-300">
-                Entre com a mesma conta usada na compra para visualizar os detalhes deste pedido com segurança.
+              <p className="mt-2 text-sm leading-5 text-slate-300">
+                Entre com a mesma conta usada na inscrição para visualizar os detalhes do seu pedido com segurança.
               </p>
             </div>
           </div>
@@ -207,15 +247,15 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
             >
               Entrar para acompanhar
             </Link>
             <Link
               href="/planos"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05]"
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05]"
             >
-              Voltar para planos
+              Ver planos
             </Link>
           </div>
         </div>
@@ -225,16 +265,16 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
 
   if (!data?.order) {
     return (
-      <div className="rounded-[30px] border border-white/8 bg-white/[0.03] px-6 py-14 text-center">
-        <p className="text-lg font-semibold text-white">Não foi possível carregar esse pedido</p>
+      <div className="rounded-2xl border border-white/[0.07] bg-[#0b1016] px-6 py-12 text-center shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+        <p className="text-lg font-semibold text-white">Não foi possível carregar sua inscrição</p>
         <p className="mt-3 text-sm text-slate-400">{error ?? "Tente novamente em instantes."}</p>
         <button
           type="button"
           onClick={() => void loadStatus(true)}
-          className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/[0.05]"
+          className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-5 text-sm font-medium text-white transition hover:bg-white/[0.05]"
         >
           <RefreshCcw className="h-4 w-4" />
-          Atualizar status
+          Atualizar página
         </button>
       </div>
     )
@@ -245,26 +285,40 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
       ? `/checkout?plan=${encodeURIComponent(data.order.item.slug)}&period=${data.order.item.period}`
       : "/planos"
 
+  const itemName = data.order.item?.name ?? "Sua inscrição"
+  const periodLabel = data.order.item?.periodLabel ?? "Plano selecionado"
+  const paymentMethod = formatPaymentMethod(data.order.payment?.method ?? data.order.paymentMethod)
+  const orderShortId = data.order.id.slice(0, 8).toUpperCase()
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <section className="rounded-[30px] border border-white/8 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-        <div className={`rounded-3xl border p-5 ${statusMeta.tone}`}>
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="min-w-0 rounded-2xl border border-white/[0.07] bg-[#0b1016] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:p-5">
+        <div className={`rounded-xl border p-4 ${statusMeta.tone}`}>
           <div className="flex items-start gap-3">
-            {statusMeta.icon}
-            <div>
-              <p className="text-lg font-semibold text-white">{statusMeta.title}</p>
-              <p className="mt-2 text-sm leading-7 text-slate-300">{statusMeta.description}</p>
+            <span className="mt-0.5 shrink-0">{statusMeta.icon}</span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">{statusMeta.eyebrow}</p>
+              <h1 className="mt-1.5 text-lg font-semibold tracking-[-0.02em] text-white sm:text-xl">
+                {statusMeta.title}
+              </h1>
+              <p className="mt-2 text-sm leading-5 text-slate-300">{statusMeta.description}</p>
+              {data.order.paymentStatus === "PENDING" && (
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-medium text-cyan-100">
+                  <Loader2 className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                  Atualização automática ativa
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="mt-6 rounded-[28px] border border-white/8 bg-[#0a1018] p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/80">Pedido</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">{data.order.item?.name ?? "Plano"}</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                {data.order.item?.periodLabel ?? "Plano"} • Pedido #{data.order.id.slice(0, 8).toUpperCase()}
+        <div className="mt-4 rounded-xl border border-white/[0.07] bg-[#0a0f15] p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/75">Sua inscrição</p>
+              <h2 className="mt-1.5 text-lg font-semibold text-white sm:text-xl">{itemName}</h2>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                {periodLabel} • Pedido #{orderShortId}
               </p>
             </div>
 
@@ -272,108 +326,110 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
               type="button"
               onClick={() => void loadStatus(true)}
               disabled={refreshing}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-sm font-medium text-white transition hover:bg-white/[0.05] disabled:opacity-60"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
               Atualizar
             </button>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/8 bg-[#070b12] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Status</p>
-              <p className="mt-2 text-lg font-semibold text-white">{data.order.paymentStatusLabel}</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/8 bg-[#070b12] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Criado em</p>
-              <p className="mt-2 text-lg font-semibold text-white">{formatDate(data.order.createdAt) ?? "Agora"}</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/8 bg-[#070b12] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Gateway</p>
-              <p className="mt-2 text-lg font-semibold text-white">Mercado Pago</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/8 bg-[#070b12] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Pagamento</p>
-              <p className="mt-2 text-lg font-semibold text-white">
-                {data.order.paymentMethod ?? "Definido no checkout"}
-              </p>
-            </div>
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+            <InfoCard label="Situação" value={data.order.paymentStatusLabel} icon={<Sparkles className="h-4 w-4" />} />
+            <InfoCard label="Forma de pagamento" value={paymentMethod} icon={<CreditCard className="h-4 w-4" />} />
+            <InfoCard label="Data da inscrição" value={formatDate(data.order.createdAt) ?? "Agora"} icon={<Receipt className="h-4 w-4" />} />
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-4 flex flex-wrap gap-2.5">
           {data.order.paymentStatus === "APPROVED" ? (
             <>
               <Link
-                href="/meus-cursos"
-                className="inline-flex h-11 items-center justify-center rounded-full bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                href="/"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-slate-950 transition hover:bg-slate-100"
               >
-                Ir para meus cursos
+                <BookOpen className="h-4 w-4" />
+                Começar agora
               </Link>
               <Link
-                href="/dashboard"
-                className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05]"
+                href="/comunidade"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05]"
               >
-                Ir para o dashboard
+                Acessar comunidade
               </Link>
             </>
           ) : null}
 
-          {(data.order.paymentStatus === "REFUSED"
-            || data.order.paymentStatus === "FAILED"
-            || data.order.paymentStatus === "CANCELLED"
-            || data.order.paymentStatus === "EXPIRED") ? (
+          {(data.order.paymentStatus === "REFUSED" ||
+            data.order.paymentStatus === "FAILED" ||
+            data.order.paymentStatus === "CANCELLED" ||
+            data.order.paymentStatus === "EXPIRED") ? (
             <>
               <Link
                 href={retryHref}
-                className="inline-flex h-11 items-center justify-center rounded-full bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-slate-950 transition hover:bg-slate-100"
               >
                 Tentar novamente
+                <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/planos"
-                className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05]"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05]"
               >
-                Voltar para planos
+                Ver outros planos
               </Link>
             </>
           ) : null}
 
-          {(data.order.paymentStatus === "PENDING"
-            || data.order.paymentStatus === "REFUNDED"
-            || data.order.paymentStatus === "CHARGEBACK") ? (
-            <Link
-              href="/planos"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05]"
-            >
-              Ver outros planos
-            </Link>
+          {(data.order.paymentStatus === "PENDING" ||
+            data.order.paymentStatus === "REFUNDED" ||
+            data.order.paymentStatus === "CHARGEBACK") ? (
+            <>
+              <button
+                type="button"
+                onClick={() => void loadStatus(true)}
+                disabled={refreshing}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                Atualizar agora
+              </button>
+              <Link
+                href="/"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.08] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05]"
+              >
+                Ir para o início
+              </Link>
+            </>
           ) : null}
         </div>
       </section>
 
-      <aside className="rounded-[30px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-        <h2 className="text-lg font-semibold text-white">Resumo financeiro</h2>
+      <aside className="min-w-0 rounded-2xl border border-white/[0.07] bg-[#0b1016] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:p-5 lg:sticky lg:top-5 lg:h-fit">
+        <h2 className="text-lg font-semibold text-white">Resumo do pedido</h2>
+        <p className="mt-1 text-sm text-slate-400">Resumo simples da sua compra.</p>
 
-        <div className="mt-6 space-y-4">
-          <div className="rounded-2xl border border-white/8 bg-[#0a1018] p-4">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-slate-400">Valor bruto</span>
-              <span className="text-white">{formatCurrency(data.order.total)}</span>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-3 text-sm">
-              <span className="text-slate-400">Desconto</span>
-              <span className={data.order.discountTotal > 0 ? "text-emerald-300" : "text-white"}>
-                - {formatCurrency(data.order.discountTotal)}
-              </span>
-            </div>
-            <div className="mt-4 border-t border-white/8 pt-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium text-white">Total final</span>
-                <span className="text-2xl font-semibold tracking-[-0.04em] text-white">
+        <div className="mt-4 space-y-3">
+          <div className="rounded-xl border border-white/[0.07] bg-[#0a0f15] p-3.5">
+            <DetailRow label="Curso" value={itemName} />
+            <DetailRow label="Período" value={periodLabel} />
+            <DetailRow label="Forma de pagamento" value={paymentMethod} />
+            <DetailRow label="Pedido" value={`#${orderShortId}`} />
+          </div>
+
+          <div className="rounded-xl border border-white/[0.07] bg-[#0a0f15] p-3.5">
+            <PriceRow label="Valor original" value={formatCurrency(data.order.total)} />
+            <PriceRow
+              label="Desconto"
+              value={`- ${formatCurrency(data.order.discountTotal)}`}
+              valueClassName={data.order.discountTotal > 0 ? "text-emerald-300" : "text-slate-300"}
+            />
+            <div className="mt-3 border-t border-white/[0.08] pt-3">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-white">Total pago</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">Valor final da inscrição</p>
+                </div>
+                <span className="text-right text-xl font-semibold tracking-[-0.03em] text-white">
                   {formatCurrency(data.order.finalTotal)}
                 </span>
               </div>
@@ -381,41 +437,65 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
           </div>
 
           {data.order.couponCode ? (
-            <div className="rounded-2xl border border-white/8 bg-[#0a1018] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Cupom aplicado</p>
-              <p className="mt-2 text-lg font-semibold text-white">{data.order.couponCode}</p>
+            <div className="rounded-xl border border-white/[0.07] bg-[#0a0f15] p-3.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Cupom utilizado</p>
+              <p className="mt-1.5 text-sm font-semibold text-white">{data.order.couponCode}</p>
             </div>
           ) : null}
 
           {data.order.payment ? (
-            <div className="rounded-2xl border border-white/8 bg-[#0a1018] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Detalhes do pagamento</p>
-              <div className="mt-3 space-y-3 text-sm text-slate-300">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500">Valor</span>
-                  <span>{formatCurrency(data.order.payment.amount)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500">Parcelas</span>
-                  <span>{data.order.payment.installments ?? 1}x</span>
-                </div>
-                {data.order.payment.paidAt ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500">Pago em</span>
-                    <span>{formatDate(data.order.payment.paidAt)}</span>
-                  </div>
-                ) : null}
+            <div className="rounded-xl border border-white/[0.07] bg-[#0a0f15] p-3.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Detalhes do pagamento</p>
+              <div className="mt-3 space-y-2.5">
+                <DetailRow label="Valor pago" value={formatCurrency(data.order.payment.amount)} />
+                <DetailRow label="Parcelamento" value={`${data.order.payment.installments ?? 1}x`} />
+                {data.order.payment.paidAt ? <DetailRow label="Confirmação" value={formatDate(data.order.payment.paidAt) ?? "-"} /> : null}
                 {data.order.payment.gatewayPaymentId ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500">Código no gateway</span>
-                    <span className="text-right">{data.order.payment.gatewayPaymentId}</span>
-                  </div>
+                  <DetailRow label="Código de referência" value={data.order.payment.gatewayPaymentId} />
                 ) : null}
               </div>
             </div>
           ) : null}
         </div>
       </aside>
+    </div>
+  )
+}
+
+function InfoCard({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-[#0a0f15] p-3.5">
+      <div className="flex items-center gap-2 text-slate-500">
+        {icon}
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em]">{label}</p>
+      </div>
+      <p className="mt-2.5 text-sm font-semibold leading-5 text-white">{value}</p>
+    </div>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2 first:pt-0 last:pb-0">
+      <span className="text-xs text-slate-500">{label}</span>
+      <span className="max-w-[62%] break-words text-right text-sm font-medium leading-5 text-slate-200">{value}</span>
+    </div>
+  )
+}
+
+function PriceRow({
+  label,
+  value,
+  valueClassName = "text-slate-300",
+}: {
+  label: string
+  value: string
+  valueClassName?: string
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-1">
+      <span className="text-xs text-slate-500">{label}</span>
+      <span className={`text-right text-sm font-medium ${valueClassName}`}>{value}</span>
     </div>
   )
 }

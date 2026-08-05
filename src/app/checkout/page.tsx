@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { buildCheckoutQuote, normalizeCheckoutPeriod } from "@/lib/checkout"
 import { CheckoutPageClient } from "@/components/checkout/CheckoutPageClient"
+import { getMercadoPagoPayerEmail } from "@/lib/payment/providers/mercadopago"
 
 type CheckoutPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
@@ -69,7 +70,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           initialQuote={quote}
           profile={{
             name: profile.name ?? "Aluno",
-            email: profile.email,
+            email: getMercadoPagoPayerEmail(profile.email),
             phone: profile.phone,
             cpf: profile.cpf,
           }}
