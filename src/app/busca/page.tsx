@@ -204,7 +204,7 @@ export default function BuscaPage() {
             <p className="text-lg font-semibold">Nenhum resultado encontrado</p>
             <p className="text-sm text-muted-foreground max-w-sm">
               Tente buscar por outro termo ou navegue pelos nossos{" "}
-              <Link href="/cursos" className="text-primary hover:underline">cursos</Link>.
+              <Link href="/cursos" className="text-primary hover:underline">trilhas</Link>.
             </p>
           </div>
         )}
@@ -221,7 +221,7 @@ export default function BuscaPage() {
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground/60">
               <BookOpen className="h-4 w-4" />
-              Trilhas / Cursos ({courses.length})
+              Trilhas / Aulas ({courses.length})
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {courses.map((course) => {

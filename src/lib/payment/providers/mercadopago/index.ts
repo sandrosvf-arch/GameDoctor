@@ -28,6 +28,13 @@ export type MercadoPagoPaymentDetails = {
   payment_type_id?: string | null
   payment_method_id?: string | null
   metadata?: Record<string, unknown> | null
+  point_of_interaction?: {
+    transaction_data?: {
+      qr_code?: string | null
+      qr_code_base64?: string | null
+      ticket_url?: string | null
+    } | null
+  } | null
 }
 
 export type MercadoPagoOrderDetails = {
@@ -86,7 +93,10 @@ function getMercadoPagoAccessToken() {
 }
 
 export function getMercadoPagoPayerEmail(accountEmail: string) {
-  if (process.env.NODE_ENV !== "development") {
+  const environment = process.env.MERCADOPAGO_ENVIRONMENT?.trim().toLowerCase()
+  const isSandbox = environment === "sandbox" || environment === "test" || environment === "testing"
+
+  if (!isSandbox) {
     return accountEmail
   }
 
@@ -101,7 +111,6 @@ export function getMercadoPagoPayerEmail(accountEmail: string) {
 
   return sandboxEmail
 }
-
 function getMercadoPagoWebhookSecret() {
   const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim()
   if (!secret) {
@@ -288,6 +297,33 @@ export async function createMercadoPagoPreference(input: {
   })
 }
 
+export async function createMercadoPagoPixPayment(input: {
+  externalReference: string
+  amount: number
+  description: string
+  payer: {
+    email: string
+    identification: { type: string; number: string }
+  }
+  idempotencyKey: string
+}) {
+  return mercadoPagoRequest<MercadoPagoPaymentDetails>("/v1/payments", {
+    method: "POST",
+    headers: {
+      "X-Idempotency-Key": input.idempotencyKey,
+    },
+    body: JSON.stringify({
+      transaction_amount: Number(input.amount.toFixed(2)),
+      description: input.description,
+      payment_method_id: "pix",
+      external_reference: input.externalReference,
+      payer: {
+        email: input.payer.email,
+        identification: input.payer.identification,
+      },
+    }),
+  })
+}
 export async function createMercadoPagoOrder(input: {
   externalReference: string
   amount: number

@@ -110,7 +110,7 @@ export default async function ProgressoPage() {
             href="/cursos"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
           >
-            Explorar cursos
+            Explorar trilhas
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>

@@ -4,7 +4,7 @@ import { Youtube, Instagram, MessageCircle } from "lucide-react"
 
 const footerLinks = {
   plataforma: [
-    { label: "Cursos", href: "/cursos" },
+    { label: "Trilhas", href: "/cursos" },
     { label: "Planos", href: "/planos" },
     { label: "Entrar", href: "/login" },
     { label: "Cadastrar", href: "/cadastro" },

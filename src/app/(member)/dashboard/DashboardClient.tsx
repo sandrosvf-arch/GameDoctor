@@ -8,6 +8,9 @@ import { ptBR } from "date-fns/locale"
 import {
   Award,
   CalendarClock,
+  CreditCard,
+  ExternalLink,
+  MessageCircle,
   CheckCircle2,
   Clock3,
   Flame,
@@ -21,10 +24,19 @@ import {
 import { cn } from "@/lib/utils"
 
 interface PlanInfo {
+  planId: string
   name: string | null
   daysRemaining: number | null
   expiresAt: string | null
   isLifetime: boolean
+  subscription: {
+    status: string
+    autoRenew: boolean
+    period: string
+    amount: number
+    nextBillingAt: string | null
+    cancelledAt: string | null
+  } | null
 }
 
 interface Achievement {
@@ -140,6 +152,16 @@ function formatDays(plan: PlanInfo | null) {
   }
 }
 
+function formatPlanDate(date: string | null) {
+  if (!date) return "Acesso vitalício"
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "long",
+  }).format(new Date(date))
+}
+
+const subscriptionCancelUrl =
+  process.env.NEXT_PUBLIC_SUBSCRIPTION_CANCEL_WHATSAPP_URL?.trim() ?? ""
 function MetricCard({
   title,
   value,
@@ -299,6 +321,107 @@ export function DashboardClient() {
         </div>
       </div>
 
+      <section id="plano" className="rounded-[24px] border border-border bg-card/50 p-6 md:p-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-cyan-400">
+              Assinatura
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Meu plano</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Consulte seu acesso e encontre o canal para solicitar o cancelamento.
+            </p>
+          </div>
+          <Link
+            href="/planos"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold transition hover:border-cyan-400/50 hover:text-cyan-300"
+          >
+            Ver planos
+          </Link>
+        </div>
+
+        {!data.plan ? (
+          <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-dashed border-border bg-background/35 p-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-base font-semibold">Você ainda não possui um plano ativo.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Libere as trilhas, acompanhe seu progresso e aproveite todos os recursos da plataforma.
+              </p>
+            </div>
+            <Link
+              href="/planos"
+              className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+            >
+              Conhecer planos
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.06] p-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Plano ativo
+                </span>
+                {data.plan.subscription?.autoRenew && (
+                  <span className="rounded-full bg-cyan-500/15 px-2.5 py-1 text-xs font-semibold text-cyan-300">
+                    Renovação automática
+                  </span>
+                )}
+              </div>
+              <h3 className="mt-5 text-2xl font-bold">{data.plan.name ?? "Plano ativo"}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {data.plan.isLifetime
+                  ? "Acesso vitalício"
+                  : `Acesso liberado até ${formatPlanDate(data.plan.expiresAt)}`}
+              </p>
+              {data.plan.subscription && (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  {data.plan.subscription.autoRenew
+                    ? data.plan.subscription.nextBillingAt
+                      ? `Próxima renovação em ${formatPlanDate(data.plan.subscription.nextBillingAt)}.`
+                      : "Sua renovação automática está ativa."
+                    : "A renovação automática está desativada."}
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background/35 p-6">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <CreditCard className="h-4 w-4 text-cyan-400" />
+                Gerenciar acesso
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Precisa cancelar ou falar sobre sua assinatura? Nossa equipe ajuda você pelo WhatsApp.
+              </p>
+              <div className="mt-5 space-y-3">
+                {subscriptionCancelUrl ? (
+                  <a
+                    href={subscriptionCancelUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Solicitar cancelamento
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : (
+                  <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.08] p-3 text-xs leading-relaxed text-amber-200">
+                    O canal para cancelamento será configurado em breve.
+                  </div>
+                )}
+                <Link
+                  href="/planos"
+                  className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold transition hover:border-cyan-400/50 hover:text-cyan-300"
+                >
+                  Ver detalhes dos planos
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
       <section id="continuar" className="rounded-[24px] border border-border bg-card/50 p-6 md:p-7">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -326,7 +449,7 @@ export function DashboardClient() {
                 href="/cursos"
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
               >
-                Explorar cursos
+                Explorar trilhas
               </Link>
             </div>
           </div>

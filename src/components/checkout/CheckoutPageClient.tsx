@@ -8,6 +8,7 @@ import {
   Check,
   ChevronRight,
   CreditCard,
+  Copy,
   Loader2,
   LockKeyhole,
   Pencil,
@@ -20,6 +21,14 @@ const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() ?? ""
 
 type CheckoutPeriod = "annual" | "monthly"
 type PaymentMethod = "pix" | "card"
+
+interface PixPaymentState {
+  orderId: string
+  qrCodeBase64: string
+  copyPaste: string
+  expiresAt: string | null
+  status: string
+}
 
 interface CheckoutQuote {
   plan: {
@@ -65,6 +74,7 @@ export function CheckoutPageClient({
 }) {
   const [quote, setQuote] = useState(initialQuote)
   const [couponCode, setCouponCode] = useState(initialQuote.coupon.code ?? "")
+  const [cpf, setCpf] = useState(profile.cpf ?? "")
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null)
   const [loadingQuote, setLoadingQuote] = useState(false)
   const [submittingPayment, setSubmittingPayment] = useState(false)
@@ -72,6 +82,8 @@ export function CheckoutPageClient({
   const [message, setMessage] = useState<string | null>(initialQuote.coupon.message)
   const [error, setError] = useState<string | null>(null)
   const [cardSdkReady, setCardSdkReady] = useState(false)
+  const [pixPayment, setPixPayment] = useState<PixPaymentState | null>(null)
+  const [pixCopied, setPixCopied] = useState(false)
   const idempotencyKeyRef = useRef(newIdempotencyKey())
   const submittingPaymentRef = useRef(false)
 
@@ -86,6 +98,8 @@ export function CheckoutPageClient({
     setLoadingQuote(true)
     setError(null)
     setMessage(null)
+    setPixPayment(null)
+    setPixCopied(false)
 
     try {
       const response = await fetch("/api/checkout/quote", {
@@ -121,6 +135,8 @@ export function CheckoutPageClient({
   function choosePaymentMethod(method: PaymentMethod) {
     setSelectedPaymentMethod(method)
     setError(null)
+    setPixPayment(null)
+    setPixCopied(false)
     idempotencyKeyRef.current = newIdempotencyKey()
   }
 
@@ -129,6 +145,8 @@ export function CheckoutPageClient({
     setError(null)
     submittingPaymentRef.current = false
     setSubmittingPayment(false)
+    setPixPayment(null)
+    setPixCopied(false)
     idempotencyKeyRef.current = newIdempotencyKey()
   }
 
@@ -182,9 +200,16 @@ export function CheckoutPageClient({
   const handleSubmitPix = useCallback(async () => {
     if (submittingPaymentRef.current) return
 
+    const cpfDigits = cpf.replace(/\D/g, "")
+    if (cpfDigits.length !== 11) {
+      setError("Informe um CPF válido para gerar o Pix.")
+      return
+    }
+
     submittingPaymentRef.current = true
     setSubmittingPayment(true)
     setError(null)
+    setPixCopied(false)
 
     try {
       const response = await fetch("/api/checkout/pix", {
@@ -194,25 +219,63 @@ export function CheckoutPageClient({
           planSlug: quote.plan.slug,
           period: quote.period,
           couponCode,
+          cpf: cpfDigits,
           idempotencyKey: idempotencyKeyRef.current,
         }),
       })
       const data = await response.json().catch(() => null)
 
       if (!response.ok) {
-        setError(data?.error ?? "Não foi possível gerar o PIX.")
+        setError(data?.error ?? "Não foi possível gerar o Pix.")
         return
       }
 
-      window.location.href = "/checkout/status?orderId=" + encodeURIComponent(data.orderId)
+      setPixPayment({
+        orderId: data.orderId,
+        qrCodeBase64: data.pix.qrCodeBase64,
+        copyPaste: data.pix.copyPaste,
+        expiresAt: data.pix.expiresAt ?? null,
+        status: data.status ?? "PENDING",
+      })
     } catch {
-      setError("Não foi possível gerar o PIX. Tente novamente.")
+      setError("Não foi possível gerar o Pix. Tente novamente.")
     } finally {
       submittingPaymentRef.current = false
       setSubmittingPayment(false)
     }
-  }, [couponCode, quote.period, quote.plan.slug])
+  }, [cpf, couponCode, quote.period, quote.plan.slug])
 
+  useEffect(() => {
+    const pixOrderId = pixPayment?.orderId
+    if (!pixOrderId || pixPayment?.status !== "PENDING") return
+
+    let cancelled = false
+
+    async function refreshPixStatus() {
+      try {
+        const response = await fetch(
+          "/api/checkout/status?orderId=" + encodeURIComponent(String(pixOrderId)),
+          { cache: "no-store" }
+        )
+        const data = await response.json().catch(() => null)
+        const nextStatus = data?.order?.paymentStatus
+
+        if (!cancelled && nextStatus && nextStatus !== "PENDING") {
+          setPixPayment((current) => current ? { ...current, status: nextStatus } : current)
+        }
+      } catch {
+        // O próximo ciclo de consulta tenta novamente.
+      }
+    }
+
+    void refreshPixStatus()
+    const interval = window.setInterval(() => void refreshPixStatus(), 5000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [pixPayment?.orderId, pixPayment?.status])
   const cardInitialization = useMemo(
     () => ({ amount: quote.finalTotal, payer: { email: profile.email } }),
     [profile.email, quote.finalTotal],
@@ -231,6 +294,7 @@ export function CheckoutPageClient({
   }, [])
 
   const accessLabel = quote.period === "annual" ? "12 meses de acesso" : "1 mês de acesso"
+  const hasProfileCpf = profile.cpf?.replace(/\D/g, "").length === 11
   const paymentMethodLabel =
     selectedPaymentMethod === "pix"
       ? "PIX"
@@ -265,15 +329,11 @@ export function CheckoutPageClient({
             </div>
           )}
 
-          {(!profile.cpf || !profile.phone) && (
-            <div className="flex flex-col gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
-              <span>Complete CPF e telefone antes de concluir o pagamento.</span>
-              <Link href="/minha-conta" className="shrink-0 font-semibold underline underline-offset-4">
-                Atualizar dados
-              </Link>
+          {selectedPaymentMethod === "pix" && !cpf && (
+            <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-100">
+              Informe seu CPF no formulário para gerar o pagamento via Pix.
             </div>
           )}
-
           <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0d1118] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
             <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
@@ -310,24 +370,21 @@ export function CheckoutPageClient({
           <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0d1118] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
             <div className="border-b border-white/[0.07] px-5 py-4">
               <h2 className="text-base font-semibold text-white">Forma de pagamento</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Escolha uma opção para abrir os dados de pagamento.
-              </p>
+              <p className="mt-1 text-sm text-slate-500">Escolha uma opção para abrir os dados de pagamento.</p>
             </div>
 
             {selectedPaymentMethod === null ? (
               <div className="space-y-2.5 p-3 sm:p-4">
                 <PaymentMethodOption
-                  title="PIX"
+                  title="Pix"
                   description="Aprovação rápida e pagamento à vista"
                   icon={<QrCode className="h-5 w-5" />}
                   badge="Instantâneo"
                   onClick={() => choosePaymentMethod("pix")}
                 />
-
                 <PaymentMethodOption
                   title="Cartão de crédito"
-                  description={`Parcele em até ${noInterestInstallments}x sem juros`}
+                  description={"Parcele em até " + noInterestInstallments + "x sem juros"}
                   icon={<CreditCard className="h-5 w-5" />}
                   badge="Visa, Mastercard e Elo"
                   onClick={() => choosePaymentMethod("card")}
@@ -338,18 +395,13 @@ export function CheckoutPageClient({
                 <div className="flex items-center justify-between gap-4 border-b border-white/[0.07] px-5 py-3.5">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-300/15 bg-cyan-300/[0.07] text-cyan-200">
-                      {selectedPaymentMethod === "pix" ? (
-                        <QrCode className="h-[18px] w-[18px]" />
-                      ) : (
-                        <CreditCard className="h-[18px] w-[18px]" />
-                      )}
+                      {selectedPaymentMethod === "pix" ? <QrCode className="h-[18px] w-[18px]" /> : <CreditCard className="h-[18px] w-[18px]" />}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-white">{paymentMethodLabel}</p>
                       <p className="text-xs text-slate-500">Forma de pagamento selecionada</p>
                     </div>
                   </div>
-
                   <button
                     type="button"
                     onClick={changePaymentMethod}
@@ -363,57 +415,109 @@ export function CheckoutPageClient({
 
                 {selectedPaymentMethod === "pix" ? (
                   <div className="p-5">
-                    <div className="rounded-xl border border-white/[0.08] bg-[#090d13] p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-300">
-                          <QrCode className="h-5 w-5" />
-                        </span>
+                    {!pixPayment ? (
+                      <>
+                        {!hasProfileCpf && (
+                          <label className="block">
+                            <span className="text-sm font-medium text-white">CPF do pagador</span>
+                            <input
+                              value={cpf}
+                              onChange={(event) => setCpf(event.target.value.replace(/\D/g, "").slice(0, 11))}
+                              inputMode="numeric"
+                              autoComplete="off"
+                              placeholder="00000000000"
+                              maxLength={11}
+                              className="mt-2 h-11 w-full rounded-lg border border-white/[0.09] bg-[#090d13] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400/60"
+                            />
+                            <span className="mt-1.5 block text-xs text-slate-500">Usaremos este documento apenas para identificar o pagamento.</span>
+                          </label>
+                        )}
+                        <div className="rounded-xl border border-white/[0.08] bg-[#090d13] p-4">
+                          <div className="flex items-start gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-300"><QrCode className="h-5 w-5" /></span>
+                            <div>
+                              <p className="text-sm font-semibold text-white">Pague com Pix</p>
+                              <p className="mt-1 text-sm leading-5 text-slate-400">Gere o QR Code e pague pelo aplicativo do seu banco.</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+                            <PaymentBenefit text="Aprovação em poucos segundos" />
+                            <PaymentBenefit text="Pagamento único à vista" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleSubmitPix()}
+                          disabled={submittingPayment || cpf.replace(/\D/g, "").length !== 11}
+                          className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {submittingPayment ? <><Loader2 className="h-4 w-4 animate-spin" />Gerando Pix...</> : <><QrCode className="h-4 w-4" />Gerar Pix de {formatCurrency(quote.finalTotal)}</>}
+                        </button>
+                      </>
+                    ) : pixPayment.status === "APPROVED" ? (
+                      <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] p-5 text-center">
+                        <Check className="mx-auto h-8 w-8 text-emerald-300" />
+                        <p className="mt-3 text-base font-semibold text-white">Pagamento aprovado</p>
+                        <p className="mt-1 text-sm text-emerald-100">Seu acesso foi liberado. Você já pode continuar seus estudos.</p>
+                        <Link href="/dashboard" className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-white px-4 text-sm font-semibold text-slate-950">Ir para o dashboard</Link>
+                      </div>
+                    ) : pixPayment.status !== "PENDING" ? (
+                      <div className="rounded-xl border border-red-400/20 bg-red-400/[0.06] p-5 text-center">
+                        <p className="text-base font-semibold text-white">Não foi possível confirmar este Pix</p>
+                        <p className="mt-1 text-sm text-red-100">O pagamento não está mais aguardando confirmação. Gere um novo código para tentar novamente.</p>
+                        <button
+                          type="button"
+                          onClick={() => { setPixPayment(null); setPixCopied(false); idempotencyKeyRef.current = newIdempotencyKey() }}
+                          className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-white px-4 text-sm font-semibold text-slate-950"
+                        >
+                          Gerar novo Pix
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.06] p-4">
+                          <p className="text-sm font-semibold text-white">Pix gerado</p>
+                          <p className="mt-1 text-sm leading-5 text-slate-400">Escaneie o QR Code ou copie o código abaixo. Esta tela será atualizada após a confirmação.</p>
+                        </div>
+                        <div className="flex justify-center rounded-xl bg-white p-4">
+                          <img src={"data:image/png;base64," + pixPayment.qrCodeBase64} alt="QR Code para pagamento" className="h-52 w-52 max-w-full" />
+                        </div>
                         <div>
-                          <p className="text-sm font-semibold text-white">Pague com PIX</p>
-                          <p className="mt-1 text-sm leading-5 text-slate-400">
-                            O QR Code e o código copia e cola serão gerados na próxima etapa.
-                          </p>
+                          <label className="text-sm font-medium text-white">Pix copia e cola</label>
+                          <div className="mt-2 flex gap-2">
+                            <input readOnly value={pixPayment.copyPaste} className="min-w-0 flex-1 rounded-lg border border-white/[0.09] bg-[#090d13] px-3 text-xs text-slate-300 outline-none" />
+                            <button
+                              type="button"
+                              onClick={() => { void navigator.clipboard?.writeText(pixPayment.copyPaste); setPixCopied(true) }}
+                              className="inline-flex h-11 shrink-0 items-center gap-2 rounded-lg border border-white/[0.09] px-3 text-xs font-semibold text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
+                            >
+                              {pixCopied ? <Check className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />}
+                              {pixCopied ? "Copiado" : "Copiar"}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+                          <span>Aguardando confirmação do pagamento...</span>
+                          {pixPayment.expiresAt && (
+                            <span>
+                              Válido até {new Intl.DateTimeFormat("pt-BR", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              }).format(new Date(pixPayment.expiresAt))}
+                            </span>
+                          )}
                         </div>
                       </div>
-
-                      <div className="mt-4 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
-                        <PaymentBenefit text="Aprovação em poucos segundos" />
-                        <PaymentBenefit text="Pagamento único à vista" />
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => void handleSubmitPix()}
-                      disabled={submittingPayment || !profile.cpf || !profile.phone}
-                      className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {submittingPayment ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Gerando PIX...
-                        </>
-                      ) : (
-                        <>
-                          <QrCode className="h-4 w-4" />
-                          Gerar PIX de {formatCurrency(quote.finalTotal)}
-                        </>
-                      )}
-                    </button>
+                    )}
                   </div>
                 ) : (
                   <div className="p-4 sm:p-5">
                     {!publicKey ? (
-                      <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-100">
-                        O pagamento com cartão está temporariamente indisponível.
-                      </div>
+                      <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-100">O pagamento com cartão está temporariamente indisponível.</div>
                     ) : (
                       <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-white p-2 sm:p-3">
                         {!cardSdkReady ? (
-                          <div className="flex min-h-28 items-center justify-center gap-2 text-sm text-slate-500">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Carregando pagamento...
-                          </div>
+                          <div className="flex min-h-28 items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando pagamento...</div>
                         ) : (
                           <CardPayment
                             initialization={cardInitialization}
@@ -425,36 +529,23 @@ export function CheckoutPageClient({
                         )}
                       </div>
                     )}
-
                     {quote.period === "annual" && (
                       <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={autoRenew}
-                          onChange={(event) => setAutoRenew(event.target.checked)}
-                          className="mt-0.5 h-4 w-4 accent-cyan-400"
-                        />
+                        <input type="checkbox" checked={autoRenew} onChange={(event) => setAutoRenew(event.target.checked)} className="mt-0.5 h-4 w-4 accent-cyan-400" />
                         <span>
                           <span className="block text-sm font-medium text-white">Renovação anual automática</span>
-                          <span className="mt-0.5 block text-xs leading-5 text-slate-500">
-                            Você poderá cancelar a renovação quando quiser.
-                          </span>
+                          <span className="mt-0.5 block text-xs leading-5 text-slate-500">Você poderá cancelar a renovação quando quiser.</span>
                         </span>
                       </label>
                     )}
-
                     {submittingPayment && (
-                      <div className="mt-3 flex items-center gap-2 text-sm text-cyan-200">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Processando pagamento...
-                      </div>
+                      <div className="mt-3 flex items-center gap-2 text-sm text-cyan-200"><Loader2 className="h-4 w-4 animate-spin" />Processando pagamento...</div>
                     )}
                   </div>
                 )}
               </div>
             )}
           </div>
-
           {error && (
             <div className="rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-200">
               {error}

@@ -13,7 +13,7 @@ export async function GET() {
   const userId = session.user.id
   const now = new Date()
 
-  const [user, activeAccess, totalCertificates, progressSummary, allProgress] = await Promise.all([
+  const [user, activeAccess, subscriptions, totalCertificates, progressSummary, allProgress] = await Promise.all([
     db.user.findUnique({
       where: { id: userId },
       select: { name: true, avatarUrl: true, email: true },
@@ -21,12 +21,26 @@ export async function GET() {
     db.accessPermission.findFirst({
       where: {
         userId,
+        planId: { not: null },
         status: "ACTIVE",
         startsAt: { lte: now },
         OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
       orderBy: [{ expiresAt: "asc" }],
       include: { plan: { select: { name: true } } },
+    }),
+    db.subscription.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        planId: true,
+        status: true,
+        autoRenew: true,
+        period: true,
+        amount: true,
+        nextBillingAt: true,
+        cancelledAt: true,
+      },
     }),
     db.certificate.count({
       where: { userId, status: "ISSUED" },
@@ -120,23 +134,47 @@ export async function GET() {
   const earnedAchievements = achievements.filter((achievement) => achievement.earned)
 
   let planInfo: {
+    planId: string
     name: string | null
     daysRemaining: number | null
     expiresAt: string | null
     isLifetime: boolean
+    subscription: {
+      status: string
+      autoRenew: boolean
+      period: string
+      amount: number
+      nextBillingAt: string | null
+      cancelledAt: string | null
+    } | null
   } | null = null
-
   if (activeAccess) {
     const isLifetime = !activeAccess.expiresAt
     const daysRemaining = activeAccess.expiresAt
       ? Math.max(0, differenceInCalendarDays(activeAccess.expiresAt, now))
       : null
 
+    const activeSubscription = subscriptions.find((subscription) =>
+      subscription.planId === activeAccess.planId &&
+      (subscription.status === "ACTIVE" || subscription.status === "PENDING")
+    )
+
     planInfo = {
+      planId: activeAccess.planId as string,
       name: activeAccess.plan?.name ?? null,
       daysRemaining,
       expiresAt: activeAccess.expiresAt?.toISOString() ?? null,
       isLifetime,
+      subscription: activeSubscription
+        ? {
+            status: activeSubscription.status,
+            autoRenew: activeSubscription.autoRenew,
+            period: activeSubscription.period,
+            amount: Number(activeSubscription.amount),
+            nextBillingAt: activeSubscription.nextBillingAt?.toISOString() ?? null,
+            cancelledAt: activeSubscription.cancelledAt?.toISOString() ?? null,
+          }
+        : null,
     }
   }
 

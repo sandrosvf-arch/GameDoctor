@@ -193,7 +193,7 @@ export function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-72 overflow-visible p-1.5">
                 <DropdownMenuItem asChild>
-                  <Link href="/cursos">Ver todos os cursos</Link>
+                  <Link href="/cursos">Ver todas as trilhas</Link>
                 </DropdownMenuItem>
                 {categories.length > 0 && <DropdownMenuSeparator />}
                 {categories.map((root) => (

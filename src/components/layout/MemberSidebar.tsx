@@ -15,9 +15,9 @@ import {
   Ticket,
   Settings,
   LogOut,
-  Users,
   UserCircle,
   Globe,
+  CreditCard,
   ChevronRight,
   ChevronLeft,
 } from "lucide-react"
@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils"
 
 const mainNavItems = [
   { label: "Início", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Meu plano", href: "/dashboard#plano", icon: CreditCard },
   // { label: "Minhas Trilhas", href: "/meus-cursos", icon: BookMarked },
   { label: "Continuar Assistindo", href: "/dashboard#continuar", icon: Play },
   { label: "Progresso", href: "/progresso", icon: TrendingUp },
@@ -131,7 +132,7 @@ export function MemberSidebar() {
         })}
       </nav>
 
-      {/* ── Indique e ganhe (hidden when collapsed) ── */}
+      {/* Indique e ganhe (reservado para futura reutilização)
       {!collapsed && (
         <div className="px-3 pb-3 shrink-0">
           <div className="rounded-xl bg-primary/10 border border-primary/20 p-3.5 space-y-2">
@@ -150,6 +151,7 @@ export function MemberSidebar() {
           </div>
         </div>
       )}
+      */}
 
       {/* ── User / Logout (bottom) ── */}
       <div className="border-t border-border/40 px-3 py-3 shrink-0">
