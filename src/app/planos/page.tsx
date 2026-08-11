@@ -32,6 +32,7 @@ export const dynamic = "force-dynamic"
 
 export default async function PlanosPage() {
   const session = await auth()
+  const isLoggedIn = Boolean(session?.user?.id)
   const plans = await listPublicPlans(session?.user?.id ?? null)
 
   return (
@@ -55,12 +56,12 @@ export default async function PlanosPage() {
             Acesso GameDoctor
           </div>
 
-          <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-[-0.06em] text-white md:text-6xl md:leading-[1.02]">
-            Seu acesso completo ao GameDoctor começa aqui.
+          <h1 className="mx-auto text-2xl font-semibold tracking-[-0.06em] text-white md:text-6xl md:leading-[1.02]">
+            Aprenda de verdade como consertar videogames.
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-400 md:text-lg">
-            Um único plano para você estudar, praticar e evoluir na manutenção de videogames.
+          <p className="mx-auto mt-6 max-w-1xl text-base leading-7 text-slate-400 md:text-lg">
+            Um único acesso para você dominar manutenção de videogames, destravar aulas, comunidade e suporte, e evoluir com método até virar especialista.
           </p>
           </div>
         </div>
@@ -122,7 +123,7 @@ export default async function PlanosPage() {
 
                 <div className="flex flex-1 flex-col gap-6 px-7 py-7">
                   {plan.offers.map((offer) => {
-                    const href = session?.user?.id
+                    const href = isLoggedIn
                       ? buildCheckoutHref(plan.slug, offer.period)
                       : buildLoginHref(plan.slug, offer.period)
                     const installmentCount = getInstallmentCount(plan.installments)
@@ -139,14 +140,14 @@ export default async function PlanosPage() {
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{offer.label}</p>
                             <p className="mt-1 text-sm text-slate-400">{accessLabel(offer.period)}</p>
                           </div>
-                          {noInterest && installmentCount > 1 && (
+                          {isLoggedIn && noInterest && installmentCount > 1 && (
                             <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
                               Sem juros
                             </span>
                           )}
                         </div>
 
-                        {installmentCount > 1 ? (
+                        {isLoggedIn ? installmentCount > 1 ? (
                           <div className="mt-6">
                             <p className="text-sm font-medium text-slate-400">Você paga apenas</p>
                             <p className="mt-1 text-4xl font-bold tracking-[-0.06em] text-white md:text-5xl">
@@ -159,30 +160,41 @@ export default async function PlanosPage() {
                             <p className="text-sm font-medium text-slate-400">Valor do acesso</p>
                             <p className="mt-1 text-4xl font-bold tracking-[-0.06em] text-white">{formatCurrency(offer.price)}</p>
                           </div>
+                        ) : (
+                          <div className="mt-6 rounded-2xl border border-cyan-400/25 bg-cyan-400/[0.06] px-4 py-5">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Preço exclusivo</p>
+                            <p className="mt-2 text-5xl font-bold tracking-[-0.06em] text-white">R$ ****</p>
+                            <p className="mt-2 text-sm font-semibold text-white">Acesse sua conta para liberar o preço.</p>
+                          </div>
                         )}
 
                         <div className="mt-6 [&>a]:w-full [&>button]:w-full">
                           <PlanCheckoutButton
                             href={href}
-                            label={plan.currentPlan?.active ? "Renovar meu acesso" : "Quero começar agora"}
+                            label={
+                              isLoggedIn
+                                ? plan.currentPlan?.active ? "Renovar meu acesso" : "Quero começar agora"
+                                : "VER PREÇO"
+                            }
                           />
                         </div>
                       </div>
                     )
                   })}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-4">
-                      <CreditCard className="h-4 w-4 text-cyan-300" />
-                      <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Parcelamento</p>
-                      <p className="mt-1 text-sm font-semibold text-white">Até {plan.installments.max}x</p>
+                  {isLoggedIn ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-4">
+                        <CreditCard className="h-4 w-4 text-cyan-300" />
+                        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Parcelamento</p>
+                        <p className="mt-1 text-sm font-semibold text-white">Até {plan.installments.max}x</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-4">
+                        <ShieldCheck className="h-4 w-4 text-cyan-300" />
+                        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Sem juros</p>
+                        <p className="mt-1 text-sm font-semibold text-white">Até {plan.installments.noInterest}x</p>
+                      </div>
                     </div>
-                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-4">
-                      <ShieldCheck className="h-4 w-4 text-cyan-300" />
-                      <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Sem juros</p>
-                      <p className="mt-1 text-sm font-semibold text-white">Até {plan.installments.noInterest}x</p>
-                    </div>
-                  </div>
+                  ) : null}
 
                   {plan.benefits.length > 0 && (
                     <div className="border-t border-white/[0.08] pt-6">

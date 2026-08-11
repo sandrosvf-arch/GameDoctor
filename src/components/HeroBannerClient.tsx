@@ -218,7 +218,7 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
           </button>
 
           {/* Progress bar — centered, 1 line per slide */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2 items-center">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2 items-center slide-navigation">
             {banners.map((_, i) => (
               <button
                 key={i}

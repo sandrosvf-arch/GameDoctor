@@ -472,22 +472,7 @@ export default function BunnyAulaClient({
               </button>
             )}
 
-            {!isReleaseLocked && !canViewRestrictedContent ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                  <Lock className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Descrição completa da aula</p>
-                  <p className="text-xs text-muted-foreground">
-                    Assine um plano para ver a descrição, materiais e conteúdo exclusivo desta aula.
-                  </p>
-                </div>
-                <Button size="sm" asChild>
-                  <Link href="/planos">Ver planos</Link>
-                </Button>
-              </div>
-            ) : (description || materials.length > 0) && (
+            {(description || materials.length > 0) && (
               <div className="space-y-4 rounded-xl border border-border bg-muted/30 px-5 py-4">
                 {description && (
                   <div className="space-y-1.5">

@@ -111,7 +111,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   const courseTitle = lesson?.course.title ?? "Início da Jornada"
   const courseSlug = lesson?.course.slug ?? null
   const previewImage = lesson?.thumbnail ?? lesson?.videoThumbnailUrl ?? null
-  const description = isAccessible ? lesson?.description ?? null : null
+  const description = lesson?.description ?? null
 
   const currentIndex = courseLessons.findIndex(l => l.videoProviderId === videoId)
   const nextLesson = currentIndex >= 0 && currentIndex < courseLessons.length - 1
