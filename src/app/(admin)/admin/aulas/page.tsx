@@ -24,6 +24,8 @@ interface LessonWithCourse {
   thumbnail: string | null
   isFree: boolean
   releaseAfterDays: number
+  previewEnabled: boolean
+  previewDurationSeconds: number | null
   status: string
   order: number
   videoDurationSeconds: number | null
@@ -56,6 +58,8 @@ type LessonEdits = {
   thumbnail?: string
   isFree?: boolean
   releaseAfterDays?: number
+  previewEnabled?: boolean
+  previewDurationSeconds?: number
   status?: string
 }
 
@@ -205,6 +209,8 @@ export default function TodasAsAulasPage() {
         thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
         releaseAfterDays: lesson.releaseAfterDays,
+        previewEnabled: lesson.previewEnabled,
+        previewDurationSeconds: lesson.previewDurationSeconds ?? 7,
         status: lesson.status,
       },
     }))
@@ -466,6 +472,11 @@ export default function TodasAsAulasPage() {
                           Grátis
                         </span>
                       )}
+                      {!lesson.isFree && lesson.previewEnabled && (
+                        <span className="text-[10px] bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-1.5 rounded-full">
+                          Preview {lesson.previewDurationSeconds ?? 7}s
+                        </span>
+                      )}
                       <span className={cn(
                         "text-[10px] border px-1.5 rounded-full",
                         lesson.status === "PUBLISHED"
@@ -609,6 +620,31 @@ export default function TodasAsAulasPage() {
                         onChange={ev => patch(lesson.id, "releaseAfterDays", Number(ev.target.value))}
                       />
                       <span className="text-xs text-muted-foreground">0 = imediato</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={(e.previewEnabled as boolean) ?? lesson.previewEnabled}
+                          onChange={ev => patch(lesson.id, "previewEnabled", ev.target.checked)}
+                          className="rounded"
+                        />
+                        Preview para não assinantes
+                      </label>
+                      <label className="text-xs text-muted-foreground" htmlFor={`preview-secs-${lesson.id}`}>
+                        Duração (s)
+                      </label>
+                      <input
+                        id={`preview-secs-${lesson.id}`}
+                        type="number"
+                        min={3}
+                        max={120}
+                        disabled={!((e.previewEnabled as boolean) ?? lesson.previewEnabled)}
+                        className="w-20 rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+                        value={String((e.previewDurationSeconds as number) ?? lesson.previewDurationSeconds ?? 7)}
+                        onChange={ev => patch(lesson.id, "previewDurationSeconds", Number(ev.target.value))}
+                      />
                     </div>
                     {/* Materials section */}
                     <div className="border-t border-border/40 pt-3 space-y-2">

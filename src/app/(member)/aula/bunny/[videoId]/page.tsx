@@ -57,6 +57,8 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
         videoThumbnailUrl: true,
         description: true,
         courseId: true,
+        previewEnabled: true,
+        previewDurationSeconds: true,
         course: { select: { title: true, slug: true } },
       },
     }),
@@ -104,6 +106,9 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   const isAccessible = lesson ? lesson.isFree || Boolean(lessonAccess?.hasAccess && !lessonAccess.isPreview) : true
   const isReleaseLocked = lessonAccess?.isReleaseLocked ?? false
   const hasRestrictedContentAccess = isAccessible
+  // previewEnabled is now admin-editable per lesson (see /admin/aulas) and defaults to true for existing paid lessons
+  const canPreview = Boolean(lessonAccess?.isPreview)
+  const previewDurationSeconds = lessonAccess?.previewDurationSeconds ?? 7
   const title = titulo ?? lesson?.title ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
   const durationSeconds = meta?.length ?? null
   const duration = meta?.length ? formatDuration(meta.length) : null
@@ -133,6 +138,8 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       isReleaseLocked={isReleaseLocked}
       releaseAt={lessonAccess?.releaseAt ?? null}
       canViewRestrictedContent={hasRestrictedContentAccess}
+      canPreview={canPreview}
+      previewDurationSeconds={previewDurationSeconds}
       isFree={lesson?.isFree ?? true}
       courseTitle={courseTitle}
       courseSlug={courseSlug}

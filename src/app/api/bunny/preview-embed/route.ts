@@ -1,9 +1,9 @@
 /**
  * GET /api/bunny/preview-embed?videoId=[id]
  *
- * Returns a short-lived (20s) signed Bunny embed URL for the 7-second preview.
- * Token is generated at request time so it doesn't expire before the user clicks play.
- * Public endpoint — no auth required (it's just a preview, not full access).
+ * Returns a short-lived signed Bunny embed URL sized to the lesson's configured
+ * preview duration. Token is generated at request time so it doesn't expire
+ * before the user clicks play. Public endpoint — no auth required for previews.
  */
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
@@ -24,6 +24,9 @@ export async function GET(request: Request) {
     select: { id: true },
   })
 
+  // Default teaser length when the lesson has no explicit previewDurationSeconds configured
+  let previewDurationSeconds = 7
+
   if (lesson) {
     const session = await auth()
     const access = await hasAccessToLesson(
@@ -38,11 +41,25 @@ export async function GET(request: Request) {
         { status: 403 },
       )
     }
+
+    // Already fully accessible — no need for a time-boxed preview token
+    if (access.hasAccess && !access.isPreview) {
+      return NextResponse.json({ error: "ALREADY_ACCESSIBLE" }, { status: 403 })
+    }
+
+    // Admin explicitly disabled preview for this lesson (see /admin/aulas)
+    if (!access.isPreview) {
+      return NextResponse.json({ error: "PREVIEW_DISABLED" }, { status: 403 })
+    }
+
+    previewDurationSeconds = access.previewDurationSeconds ?? 7
   }
 
-  // 20 seconds: enough for the 7s preview + buffer, useless if copied afterward
-  // autoplay=true so it starts immediately; muted=true for browser autoplay policy
-  const embedUrl = bunnySignedEmbedUrl(videoId, 20, { autoplay: true, muted: true })
+  // Token TTL matches the preview length + small buffer, not an arbitrary flat value
+  const embedUrl = bunnySignedEmbedUrl(videoId, previewDurationSeconds + 5, {
+    autoplay: true,
+    muted: true,
+  })
 
-  return NextResponse.json({ embedUrl })
+  return NextResponse.json({ embedUrl, previewDurationSeconds })
 }

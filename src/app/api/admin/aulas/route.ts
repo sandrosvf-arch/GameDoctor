@@ -53,6 +53,8 @@ export async function GET(request: Request) {
         thumbnail: true,
         isFree: true,
         releaseAfterDays: true,
+        previewEnabled: true,
+        previewDurationSeconds: true,
         status: true,
         order: true,
         videoDurationSeconds: true,

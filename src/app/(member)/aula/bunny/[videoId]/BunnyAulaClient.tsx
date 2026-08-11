@@ -86,6 +86,8 @@ interface BunnyAulaClientProps {
   isReleaseLocked: boolean
   releaseAt: string | null
   canViewRestrictedContent: boolean
+  canPreview: boolean
+  previewDurationSeconds: number | null
   isFree: boolean
   courseTitle: string
   courseSlug: string | null
@@ -110,6 +112,8 @@ export default function BunnyAulaClient({
   isReleaseLocked,
   releaseAt,
   canViewRestrictedContent,
+  canPreview,
+  previewDurationSeconds,
   isFree,
   courseTitle,
   courseSlug,
@@ -179,18 +183,20 @@ export default function BunnyAulaClient({
   }, [videoId])
 
   const handlePreviewPlay = useCallback(async () => {
-    if (previewLoading || previewUrl) return
+    if (previewLoading || previewUrl || !canPreview) return
 
     setPreviewLoading(true)
     try {
       const res = await fetch(`/api/bunny/preview-embed?videoId=${videoId}`)
+      if (!res.ok) return
       const data = await res.json()
       setPreviewUrl(data.embedUrl)
-      paywallTimerRef.current = setTimeout(() => setPaywallVisible(true), 7000)
+      const previewMs = (data.previewDurationSeconds ?? previewDurationSeconds ?? 7) * 1000
+      paywallTimerRef.current = setTimeout(() => setPaywallVisible(true), previewMs)
     } finally {
       setPreviewLoading(false)
     }
-  }, [previewLoading, previewUrl, videoId])
+  }, [canPreview, previewDurationSeconds, previewLoading, previewUrl, videoId])
 
   const handleMarkComplete = useCallback(async () => {
     if (!lessonId || completingLesson || completed) return
@@ -378,7 +384,7 @@ export default function BunnyAulaClient({
                     />
                   )}
 
-                  {!previewUrl && !paywallVisible && (
+                  {canPreview && !previewUrl && !paywallVisible && (
                     <button
                       onClick={handlePreviewPlay}
                       disabled={previewLoading}
@@ -396,15 +402,29 @@ export default function BunnyAulaClient({
                   )}
 
                   {previewUrl && !paywallVisible && (
-                    <iframe
-                      src={previewUrl}
-                      className="absolute inset-0 h-full w-full"
-                      width="100%"
-                      height="100%"
-                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                      allowFullScreen
-                      title={title}
-                    />
+                    // pointer-events-none: preview is a non-interactive trailer, not a real player (no seek/pause/fullscreen)
+                    <div className="absolute inset-0 pointer-events-none">
+                      <iframe
+                        src={previewUrl}
+                        className="absolute inset-0 h-full w-full"
+                        width="100%"
+                        height="100%"
+                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                        title={title}
+                      />
+                    </div>
+                  )}
+
+                  {!canPreview && !paywallVisible && (
+                    <button
+                      onClick={() => setPaywallVisible(true)}
+                      aria-label="Ver planos"
+                      className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors hover:bg-black/40"
+                    >
+                      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
+                        <Play className="h-7 w-7 fill-white" />
+                      </span>
+                    </button>
                   )}
 
                   {paywallVisible && (
