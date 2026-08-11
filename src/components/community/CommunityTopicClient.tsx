@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ChangeEvent, type ComponentType, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -11,14 +11,17 @@ import {
   ChevronDown,
   ChevronLeft,
   Eye,
+  Heart,
   ImagePlus,
   Loader2,
   LockKeyhole,
   MessageSquareText,
   MoreHorizontal,
+  Reply,
   Send,
   ShieldCheck,
   ShieldOff,
+  Sparkles,
   Trash2,
   UserRound,
 } from "lucide-react"
@@ -31,11 +34,20 @@ interface ActiveBanMeta {
   endsAt: string | null
 }
 
+interface CommunityAuthorStats {
+  topicsCount: number
+  postsCount: number
+  likesReceivedCount: number
+  score: number
+  badgeLabel: string
+}
+
 interface TopicAuthor {
   id: string
   name: string
   email: string | null
   avatarUrl: string | null
+  communityStats: CommunityAuthorStats
   activeBan: ActiveBanMeta | null
 }
 
@@ -43,8 +55,20 @@ interface TopicPost {
   id: string
   content: string
   createdAt: string
+  status: "PENDING" | "APPROVED" | "REJECTED" | "HIDDEN"
+  likesCount: number
+  viewerLiked: boolean
+  parentPost: { id: string; authorName: string } | null
   attachments: CommunityUploadedImage[]
   author: TopicAuthor
+}
+
+const DEFAULT_COMMUNITY_STATS: CommunityAuthorStats = {
+  topicsCount: 0,
+  postsCount: 0,
+  likesReceivedCount: 0,
+  score: 0,
+  badgeLabel: "Novo membro",
 }
 
 interface TopicMeta {
@@ -92,8 +116,10 @@ export function CommunityTopicClient({
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [adminActionId, setAdminActionId] = useState<string | null>(null)
+  const [likeBusyId, setLikeBusyId] = useState<string | null>(null)
+  const [replyTarget, setReplyTarget] = useState<{ id: string; authorName: string } | null>(null)
 
-  async function sendReply(event: React.FormEvent) {
+  async function sendReply(event: FormEvent) {
     event.preventDefault()
 
     setError(null)
@@ -103,7 +129,7 @@ export function CommunityTopicClient({
     const response = await fetch(`/api/comunidade/topicos/${topicSlug}/posts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, attachments }),
+      body: JSON.stringify({ content, attachments, parentPostId: replyTarget?.id ?? null }),
     })
 
     setSaving(false)
@@ -111,15 +137,16 @@ export function CommunityTopicClient({
     const data = await response.json().catch(() => null)
 
     if (!response.ok) {
-      setError(data?.error ?? "Nao foi possivel publicar a resposta.")
+      setError(data?.error ?? "Não foi possível publicar a resposta.")
       return
     }
 
     setContent("")
     setAttachments([])
+    setReplyTarget(null)
 
     if (data?.pending) {
-      setInfo(data.message ?? "Resposta enviada para aprovacao.")
+      setInfo(data.message ?? "Resposta enviada para aprovação.")
       return
     }
 
@@ -129,6 +156,10 @@ export function CommunityTopicClient({
         id: data.post.id,
         content: data.post.content,
         createdAt: data.post.createdAt,
+        status: data.post.status ?? "APPROVED",
+        likesCount: Number(data.post.likesCount ?? 0),
+        viewerLiked: Boolean(data.post.viewerLiked),
+        parentPost: data.post.parentPost ?? null,
         attachments: Array.isArray(data.post.attachments)
           ? data.post.attachments.map((attachment: {
               id?: string
@@ -150,6 +181,7 @@ export function CommunityTopicClient({
           name: data.post.author.name,
           email: null,
           avatarUrl: data.post.author.avatarUrl,
+          communityStats: data.post.author.communityStats ?? DEFAULT_COMMUNITY_STATS,
           activeBan: null,
         },
       },
@@ -158,7 +190,45 @@ export function CommunityTopicClient({
     setInfo("Resposta publicada com sucesso.")
   }
 
-  async function handleAttachmentChange(event: React.ChangeEvent<HTMLInputElement>) {
+  async function toggleLike(post: TopicPost) {
+    if (likeBusyId) return
+
+    setError(null)
+    setLikeBusyId(post.id)
+
+    const response = await fetch(`/api/comunidade/posts/${post.id}/likes`, {
+      method: post.viewerLiked ? "DELETE" : "POST",
+    })
+
+    setLikeBusyId(null)
+    const data = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      setError(data?.error ?? "Não foi possível atualizar a curtida.")
+      return
+    }
+
+    setPosts((current) =>
+      current.map((item) =>
+        item.id === post.id
+          ? {
+              ...item,
+              likesCount: Number(data?.likesCount ?? item.likesCount),
+              viewerLiked: Boolean(data?.liked),
+            }
+          : item
+      )
+    )
+  }
+
+  function selectReplyTarget(post: TopicPost) {
+    setReplyTarget({ id: post.id, authorName: getCommunityFirstName(post.author.name) })
+    window.setTimeout(() => {
+      document.getElementById("community-reply-form")?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }, 0)
+  }
+
+  async function handleAttachmentChange(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
     if (!files.length) return
 
@@ -172,7 +242,7 @@ export function CommunityTopicClient({
       }
       setAttachments((current) => [...current, ...nextUploads].slice(0, 6))
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o anexo.")
+      setError(uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o anexo.")
     } finally {
       setUploading(false)
       event.target.value = ""
@@ -200,7 +270,7 @@ export function CommunityTopicClient({
       const data = await response.json().catch(() => null)
 
       if (!response.ok) {
-        window.alert(data?.error ?? "Nao foi possivel remover o banimento.")
+        window.alert(data?.error ?? "Não foi possível remover o banimento.")
         return
       }
 
@@ -211,7 +281,7 @@ export function CommunityTopicClient({
     const reason = window.prompt(`Motivo do banimento para ${authorLabel}:`)
     if (reason === null) return
 
-    const durationInput = window.prompt("Duracao em dias? Deixe vazio para permanente.", "")
+    const durationInput = window.prompt("Duração em dias? Deixe vazio para permanente.", "")
     const durationDays = durationInput?.trim() ? Number(durationInput) : null
 
     setAdminActionId(`ban:${author.id}`)
@@ -231,7 +301,7 @@ export function CommunityTopicClient({
     const data = await response.json().catch(() => null)
 
     if (!response.ok) {
-      window.alert(data?.error ?? "Nao foi possivel banir este usuario.")
+      window.alert(data?.error ?? "Não foi possível banir este usuário.")
       return
     }
 
@@ -239,7 +309,7 @@ export function CommunityTopicClient({
   }
 
   async function deleteTopic() {
-    if (!window.confirm("Apagar este topico inteiro? Essa acao remove a publicação principal e todas as respostas.")) {
+    if (!window.confirm("Apagar esta discussão? Essa ação remove a publicação principal e todas as respostas.")) {
       return
     }
 
@@ -256,7 +326,7 @@ export function CommunityTopicClient({
     const data = await response.json().catch(() => null)
 
     if (!response.ok) {
-      window.alert(data?.error ?? "Nao foi possivel apagar este topico.")
+      window.alert(data?.error ?? "Não foi possível apagar esta discussão.")
       return
     }
 
@@ -282,7 +352,7 @@ export function CommunityTopicClient({
     const data = await response.json().catch(() => null)
 
     if (!response.ok) {
-      window.alert(data?.error ?? "Nao foi possivel apagar esta resposta.")
+      window.alert(data?.error ?? "Não foi possível apagar esta resposta.")
       return
     }
 
@@ -292,60 +362,45 @@ export function CommunityTopicClient({
 
   const views = topic.viewsCount + 1
   const replies = replyCount
+  const shouldShowAccessBanner = requiresPlan && !banMessage && (!canViewReplies || !canReply)
+  const shouldShowComposer = !requiresPlan || canReply || Boolean(banMessage)
 
   return (
-    <div className="min-w-0 space-y-5">
-      <section className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#0c1017]">
-        <div className="border-b border-white/[0.08] bg-[#0f141d] px-5 py-5">
-          <Link
-            href={`/comunidade/${topic.forumSlug}`}
-            className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
-          >
-            <ChevronLeft className="h-4 w-4" />
+    <div className="gd-topic-shell">
+      <section className="gd-topic-heading">
+        <div className="gd-topic-heading__topline">
+          <Link href={`/comunidade/${topic.forumSlug}`} className="gd-back-link">
+            <ChevronLeft className="gd-icon" />
             Voltar para {topic.forumName}
           </Link>
 
-          <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs font-medium text-slate-400">
-                  discussão da comunidade
-                </span>
+          {topic.replyApprovalRequired && (
+            <span className="gd-status gd-status--warning">
+              <ShieldCheck className="gd-status__icon" />
+              Respostas moderadas
+            </span>
+          )}
+        </div>
 
-                {topic.isPinned && (
-                  <span className="rounded-md border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-300">
-                    Fixada
-                  </span>
-                )}
-
-                {topic.isLocked && (
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-300">
-                    <LockKeyhole className="h-3.5 w-3.5" />
-                    Encerrada
-                  </span>
-                )}
-              </div>
-
-              <h1 className="max-w-4xl text-2xl font-semibold tracking-[-0.03em] text-white md:text-3xl">
-                {topic.title}
-              </h1>
-
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500">
-                <MetaItem icon={UserRound} label={getCommunityFirstName(topic.author.name)} />
-                <MetaItem icon={CalendarDays} label={formatCommunityDate(topic.createdAt)} />
-                <MetaItem icon={MessageSquareText} label={plural(replies, "resposta", "respostas")} />
-                <MetaItem icon={Eye} label={plural(views, "visualização", "visualizações")} />
-              </div>
-            </div>
-
-            {topic.replyApprovalRequired && (
-              <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-200">
-                <span className="inline-flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4" />
-                  Respostas moderadas
-                </span>
-              </div>
+        <div className="gd-topic-heading__content">
+          <div className="gd-topic-tags">
+            <span className="gd-topic-tag">Discussão da comunidade</span>
+            {topic.isPinned && <span className="gd-topic-tag gd-topic-tag--info">Fixada</span>}
+            {topic.isLocked && (
+              <span className="gd-topic-tag gd-topic-tag--warning">
+                <LockKeyhole className="gd-tag-icon" />
+                Encerrada
+              </span>
             )}
+          </div>
+
+          <h1>{topic.title}</h1>
+
+          <div className="gd-meta-row">
+            <MetaItem icon={UserRound} label={getCommunityFirstName(topic.author.name)} />
+            <MetaItem icon={CalendarDays} label={formatCommunityDate(topic.createdAt)} />
+            <MetaItem icon={MessageSquareText} label={plural(replies, "resposta", "respostas")} />
+            <MetaItem icon={Eye} label={plural(views, "visualização", "visualizações")} />
           </div>
         </div>
       </section>
@@ -363,100 +418,98 @@ export function CommunityTopicClient({
         onToggleBan={() => toggleBanUser(topic.author)}
       />
 
-      <section className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#0c1017]">
-        <div className="flex flex-col gap-2 border-b border-white/[0.08] bg-white/[0.025] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-white">Respostas da comunidade</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Acompanhe os complementos, diagnósticose soluções compartilhadas.
-            </p>
-          </div>
+      {shouldShowAccessBanner && (
+        <CommunityAccessBanner repliesCount={replies} canViewReplies={canViewReplies} canReply={canReply} />
+      )}
 
-          <span className="text-sm text-slate-500">{plural(replies, "resposta", "respostas")}</span>
-        </div>
+      {canViewReplies && (
+        <section className="gd-thread-section">
+          <header className="gd-thread-section__header">
+            <div>
+              <h2>Respostas da comunidade</h2>
+              <p>Acompanhe complementos, diagnósticos e soluções compartilhadas.</p>
+            </div>
+            <span>{plural(replies, "resposta", "respostas")}</span>
+          </header>
 
-        {!canViewReplies ? (
-          <div className="px-6 py-8">
-            <PlanRequiredCard
-              title="Respostas exclusivas para assinantes"
-              description="Ative um plano para liberar as respostas técnicas, acompanhar os diagnósticos completos e participar da conversa da comunidade."
-              ctaLabel="Quero ver os planos"
-            />
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="text-sm font-medium text-slate-300">Nenhuma resposta publicada ainda.</p>
-            <p className="mt-1 text-sm text-slate-500">Seja o primeiro a contribuir com essa discussão.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/[0.08]">
-            {posts.map((post) => (
-              <div key={post.id} className="p-5">
+          {posts.length === 0 ? (
+            <div className="gd-empty-state">
+              <p>Nenhuma resposta publicada ainda.</p>
+              <span>Seja o primeiro a contribuir com essa discussão.</span>
+            </div>
+          ) : (
+            <div className="gd-replies-list">
+              {posts.map((post) => (
                 <CommunityPostCard
+                  key={post.id}
                   author={post.author}
                   authorRole="Membro da comunidade"
                   createdAt={post.createdAt}
                   content={post.content}
                   attachments={post.attachments}
+                  parentPost={post.parentPost}
+                  likesCount={post.likesCount}
+                  viewerLiked={post.viewerLiked}
+                  canInteract={canReply && post.status === "APPROVED"}
+                  canReplyAction={canReply && !topic.isLocked && post.status === "APPROVED"}
+                  likeBusy={likeBusyId === post.id}
+                  onToggleLike={() => toggleLike(post)}
+                  onReply={() => selectReplyTarget(post)}
                   compact
                   isAdminUser={isAdminUser}
                   actionBusy={adminActionId === `post:${post.id}` || adminActionId === `ban:${post.author.id}`}
                   onDelete={() => deleteReply(post.id)}
                   onToggleBan={() => toggleBanUser(post.author)}
                 />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#0c1017]">
-        <div className="border-b border-white/[0.08] bg-white/[0.025] px-5 py-4">
-          <h2 className="text-base font-semibold text-white">Participar da discussão</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Compartilhe seu diagnostico, teste realizado ou complemento para ajudar a comunidade.
-          </p>
-        </div>
-
-        <div className="p-5">
-          {!canReply ? (
-            requiresPlan ? (
-              <PlanRequiredCard
-                title="Participe da comunidade com um plano ativo"
-                description="Assine para responder tópicos, trocar experiências com outros alunos e acessar todo o histórico das respostas."
-                ctaLabel="Ver planos de assinatura"
-              />
-            ) : (
-              <div className="rounded-md border border-dashed border-white/[0.12] px-4 py-10 text-center">
-                <p className="text-sm font-medium text-slate-300">
-                  {banMessage ? "Sua participação está temporariamente bloqueada." : "Entre na sua conta para participar."}
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  {banMessage ? banMessage : "Apenas membros autenticados podem responder discussões."}
-                </p>
-              </div>
-            )
-          ) : topic.isLocked ? (
-            <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-sm text-amber-200">
-              Esta discussão esta encerrada para novas respostas.
+              ))}
             </div>
-          ) : (
-            <form onSubmit={sendReply} className="space-y-4">
-              <div className="overflow-hidden rounded-md border border-white/[0.08] bg-[#080b10]">
-                <RichTextEditor value={content} onChange={setContent} placeholder="Escreva sua resposta..." />
-              </div>
+          )}
+        </section>
+      )}
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <label className="text-sm font-medium text-slate-300">Anexos</label>
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/[0.06]">
-                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+      {shouldShowComposer && (
+        <section className="gd-composer-card">
+          <header className="gd-composer-card__header">
+            <div>
+              <h2>Participar da discussão</h2>
+              <p>Compartilhe seu diagnóstico, teste realizado ou complemento para ajudar a comunidade.</p>
+            </div>
+          </header>
+
+          <div className="gd-composer-card__body">
+            {!canReply ? (
+              <ParticipationBlockedNotice banMessage={banMessage} />
+            ) : topic.isLocked ? (
+              <div className="gd-alert gd-alert--warning">Esta discussão está encerrada para novas respostas.</div>
+            ) : (
+              <form id="community-reply-form" onSubmit={sendReply} className="gd-reply-form">
+                {replyTarget && (
+                  <div className="gd-reply-target">
+                    <span>Respondendo a {replyTarget.authorName}</span>
+                    <button type="button" onClick={() => setReplyTarget(null)}>
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+
+                <div className="gd-editor-wrap">
+                  <RichTextEditor value={content} onChange={setContent} placeholder="Escreva sua resposta..." enableEmojiPicker />
+                </div>
+
+                <div className="gd-attachment-toolbar">
+                  <div>
+                    <strong>Anexos</strong>
+                    <span>Até 6 imagens por resposta.</span>
+                  </div>
+
+                  <label className="gd-upload-button">
+                    {uploading ? <Loader2 className="gd-button-icon gd-spin" /> : <ImagePlus className="gd-button-icon" />}
                     Adicionar imagens
                     <input
                       type="file"
                       accept="image/*"
                       multiple
-                      className="hidden"
+                      className="gd-hidden-input"
                       onChange={handleAttachmentChange}
                       disabled={uploading || attachments.length >= 6}
                     />
@@ -464,63 +517,919 @@ export function CommunityTopicClient({
                 </div>
 
                 {attachments.length > 0 && (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {attachments.map((attachment) => (
-                      <div key={attachment.url} className="overflow-hidden rounded-md border border-white/[0.08] bg-[#080b10]">
-                        <img src={attachment.url} alt={attachment.fileName} className="h-32 w-full object-cover" />
-                        <div className="flex items-center justify-between gap-2 px-3 py-2">
-                          <p className="truncate text-xs text-slate-400">{attachment.fileName}</p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAttachments((current) => current.filter((item) => item.url !== attachment.url))
-                            }
-                            className="text-xs text-red-300 transition hover:text-red-200"
-                          >
-                            Remover
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                  <AttachmentPreviewGrid
+                    attachments={attachments}
+                    onRemove={(url) => setAttachments((current) => current.filter((item) => item.url !== url))}
+                  />
+                )}
+
+                {topic.replyApprovalRequired && (
+                  <div className="gd-alert gd-alert--warning">
+                    <ShieldCheck className="gd-alert__icon" />
+                    As respostas desta comunidade passam por aprovação antes da publicação.
                   </div>
                 )}
-              </div>
 
-              {topic.replyApprovalRequired && (
-                <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                  <span className="inline-flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4" />
-                    As respostas desta comunidade passam por aprovacao antes da publicação.
-                  </span>
+                {error && <div className="gd-alert gd-alert--error">{error}</div>}
+                {info && <div className="gd-alert gd-alert--success">{info}</div>}
+
+                <div className="gd-form-actions">
+                  <button type="submit" disabled={saving || uploading} className="gd-primary-button">
+                    {saving ? <Loader2 className="gd-button-icon gd-spin" /> : <Send className="gd-button-icon" />}
+                    {saving ? "Enviando..." : "Publicar resposta"}
+                  </button>
                 </div>
-              )}
+              </form>
+            )}
+          </div>
+        </section>
+      )}
 
-              {error && (
-                <p className="rounded-md border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                  {error}
-                </p>
-              )}
+      <style jsx global>{`
+        .gd-topic-shell {
+          --gd-bg: #080b10;
+          --gd-surface: #0d1118;
+          --gd-surface-soft: #101620;
+          --gd-surface-raised: #111821;
+          --gd-line: rgba(148, 163, 184, 0.14);
+          --gd-line-soft: rgba(148, 163, 184, 0.09);
+          --gd-text: #f8fafc;
+          --gd-muted: #94a3b8;
+          --gd-faint: #64748b;
+          --gd-accent: #22d3ee;
+          --gd-accent-soft: rgba(34, 211, 238, 0.1);
+          width: 100%;
+          max-width: 1080px;
+          margin: 0 auto;
+          padding: 0 0 56px;
+          color: var(--gd-text);
+        }
 
-              {info && (
-                <p className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-                  {info}
-                </p>
-              )}
+        .gd-topic-heading,
+        .gd-thread-post,
+        .gd-thread-section,
+        .gd-composer-card {
+          background: linear-gradient(180deg, rgba(15, 21, 31, 0.96), rgba(10, 14, 20, 0.98));
+          border: 1px solid var(--gd-line-soft);
+          border-radius: 12px;
+          box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+        }
 
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={saving || uploading}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  {saving ? "Enviando..." : "Publicar resposta"}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </section>
+        .gd-topic-heading {
+          overflow: hidden;
+          margin-bottom: 18px;
+        }
+
+        .gd-topic-heading__topline {
+          min-height: 46px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 0 22px;
+          border-bottom: 1px solid var(--gd-line-soft);
+          background: rgba(255, 255, 255, 0.015);
+        }
+
+        .gd-back-link,
+        .gd-meta-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+        }
+
+        .gd-back-link {
+          color: var(--gd-muted);
+          font-size: 13px;
+          font-weight: 500;
+          transition: color 0.18s ease;
+        }
+
+        .gd-back-link:hover {
+          color: var(--gd-text);
+        }
+
+        .gd-icon,
+        .gd-meta-icon,
+        .gd-status__icon,
+        .gd-tag-icon,
+        .gd-button-icon,
+        .gd-alert__icon {
+          width: 16px;
+          height: 16px;
+          flex: none;
+        }
+
+        .gd-topic-heading__content {
+          padding: 24px 22px 26px;
+        }
+
+        .gd-topic-tags,
+        .gd-meta-row {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .gd-topic-tags {
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+
+        .gd-topic-tag,
+        .gd-status {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-height: 24px;
+          border-radius: 999px;
+          padding: 0 10px;
+          background: rgba(255, 255, 255, 0.045);
+          color: var(--gd-muted);
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .gd-topic-tag--info {
+          background: rgba(14, 165, 233, 0.12);
+          color: #7dd3fc;
+        }
+
+        .gd-topic-tag--warning,
+        .gd-status--warning {
+          background: rgba(245, 158, 11, 0.12);
+          color: #fcd34d;
+        }
+
+        .gd-topic-heading h1 {
+          max-width: 860px;
+          margin: 0;
+          color: #fff;
+          font-size: clamp(26px, 3vw, 38px);
+          line-height: 1.08;
+          letter-spacing: -0.04em;
+          font-weight: 700;
+        }
+
+        .gd-meta-row {
+          gap: 14px;
+          margin-top: 16px;
+        }
+
+        .gd-meta-item {
+          color: var(--gd-faint);
+          font-size: 13px;
+        }
+
+        .gd-meta-icon {
+          color: #526176;
+        }
+
+        .gd-thread-post {
+          overflow: hidden;
+          margin-bottom: 18px;
+        }
+
+        .gd-thread-post--reply {
+          margin: 0;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+          background: transparent;
+        }
+
+        .gd-thread-post--reply + .gd-thread-post--reply {
+          border-top: 1px solid var(--gd-line-soft);
+        }
+
+        .gd-post-grid {
+          display: grid;
+          grid-template-columns: 165px minmax(0, 1fr);
+        }
+
+        .gd-post-author {
+          padding: 22px 18px;
+          border-right: 1px solid var(--gd-line-soft);
+          background: rgba(255, 255, 255, 0.018);
+        }
+
+        .gd-author-profile {
+          text-align: center;
+        }
+
+        .gd-avatar {
+          width: 58px;
+          height: 58px;
+          margin: 0 auto;
+          border: 2px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+        }
+
+        .gd-avatar-fallback {
+          background: rgba(255, 255, 255, 0.06);
+          color: #e5e7eb;
+          font-size: 14px;
+          font-weight: 700;
+        }
+
+        .gd-author-name {
+          margin-top: 10px;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 700;
+          line-height: 1.2;
+        }
+
+        .gd-author-role {
+          margin-top: 4px;
+          color: var(--gd-faint);
+          font-size: 12px;
+        }
+
+        .gd-author-email {
+          margin-top: 6px;
+          color: #556174;
+          font-size: 11px;
+          word-break: break-all;
+        }
+
+        .gd-banned-label {
+          margin-top: 8px;
+          color: #fbbf24;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .gd-author-rank {
+          margin-top: 16px;
+          padding-top: 14px;
+          border-top: 1px solid var(--gd-line-soft);
+          text-align: center;
+        }
+
+        .gd-author-rank strong {
+          display: block;
+          color: #dbeafe;
+          font-size: 11px;
+          line-height: 1.35;
+          letter-spacing: 0.13em;
+          text-transform: uppercase;
+        }
+
+        .gd-author-rank span,
+        .gd-author-rank small {
+          display: block;
+          color: var(--gd-faint);
+          font-size: 11px;
+          line-height: 1.5;
+        }
+
+        .gd-author-rank span {
+          margin-top: 4px;
+        }
+
+        .gd-author-rank small {
+          margin-top: 6px;
+        }
+
+        .gd-post-main {
+          min-width: 0;
+        }
+
+        .gd-post-topbar {
+          min-height: 43px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 0 20px;
+          border-bottom: 1px solid var(--gd-line-soft);
+          background: rgba(255, 255, 255, 0.012);
+        }
+
+        .gd-post-tools {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .gd-post-label,
+        .gd-admin-summary {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-height: 26px;
+          border-radius: 999px;
+          padding: 0 10px;
+          background: rgba(255, 255, 255, 0.045);
+          color: var(--gd-muted);
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .gd-admin-menu {
+          position: relative;
+        }
+
+        .gd-admin-summary {
+          cursor: pointer;
+          list-style: none;
+          border: 0;
+          transition: background 0.18s ease, color 0.18s ease;
+        }
+
+        .gd-admin-summary::-webkit-details-marker {
+          display: none;
+        }
+
+        .gd-admin-summary:hover {
+          background: rgba(255, 255, 255, 0.075);
+          color: #fff;
+        }
+
+        .gd-admin-dropdown {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          z-index: 40;
+          width: 220px;
+          padding: 6px;
+          border-radius: 12px;
+          background: #090d13;
+          box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        .gd-admin-dropdown button {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          border: 0;
+          border-radius: 9px;
+          padding: 9px 10px;
+          background: transparent;
+          color: #d8dee9;
+          font-size: 13px;
+          text-align: left;
+          cursor: pointer;
+          transition: background 0.18s ease;
+        }
+
+        .gd-admin-dropdown button:hover {
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .gd-admin-dropdown button:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
+
+        .gd-admin-dropdown__danger {
+          color: #fca5a5 !important;
+        }
+
+        .gd-content-area {
+          padding: 22px 20px;
+        }
+
+        .gd-reply-reference {
+          display: inline-flex;
+          margin-bottom: 16px;
+          border-left: 3px solid rgba(34, 211, 238, 0.55);
+          padding: 8px 12px;
+          background: rgba(34, 211, 238, 0.075);
+          color: #cffafe;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .gd-content {
+          color: #e2e8f0;
+          font-size: 15px;
+          line-height: 1.75;
+        }
+
+        .gd-content p {
+          margin: 0 0 0.9em;
+        }
+
+        .gd-content p:last-child {
+          margin-bottom: 0;
+        }
+
+        .gd-content strong,
+        .gd-content b {
+          color: #fff;
+          font-weight: 800;
+        }
+
+        .gd-content a {
+          color: var(--gd-accent);
+          text-decoration: none;
+        }
+
+        .gd-content ul,
+        .gd-content ol {
+          margin: 0.8em 0;
+          padding-left: 1.4em;
+        }
+
+        .gd-content blockquote {
+          margin: 1em 0;
+          border-left: 3px solid rgba(148, 163, 184, 0.28);
+          padding-left: 1em;
+          color: var(--gd-muted);
+        }
+
+        .gd-attachments {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 18px;
+        }
+
+        .gd-attachment-thumb,
+        .gd-attachment-preview {
+          display: block;
+          overflow: hidden;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.035);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+        }
+
+        .gd-attachment-thumb {
+          width: 68px;
+          height: 68px;
+          transition: box-shadow 0.18s ease, transform 0.18s ease;
+        }
+
+        .gd-attachment-thumb:hover {
+          transform: translateY(-1px);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+
+        .gd-attachment-thumb img,
+        .gd-attachment-preview img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .gd-post-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 20px;
+          padding-top: 16px;
+          border-top: 1px solid var(--gd-line-soft);
+        }
+
+        .gd-action-button,
+        .gd-upload-button,
+        .gd-secondary-button,
+        .gd-primary-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          min-height: 36px;
+          border: 0;
+          border-radius: 999px;
+          padding: 0 14px;
+          font-size: 12px;
+          font-weight: 700;
+          line-height: 1;
+          cursor: pointer;
+          transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+
+        .gd-action-button,
+        .gd-upload-button,
+        .gd-secondary-button {
+          background: rgba(255, 255, 255, 0.045);
+          color: #cbd5e1;
+        }
+
+        .gd-action-button:hover,
+        .gd-upload-button:hover,
+        .gd-secondary-button:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: #fff;
+        }
+
+        .gd-action-button--active {
+          background: rgba(34, 211, 238, 0.11);
+          color: #a5f3fc;
+        }
+
+        .gd-primary-button {
+          min-height: 40px;
+          background: #fff;
+          color: #0f172a;
+          padding: 0 18px;
+          font-size: 13px;
+        }
+
+        .gd-primary-button:hover {
+          background: #e5e7eb;
+        }
+
+        .gd-primary-button:disabled,
+        .gd-action-button:disabled,
+        .gd-upload-button:has(input:disabled) {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
+
+        .gd-thread-section,
+        .gd-composer-card {
+          overflow: hidden;
+          margin-top: 18px;
+        }
+
+        .gd-thread-section__header,
+        .gd-composer-card__header {
+          display: flex;
+          justify-content: space-between;
+          gap: 18px;
+          padding: 19px 22px;
+          border-bottom: 1px solid var(--gd-line-soft);
+          background: rgba(255, 255, 255, 0.012);
+        }
+
+        .gd-thread-section__header h2,
+        .gd-composer-card__header h2 {
+          margin: 0;
+          color: #fff;
+          font-size: 16px;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+        }
+
+        .gd-thread-section__header p,
+        .gd-composer-card__header p {
+          margin: 6px 0 0;
+          color: var(--gd-faint);
+          font-size: 13px;
+        }
+
+        .gd-thread-section__header span {
+          color: var(--gd-faint);
+          font-size: 13px;
+          white-space: nowrap;
+        }
+
+        .gd-empty-state {
+          padding: 46px 22px;
+          text-align: center;
+        }
+
+        .gd-empty-state p,
+        .gd-empty-state span {
+          display: block;
+        }
+
+        .gd-empty-state p {
+          margin: 0;
+          color: #e2e8f0;
+          font-size: 14px;
+          font-weight: 700;
+        }
+
+        .gd-empty-state span {
+          margin-top: 6px;
+          color: var(--gd-faint);
+          font-size: 13px;
+        }
+
+        .gd-replies-list {
+          background: rgba(255, 255, 255, 0.008);
+        }
+
+        .gd-access-banner {
+          margin-top: 18px;
+          overflow: hidden;
+          border-radius: 14px;
+          background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(12, 16, 23, 0.97) 48%, rgba(8, 11, 16, 1));
+          box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.18);
+        }
+
+        .gd-access-banner__inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 28px;
+          padding: 26px;
+        }
+
+        .gd-access-kicker {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #a5f3fc;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+        }
+
+        .gd-access-banner h2 {
+          margin: 12px 0 0;
+          color: #fff;
+          font-size: 24px;
+          line-height: 1.2;
+          letter-spacing: -0.025em;
+          font-weight: 750;
+        }
+
+        .gd-access-banner p {
+          max-width: 680px;
+          margin: 12px 0 0;
+          color: #cbd5e1;
+          font-size: 14px;
+          line-height: 1.75;
+        }
+
+        .gd-access-flags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 14px;
+        }
+
+        .gd-access-flags span {
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.06);
+          padding: 5px 10px;
+          color: #b6c2d2;
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .gd-access-action {
+          flex: none;
+          text-align: center;
+        }
+
+        .gd-access-action a {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 42px;
+          border-radius: 999px;
+          padding: 0 20px;
+          background: #fff;
+          color: #0f172a;
+          font-size: 13px;
+          font-weight: 800;
+          transition: background 0.18s ease;
+        }
+
+        .gd-access-action a:hover {
+          background: #e5e7eb;
+        }
+
+        .gd-access-action small {
+          display: block;
+          margin-top: 9px;
+          color: #94a3b8;
+          font-size: 11px;
+        }
+
+        .gd-composer-card__body {
+          padding: 22px;
+        }
+
+        .gd-reply-form {
+          display: grid;
+          gap: 16px;
+        }
+
+        .gd-reply-target,
+        .gd-alert {
+          border-radius: 12px;
+          padding: 12px 14px;
+          font-size: 13px;
+          line-height: 1.55;
+        }
+
+        .gd-reply-target {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          background: rgba(14, 165, 233, 0.1);
+          color: #dff7ff;
+        }
+
+        .gd-reply-target button {
+          border: 0;
+          background: transparent;
+          color: #a5f3fc;
+          font-size: 12px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .gd-editor-wrap {
+          overflow: hidden;
+          border-radius: 14px;
+          background: var(--gd-bg);
+          box-shadow: inset 0 0 0 1px var(--gd-line);
+        }
+
+        .gd-attachment-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+
+        .gd-attachment-toolbar strong,
+        .gd-attachment-toolbar span {
+          display: block;
+        }
+
+        .gd-attachment-toolbar strong {
+          color: #dbe4ef;
+          font-size: 13px;
+        }
+
+        .gd-attachment-toolbar span {
+          margin-top: 3px;
+          color: var(--gd-faint);
+          font-size: 12px;
+        }
+
+        .gd-hidden-input {
+          display: none;
+        }
+
+        .gd-attachment-preview-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .gd-attachment-preview {
+          position: relative;
+          height: 132px;
+        }
+
+        .gd-attachment-preview button {
+          position: absolute;
+          right: 8px;
+          top: 8px;
+          border: 0;
+          border-radius: 999px;
+          background: rgba(0, 0, 0, 0.72);
+          color: #fff;
+          padding: 6px 9px;
+          font-size: 11px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .gd-alert {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .gd-alert--warning {
+          background: rgba(245, 158, 11, 0.1);
+          color: #fde68a;
+        }
+
+        .gd-alert--error {
+          background: rgba(239, 68, 68, 0.12);
+          color: #fecaca;
+        }
+
+        .gd-alert--success {
+          background: rgba(16, 185, 129, 0.11);
+          color: #a7f3d0;
+        }
+
+        .gd-form-actions {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .gd-blocked-notice {
+          padding: 42px 20px;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.025);
+          text-align: center;
+        }
+
+        .gd-blocked-notice p {
+          margin: 0;
+          color: #dbe4ef;
+          font-size: 14px;
+          font-weight: 700;
+        }
+
+        .gd-blocked-notice span {
+          display: block;
+          max-width: 480px;
+          margin: 7px auto 0;
+          color: var(--gd-faint);
+          font-size: 13px;
+          line-height: 1.65;
+        }
+
+        .gd-blocked-notice a {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 40px;
+          margin-top: 18px;
+          border-radius: 999px;
+          padding: 0 18px;
+          background: #fff;
+          color: #0f172a;
+          font-size: 13px;
+          font-weight: 800;
+        }
+
+        .gd-spin {
+          animation: gd-spin 0.8s linear infinite;
+        }
+
+        @keyframes gd-spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        @media (max-width: 820px) {
+          .gd-topic-shell {
+            padding-inline: 0;
+          }
+
+          .gd-topic-heading__topline,
+          .gd-topic-heading__content,
+          .gd-thread-section__header,
+          .gd-composer-card__header,
+          .gd-composer-card__body {
+            padding-left: 16px;
+            padding-right: 16px;
+          }
+
+          .gd-post-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .gd-post-author {
+            border-right: 0;
+            border-bottom: 1px solid var(--gd-line-soft);
+            padding: 16px;
+          }
+
+          .gd-author-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+          }
+
+          .gd-avatar {
+            width: 46px;
+            height: 46px;
+            margin: 0;
+          }
+
+          .gd-author-rank {
+            text-align: left;
+          }
+
+          .gd-post-topbar,
+          .gd-content-area {
+            padding-left: 16px;
+            padding-right: 16px;
+          }
+
+          .gd-thread-section__header,
+          .gd-access-banner__inner,
+          .gd-attachment-toolbar {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .gd-access-action {
+            width: 100%;
+          }
+
+          .gd-access-action a {
+            width: 100%;
+          }
+
+          .gd-attachment-preview-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+      `}</style>
     </div>
   )
 }
@@ -531,95 +1440,101 @@ function CommunityPostCard({
   createdAt,
   content,
   attachments,
+  parentPost = null,
+  likesCount = 0,
+  viewerLiked = false,
+  canInteract = false,
+  canReplyAction = canInteract,
+  likeBusy = false,
   highlight = false,
   compact = false,
   isAdminUser = false,
   actionBusy = false,
   onDelete,
   onToggleBan,
+  onToggleLike,
+  onReply,
 }: {
   author: TopicAuthor
   authorRole: string
   createdAt: string
   content: string
   attachments: CommunityUploadedImage[]
+  parentPost?: { id: string; authorName: string } | null
+  likesCount?: number
+  viewerLiked?: boolean
+  canInteract?: boolean
+  canReplyAction?: boolean
+  likeBusy?: boolean
   highlight?: boolean
   compact?: boolean
   isAdminUser?: boolean
   actionBusy?: boolean
   onDelete?: () => void
   onToggleBan?: () => void
+  onToggleLike?: () => void
+  onReply?: () => void
 }) {
   const isBanned = Boolean(author.activeBan)
+  const stats = author.communityStats ?? DEFAULT_COMMUNITY_STATS
+  const canUseLike = !highlight && canInteract
+  const canUseReply = !highlight && canReplyAction
 
   return (
-    <article
-      className={[
-        "overflow-hidden rounded-lg border border-white/[0.08] bg-[#0c1017]",
-        highlight ? "border-white/[0.12]" : "",
-        compact ? "bg-[#0a0e14]" : "",
-      ].join(" ")}
-    >
-      <div className="grid md:grid-cols-[180px_minmax(0,1fr)]">
-        <aside className="border-b border-white/[0.08] bg-white/[0.025] p-4 md:border-b-0 md:border-r md:border-white/[0.08]">
-          <div className="flex items-center gap-3 md:block md:text-center">
-            <Avatar className="h-11 w-11 border border-white/[0.1] md:mx-auto md:h-14 md:w-14">
+    <article className={["gd-thread-post", compact ? "gd-thread-post--reply" : ""].join(" ") }>
+      <div className="gd-post-grid">
+        <aside className="gd-post-author">
+          <div className="gd-author-profile">
+            <Avatar className="gd-avatar">
               <AvatarImage src={author.avatarUrl ?? ""} />
-              <AvatarFallback className="bg-white/[0.06] text-sm font-semibold text-slate-200">
-                {getCommunityInitials(author.name)}
-              </AvatarFallback>
+              <AvatarFallback className="gd-avatar-fallback">{getCommunityInitials(author.name)}</AvatarFallback>
             </Avatar>
 
-            <div className="min-w-0 md:mt-3">
-              <p className="truncate text-sm font-semibold text-white">{getCommunityFirstName(author.name)}</p>
-              <p className="mt-0.5 text-xs text-slate-500">{authorRole}</p>
-              {isAdminUser && author.email && (
-                <p className="mt-1 break-all text-[11px] text-slate-500">{author.email}</p>
-              )}
-              {isBanned && (
-                <p className="mt-2 text-[11px] font-medium text-amber-300">Banido da comunidade</p>
-              )}
+            <div>
+              <div className="gd-author-name">{getCommunityFirstName(author.name)}</div>
+              <div className="gd-author-role">{authorRole}</div>
+              {isAdminUser && author.email && <div className="gd-author-email">{author.email}</div>}
+              {isBanned && <div className="gd-banned-label">Banido da comunidade</div>}
             </div>
+          </div>
+
+          <div className="gd-author-rank">
+            <strong>{stats.badgeLabel}</strong>
+            <span>{stats.score} interações</span>
+            <small>
+              {stats.postsCount} respostas · {stats.likesReceivedCount} curtidas
+            </small>
           </div>
         </aside>
 
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] px-5 py-3">
+        <div className="gd-post-main">
+          <div className="gd-post-topbar">
             <MetaItem icon={CalendarDays} label={formatCommunityDate(createdAt)} />
 
-            <div className="flex flex-wrap items-center gap-2">
-              {highlight && (
-                <span className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-xs text-slate-400">
-                  Publicação principal
-                </span>
-              )}
+            <div className="gd-post-tools">
+              {highlight && <span className="gd-post-label">Publicação principal</span>}
 
               {isAdminUser && (
-                <details className="group relative">
-                  <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/[0.06]">
-                    {actionBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MoreHorizontal className="h-3.5 w-3.5" />}
+                <details className="gd-admin-menu">
+                  <summary className="gd-admin-summary">
+                    {actionBusy ? <Loader2 className="gd-icon gd-spin" /> : <MoreHorizontal className="gd-icon" />}
                     Ações
-                    <ChevronDown className="h-3.5 w-3.5 transition group-open:rotate-180" />
+                    <ChevronDown className="gd-icon" />
                   </summary>
 
-                  <div className="absolute right-0 top-full z-20 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-white/[0.08] bg-[#0a0e14] p-1 shadow-2xl shadow-black/40">
-                    <button
-                      type="button"
-                      onClick={onToggleBan}
-                      disabled={actionBusy}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isBanned ? <ShieldOff className="h-4 w-4 text-emerald-300" /> : <Ban className="h-4 w-4 text-amber-300" />}
-                      {isBanned ? "Desbanir usuario" : "Banir usuario"}
+                  <div className="gd-admin-dropdown">
+                    <button type="button" onClick={onToggleBan} disabled={actionBusy}>
+                      {isBanned ? <ShieldOff className="gd-icon" /> : <Ban className="gd-icon" />}
+                      {isBanned ? "Desbanir usuário" : "Banir usuário"}
                     </button>
 
                     <button
                       type="button"
                       onClick={onDelete}
                       disabled={actionBusy}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-300 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="gd-admin-dropdown__danger"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="gd-icon" />
                       Apagar publicação
                     </button>
                   </div>
@@ -628,25 +1543,52 @@ function CommunityPostCard({
             </div>
           </div>
 
-          <div className="px-5 py-5">
-            <div
-              className="prose prose-invert max-w-none prose-headings:text-white prose-a:text-sky-300 prose-strong:text-white prose-p:leading-7 prose-p:text-slate-300 prose-li:text-slate-300 prose-blockquote:border-slate-600 prose-blockquote:text-slate-400"
-              dangerouslySetInnerHTML={{ __html: content }}
-            />
+          <div className="gd-content-area">
+            {parentPost && (
+              <div className="gd-reply-reference">Em resposta a {getCommunityFirstName(parentPost.authorName)}</div>
+            )}
+
+            <div className="gd-content" dangerouslySetInnerHTML={{ __html: content }} />
 
             {attachments.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-3">
+              <div className="gd-attachments">
                 {attachments.map((attachment) => (
                   <a
                     key={attachment.id ?? attachment.url}
                     href={attachment.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="h-[60px] w-[60px] overflow-hidden rounded-md border border-white/[0.08] bg-[#080b10] transition hover:border-white/[0.16]"
+                    className="gd-attachment-thumb"
+                    title={attachment.fileName}
                   >
-                    <img src={attachment.url} alt={attachment.fileName} className="h-full w-full object-cover" />
+                    <img src={attachment.url} alt={attachment.fileName} />
                   </a>
                 ))}
+              </div>
+            )}
+
+            {!highlight && (
+              <div className="gd-post-actions">
+                <button
+                  type="button"
+                  onClick={onToggleLike}
+                  disabled={!canUseLike || likeBusy}
+                  className={["gd-action-button", viewerLiked ? "gd-action-button--active" : ""].join(" ")}
+                >
+                  {likeBusy ? (
+                    <Loader2 className="gd-button-icon gd-spin" />
+                  ) : (
+                    <Heart className="gd-button-icon" fill={viewerLiked ? "currentColor" : "none"} />
+                  )}
+                  {likesCount}
+                </button>
+
+                {canUseReply && onReply && (
+                  <button type="button" onClick={onReply} className="gd-action-button">
+                    <Reply className="gd-button-icon" />
+                    Responder
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -656,16 +1598,90 @@ function CommunityPostCard({
   )
 }
 
+function CommunityAccessBanner({
+  repliesCount,
+  canViewReplies,
+  canReply,
+}: {
+  repliesCount: number
+  canViewReplies: boolean
+  canReply: boolean
+}) {
+  const hasRealReplies = repliesCount > 0
+
+  return (
+    <section className="gd-access-banner">
+      <div className="gd-access-banner__inner">
+        <div>
+          <div className="gd-access-kicker">
+            <Sparkles className="gd-icon" />
+            Comunidade completa
+          </div>
+
+          <h2>Desbloqueie as respostas e participe da discussão</h2>
+
+          <p>
+            {hasRealReplies
+              ? `Esta discussão já tem ${plural(repliesCount, "resposta", "respostas")} da comunidade. Ative seu plano para visualizar os diagnósticos completos e contribuir com sua experiência.`
+              : "Ative seu plano para visualizar respostas técnicas, acompanhar diagnósticos completos e contribuir com a comunidade."}
+          </p>
+
+          <div className="gd-access-flags">
+            {!canViewReplies && <span>Respostas bloqueadas</span>}
+            {!canReply && <span>Participação bloqueada</span>}
+          </div>
+        </div>
+
+        <div className="gd-access-action">
+          <Link href="/planos">Desbloquear agora</Link>
+          <small>Libere a comunidade completa</small>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ParticipationBlockedNotice({ banMessage }: { banMessage?: string | null }) {
+  return (
+    <div className="gd-blocked-notice">
+      <p>{banMessage ? "Sua participação está temporariamente bloqueada." : "Entre na sua conta para participar."}</p>
+      <span>{banMessage ? banMessage : "Apenas membros autenticados podem responder discussões."}</span>
+      {!banMessage && <Link href="/login">Entrar na conta</Link>}
+    </div>
+  )
+}
+
+function AttachmentPreviewGrid({
+  attachments,
+  onRemove,
+}: {
+  attachments: CommunityUploadedImage[]
+  onRemove: (url: string) => void
+}) {
+  return (
+    <div className="gd-attachment-preview-grid">
+      {attachments.map((attachment) => (
+        <div key={attachment.url} className="gd-attachment-preview">
+          <img src={attachment.url} alt={attachment.fileName} />
+          <button type="button" onClick={() => onRemove(attachment.url)}>
+            Remover
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function MetaItem({
   icon: Icon,
   label,
 }: {
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
   label: string
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
-      <Icon className="h-4 w-4 text-slate-600" />
+    <span className="gd-meta-item">
+      <Icon className="gd-meta-icon" />
       {label}
     </span>
   )
@@ -673,36 +1689,4 @@ function MetaItem({
 
 function plural(value: number, singular: string, pluralText: string) {
   return `${value} ${value === 1 ? singular : pluralText}`
-}
-
-function PlanRequiredCard({
-  title,
-  description,
-  ctaLabel,
-}: {
-  title: string
-  description: string
-  ctaLabel: string
-}) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-cyan-500/20 bg-[linear-gradient(135deg,rgba(34,211,238,0.14),rgba(8,11,16,0.96)_48%,rgba(8,11,16,1))]">
-      <div className="flex flex-col gap-5 px-5 py-6 md:flex-row md:items-center md:justify-between md:px-6">
-        <div className="max-w-2xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan-300">Acesso premium</p>
-          <h3 className="mt-3 text-xl font-semibold text-white md:text-2xl">{title}</h3>
-          <p className="mt-3 text-sm leading-7 text-slate-300">{description}</p>
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-3">
-          <Link
-            href="/planos"
-            className="inline-flex h-11 items-center justify-center rounded-full bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-          >
-            {ctaLabel}
-          </Link>
-          <p className="text-center text-xs text-slate-400">Desbloqueie a comunidade completa</p>
-        </div>
-      </div>
-    </div>
-  )
 }

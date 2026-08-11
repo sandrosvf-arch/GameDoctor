@@ -7,6 +7,7 @@ import { hasActivePlanAccess } from "@/lib/access"
 import { CalendarDays, Eye, MessageSquareText, UserRound } from "lucide-react"
 import { formatCommunityDate, getCommunityActiveBanWhere, getCommunityFirstName, isCommunityWriterBanned } from "@/lib/community"
 import { CommunityTopicClient } from "@/components/community/CommunityTopicClient"
+import { emptyCommunityAuthorStats, getCommunityStatsByUserIds } from "@/lib/community-stats"
 
 export const dynamic = "force-dynamic"
 
@@ -76,7 +77,6 @@ export default async function CommunityTopicPage({
       },
       posts: {
         where: {
-          parentPostId: null,
           ...(isAdminUser ? {} : { status: "APPROVED" as const }),
         },
         orderBy: [{ createdAt: "asc" }],
@@ -84,6 +84,19 @@ export default async function CommunityTopicPage({
           id: true,
           content: true,
           createdAt: true,
+          status: true,
+          likesCount: true,
+          likes: {
+            where: { userId: session?.user?.id ?? "" },
+            select: { id: true },
+            take: 1,
+          },
+          parentPost: {
+            select: {
+              id: true,
+              author: { select: { name: true } },
+            },
+          },
           attachments: {
             select: {
               id: true,
@@ -143,6 +156,11 @@ export default async function CommunityTopicPage({
       activeBanMessage = activeBan.reason || "Sua conta esta bloqueada para publicar na comunidade."
     }
   }
+
+  const communityStatsMap = await getCommunityStatsByUserIds([
+    topic.author.id,
+    ...topic.posts.map((post) => post.author.id),
+  ])
 
   await db.communityTopic.update({
     where: { id: topic.id },
@@ -222,6 +240,7 @@ export default async function CommunityTopicPage({
               name: topic.author.name,
               email: topic.author.email,
               avatarUrl: topic.author.avatarUrl,
+              communityStats: communityStatsMap.get(topic.author.id) ?? emptyCommunityAuthorStats(),
               activeBan: topic.author.communityBans[0]
                 ? {
                     id: topic.author.communityBans[0].id,
@@ -244,6 +263,15 @@ export default async function CommunityTopicPage({
                 id: post.id,
                 content: post.content,
                 createdAt: post.createdAt.toISOString(),
+                status: post.status,
+                likesCount: post.likesCount,
+                viewerLiked: post.likes.length > 0,
+                parentPost: post.parentPost
+                  ? {
+                      id: post.parentPost.id,
+                      authorName: post.parentPost.author.name,
+                    }
+                  : null,
                 attachments: post.attachments.map((attachment) => ({
                   id: attachment.id,
                   fileName: attachment.fileName,
@@ -256,6 +284,7 @@ export default async function CommunityTopicPage({
                   name: post.author.name,
                   email: post.author.email,
                   avatarUrl: post.author.avatarUrl,
+                  communityStats: communityStatsMap.get(post.author.id) ?? emptyCommunityAuthorStats(),
                   activeBan: post.author.communityBans[0]
                     ? {
                         id: post.author.communityBans[0].id,

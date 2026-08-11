@@ -451,8 +451,8 @@ export default function BunnyAulaClient({
                 />
               ) : null}
             </div>
-
-            {isAccessible && lessonId && (
+            
+            {/* {isAccessible && lessonId && (
               <button
                 onClick={handleMarkComplete}
                 disabled={completingLesson || completed}
@@ -470,7 +470,7 @@ export default function BunnyAulaClient({
                 )}
                 {completed ? "Aula concluída" : "Concluir aula"}
               </button>
-            )}
+            )} */}
 
             {(description || materials.length > 0) && (
               <div className="space-y-4 rounded-xl border border-border bg-muted/30 px-5 py-4">

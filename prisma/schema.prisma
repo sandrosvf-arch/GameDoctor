@@ -281,6 +281,7 @@ model User {
   revokedCommunityBans CommunityBan[]           @relation("CommunityBanRevokedBy")
   communityModerationActions CommunityModerationAction[] @relation("CommunityModerator")
   communityTargetActions CommunityModerationAction[]     @relation("CommunityTargetUser")
+  communityPostLikes CommunityPostLike[]        @relation("CommunityPostLikeUser")
   supportTickets    Ticket[]                    @relation("TicketStudent")
   closedTickets     Ticket[]                    @relation("TicketClosedBy")
   ticketMessages    TicketMessage[]             @relation("TicketMessageAuthor")
@@ -971,6 +972,7 @@ model CommunityPost {
   approvedById   String?             @map("approved_by_id")
   parentPostId   String?             @map("parent_post_id")
   content        String              @db.Text
+  likesCount     Int                 @default(0) @map("likes_count")
   status         CommunityPostStatus @default(PENDING)
   approvedAt     DateTime?           @map("approved_at")
   createdAt      DateTime            @default(now()) @map("created_at")
@@ -983,11 +985,27 @@ model CommunityPost {
   replies        CommunityPost[]     @relation("CommunityPostReplies")
   attachments    CommunityAttachment[]
   moderationActions CommunityModerationAction[]
+  likes          CommunityPostLike[]
 
   @@index([topicId, status, createdAt])
   @@index([parentPostId])
   @@index([authorId, createdAt])
   @@map("community_posts")
+}
+
+model CommunityPostLike {
+  id        String        @id @default(cuid())
+  postId    String        @map("post_id")
+  userId    String        @map("user_id")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User          @relation("CommunityPostLikeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([postId])
+  @@index([userId, createdAt])
+  @@map("community_post_likes")
 }
 
 model CommunityAttachment {

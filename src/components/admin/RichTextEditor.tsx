@@ -1,16 +1,18 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   Bold,
+  Heading2,
   Italic,
+  Link as LinkIcon,
   List,
   ListOrdered,
-  Link as LinkIcon,
   Quote,
   RemoveFormatting,
-  Heading2,
+  Smile,
 } from "lucide-react"
+import EmojiPicker, { Theme, type EmojiClickData } from "emoji-picker-react"
 
 function ToolbarButton({
   title,
@@ -37,12 +39,15 @@ export function RichTextEditor({
   value,
   onChange,
   placeholder,
+  enableEmojiPicker = false,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder?: string
+  enableEmojiPicker?: boolean
 }) {
   const editorRef = useRef<HTMLDivElement | null>(null)
+  const [emojiOpen, setEmojiOpen] = useState(false)
 
   useEffect(() => {
     if (!editorRef.current) return
@@ -63,9 +68,15 @@ export function RichTextEditor({
     exec("createLink", url)
   }
 
+  function insertEmoji(emojiData: EmojiClickData) {
+    editorRef.current?.focus()
+    document.execCommand("insertText", false, emojiData.emoji)
+    onChange(editorRef.current?.innerHTML ?? "")
+  }
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card/40">
-      <div className="flex flex-wrap gap-2 border-b border-border/70 px-3 py-3">
+      <div className="relative flex flex-wrap gap-2 border-b border-border/70 px-3 py-3">
         <ToolbarButton title="Título" onClick={() => exec("formatBlock", "<h2>")}>
           <Heading2 className="h-4 w-4" />
         </ToolbarButton>
@@ -87,9 +98,26 @@ export function RichTextEditor({
         <ToolbarButton title="Link" onClick={handleLink}>
           <LinkIcon className="h-4 w-4" />
         </ToolbarButton>
+        {enableEmojiPicker && (
+          <ToolbarButton title="Emojis" onClick={() => setEmojiOpen((open) => !open)}>
+            <Smile className="h-4 w-4" />
+          </ToolbarButton>
+        )}
         <ToolbarButton title="Limpar formatação" onClick={() => exec("removeFormat")}>
           <RemoveFormatting className="h-4 w-4" />
         </ToolbarButton>
+
+        {enableEmojiPicker && emojiOpen && (
+          <div className="absolute left-3 top-[52px] z-30 overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-black/40">
+            <EmojiPicker
+              theme={Theme.DARK}
+              width={320}
+              height={360}
+              previewConfig={{ showPreview: false }}
+              onEmojiClick={insertEmoji}
+            />
+          </div>
+        )}
       </div>
 
       <div

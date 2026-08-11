@@ -3,9 +3,50 @@ import { auth } from "@/lib/auth"
 import { hasActivePlanAccess } from "@/lib/access"
 import { db } from "@/lib/db"
 import { getCommunityActiveBanWhere, isCommunityWriterBanned } from "@/lib/community"
+import { emptyCommunityAuthorStats, getCommunityStatsByUserIds } from "@/lib/community-stats"
 
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "EDITOR"
+}
+
+function normalizePost(post: {
+  id: string
+  content: string
+  createdAt: Date
+  status: "PENDING" | "APPROVED" | "REJECTED" | "HIDDEN"
+  likesCount: number
+  likes?: Array<{ id: string }>
+  parentPost: { id: string; author: { name: string } } | null
+  attachments?: Array<{ id: string; fileName: string; fileUrl: string; mimeType: string | null; sizeBytes: number | null }>
+  author: { id: string; name: string; avatarUrl: string | null }
+}, stats = emptyCommunityAuthorStats()) {
+  return {
+    id: post.id,
+    content: post.content,
+    createdAt: post.createdAt.toISOString(),
+    status: post.status,
+    likesCount: post.likesCount,
+    viewerLiked: Boolean(post.likes?.length),
+    parentPost: post.parentPost
+      ? {
+          id: post.parentPost.id,
+          authorName: post.parentPost.author.name,
+        }
+      : null,
+    attachments: post.attachments?.map((attachment) => ({
+      id: attachment.id,
+      fileName: attachment.fileName,
+      fileUrl: attachment.fileUrl,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+    })) ?? [],
+    author: {
+      id: post.author.id,
+      name: post.author.name,
+      avatarUrl: post.author.avatarUrl,
+      communityStats: stats,
+    },
+  }
 }
 
 export async function GET(
@@ -21,7 +62,7 @@ export async function GET(
   })
 
   if (!topic || topic.status !== "APPROVED") {
-    return NextResponse.json({ error: "Topico nao encontrado." }, { status: 404 })
+    return NextResponse.json({ error: "Tópico não encontrado." }, { status: 404 })
   }
 
   const canViewReplies = isAdminRole(session?.user?.role)
@@ -41,7 +82,6 @@ export async function GET(
   const posts = await db.communityPost.findMany({
     where: {
       topicId: topic.id,
-      parentPostId: null,
       status: "APPROVED",
     },
     orderBy: [{ createdAt: "asc" }],
@@ -49,6 +89,12 @@ export async function GET(
       id: true,
       content: true,
       createdAt: true,
+      status: true,
+      likesCount: true,
+      ...(session?.user?.id
+        ? { likes: { where: { userId: session.user.id }, select: { id: true }, take: 1 } }
+        : {}),
+      parentPost: { select: { id: true, author: { select: { name: true } } } },
       author: {
         select: {
           id: true,
@@ -59,7 +105,9 @@ export async function GET(
     },
   })
 
-  return NextResponse.json(posts)
+  const statsMap = await getCommunityStatsByUserIds(posts.map((post) => post.author.id))
+
+  return NextResponse.json(posts.map((post) => normalizePost(post, statsMap.get(post.author.id))))
 }
 
 export async function POST(
@@ -91,7 +139,7 @@ export async function POST(
   })
 
   if (!topic || topic.status !== "APPROVED") {
-    return NextResponse.json({ error: "Topico nao encontrado." }, { status: 404 })
+    return NextResponse.json({ error: "Tópico não encontrado." }, { status: 404 })
   }
 
   if (!hasRepliesAccess) {
@@ -106,7 +154,7 @@ export async function POST(
   }
 
   if (topic.isLocked) {
-    return NextResponse.json({ error: "Este topico esta fechado para novas respostas." }, { status: 400 })
+    return NextResponse.json({ error: "Este tópico está fechado para novas respostas." }, { status: 400 })
   }
 
   const activeBan = await db.communityBan.findFirst({
@@ -127,7 +175,7 @@ export async function POST(
     })
   ) {
     return NextResponse.json(
-      { error: activeBan.reason || "Sua conta esta bloqueada para publicar na comunidade." },
+      { error: activeBan.reason || "Sua conta está bloqueada para publicar na comunidade." },
       { status: 403 }
     )
   }
@@ -135,9 +183,29 @@ export async function POST(
   const body = await request.json().catch(() => null)
   const content = typeof body?.content === "string" ? body.content.trim() : ""
   const attachments = Array.isArray(body?.attachments) ? body.attachments : []
+  const parentPostId = typeof body?.parentPostId === "string" && body.parentPostId.trim()
+    ? body.parentPostId.trim()
+    : null
 
   if (content.replace(/<[^>]+>/g, "").trim().length < 6) {
     return NextResponse.json({ error: "Escreva uma resposta mais completa." }, { status: 400 })
+  }
+
+  let parentPost: { id: string } | null = null
+
+  if (parentPostId) {
+    parentPost = await db.communityPost.findFirst({
+      where: {
+        id: parentPostId,
+        topicId: topic.id,
+        status: "APPROVED",
+      },
+      select: { id: true },
+    })
+
+    if (!parentPost) {
+      return NextResponse.json({ error: "Resposta alvo não encontrada." }, { status: 400 })
+    }
   }
 
   const normalizedAttachments = attachments
@@ -167,6 +235,7 @@ export async function POST(
     data: {
       topicId: topic.id,
       authorId: session.user.id,
+      parentPostId: parentPost?.id ?? null,
       content,
       status: autoApprove ? "APPROVED" : "PENDING",
       approvedAt: autoApprove ? new Date() : null,
@@ -193,6 +262,8 @@ export async function POST(
       content: true,
       createdAt: true,
       status: true,
+      likesCount: true,
+      parentPost: { select: { id: true, author: { select: { name: true } } } },
       attachments: {
         select: {
           id: true,
@@ -240,16 +311,18 @@ export async function POST(
     return NextResponse.json(
       {
         pending: true,
-        message: "Resposta enviada para aprovacao da equipe.",
+        message: "Resposta enviada para aprovação da equipe.",
       },
       { status: 201 }
     )
   }
 
+  const statsMap = await getCommunityStatsByUserIds([post.author.id])
+
   return NextResponse.json(
     {
       pending: false,
-      post,
+      post: normalizePost(post, statsMap.get(post.author.id)),
     },
     { status: 201 }
   )
