@@ -6,11 +6,12 @@ const footerLinks = {
   plataforma: [
     { label: "Trilhas", href: "/cursos" },
     { label: "Planos", href: "/planos" },
-    { label: "Entrar", href: "/login" },
-    { label: "Cadastrar", href: "/cadastro" },
+    { label: "Comunidade", href: "/comunidade" },
   ],
   suporte: [
-    { label: "Fale conosco", href: "/faq" },
+    { label: "Quem somos", href: "/quem-somos" },
+    { label: "Dúvidas frequentes", href: "/suporte" },
+    { label: "Fale conosco", href: "/contato" },
     { label: "Termos de uso", href: "/termos-de-uso" },
     { label: "Privacidade", href: "/politica-privacidade" },
   ],
