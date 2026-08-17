@@ -233,7 +233,7 @@ export default async function PlanosPage() {
             <p className="text-sm font-semibold text-white">Ainda está em dúvida?</p>
             <p className="mt-1 text-sm text-slate-500">Confira tudo com calma antes de finalizar.</p>
           </div>
-          <Link href="/suporte" className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200">
+          <Link href={process.env.NEXT_PUBLIC_SUBSCRIPTION_CANCEL_WHATSAPP_URL?.trim()??"/suporte"} className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200">
             Fale com a gente <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
