@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+import { DEFAULT_CATALOG_CATEGORIES } from "@/lib/catalog"
 
 function HeartbeatLine() {
   const [tick, setTick] = useState(-1)
@@ -99,7 +100,103 @@ interface CatalogCategoryNode {
   id: string
   name: string
   slug: string
+  targetCourseSlug?: string | null
   children: CatalogCategoryNode[]
+}
+
+function getCategoryHref(category: { slug: string; targetCourseSlug?: string | null }) {
+  return category.targetCourseSlug ? `/trilhas/${category.targetCourseSlug}` : `/cursos?categoria=${category.slug}`
+}
+
+const CATEGORY_CACHE_KEY = "gamedoctor:catalog-categories:v1"
+const CATEGORY_CACHE_TTL_MS = 5 * 60 * 1000
+
+const DEFAULT_TARGET_COURSE_SLUG_BY_CATEGORY_SLUG: Record<string, string> = {
+  "inicio-da-jornada": "inicio-da-jornada",
+  "conhecendo-professor-e-ferramentas": "conhecendo-professor-e-ferramentas",
+  "eletronica-basica": "eletronica-basica",
+  "micro-solda": "micro-solda",
+  ferramental: "ferramental",
+  softwares: "softwares",
+  administracao: "administracao",
+  "manutencao-geral": "manutencao-geral",
+  "playstation-2": "playstation-2",
+  "playstation-3": "playstation-3",
+  "playstation-4": "playstation-4",
+  "playstation-5": "playstation-5",
+  "playstation-portateis": "playstation-port-teis",
+  "xbox-360": "xbox-360",
+  "xbox-one": "xbox-one",
+  "xbox-series-xs": "xbox-series-xs",
+  "game-boy": "gameboy",
+  "super-nintendo": "super-nintendo",
+  "nintendo-wii": "nintendo-wii",
+  "nintendo-wiiu": "nintendo-wiiu",
+  "nintendo-3ds": "nintendo-3ds",
+  "nintendo-switch": "nintendo-switch",
+  "nintendo-switch-2": "nintendo-switch-2",
+  controles: "controles",
+  "controles-em-geral": "controles",
+  outros: "rog-ally",
+  "rog-ally": "rog-ally",
+}
+
+function buildFallbackCategories() {
+  const nodes = new Map<string, CatalogCategoryNode>()
+
+  for (const category of DEFAULT_CATALOG_CATEGORIES) {
+    nodes.set(category.slug, {
+      id: `fallback-${category.slug}`,
+      name: category.name,
+      slug: category.slug,
+      targetCourseSlug: DEFAULT_TARGET_COURSE_SLUG_BY_CATEGORY_SLUG[category.slug] ?? null,
+      children: [],
+    })
+  }
+
+  const roots: CatalogCategoryNode[] = []
+
+  for (const category of DEFAULT_CATALOG_CATEGORIES) {
+    const node = nodes.get(category.slug)
+    if (!node) continue
+
+    if (category.parentSlug) {
+      nodes.get(category.parentSlug)?.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+
+  return roots
+}
+
+const FALLBACK_CATEGORIES = buildFallbackCategories()
+
+function readCachedCategories() {
+  if (typeof window === "undefined") return null
+
+  try {
+    const raw = window.localStorage.getItem(CATEGORY_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as { updatedAt?: number; data?: CatalogCategoryNode[] }
+    if (typeof parsed.updatedAt !== "number" || !Array.isArray(parsed.data)) return null
+    if (Date.now() - parsed.updatedAt > CATEGORY_CACHE_TTL_MS) return null
+
+    return parsed.data
+  } catch {
+    return null
+  }
+}
+
+function writeCachedCategories(data: CatalogCategoryNode[]) {
+  if (typeof window === "undefined") return
+
+  try {
+    window.localStorage.setItem(CATEGORY_CACHE_KEY, JSON.stringify({ updatedAt: Date.now(), data }))
+  } catch {
+    // Cache local é apenas otimização visual.
+  }
 }
 
 export function Header() {
@@ -107,21 +204,33 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [isSearching, setIsSearching] = useState(false)
-  const [categories, setCategories] = useState<CatalogCategoryNode[]>([])
+  const [categories, setCategories] = useState<CatalogCategoryNode[]>(FALLBACK_CATEGORIES)
   const [desktopCategoriesOpen, setDesktopCategoriesOpen] = useState(false)
   const [openDesktopRootId, setOpenDesktopRootId] = useState<string | null>(null)
   const [openDesktopBranchId, setOpenDesktopBranchId] = useState<string | null>(null)
   const [openMobileCategoryId, setOpenMobileCategoryId] = useState<string | null>(null)
+  const [pendingCategoryHref, setPendingCategoryHref] = useState<string | null>(null)
   const router = useRouter()
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    fetch("/api/catalog/categorias")
+    const cachedCategories = readCachedCategories()
+    if (cachedCategories) setCategories(cachedCategories)
+
+    const controller = new AbortController()
+
+    fetch("/api/catalog/categorias", { cache: "force-cache", signal: controller.signal })
       .then((res) => res.ok ? res.json() : [])
       .then((data: CatalogCategoryNode[]) => {
+        if (!Array.isArray(data)) return
         setCategories(data)
+        writeCachedCategories(data)
       })
-      .catch(() => setCategories([]))
+      .catch((error: Error) => {
+        if (error.name !== "AbortError" && !cachedCategories) setCategories([])
+      })
+
+    return () => controller.abort()
   }, [])
 
   const handleSearch = (e: React.FormEvent) => {
@@ -165,8 +274,23 @@ export function Header() {
     setOpenDesktopBranchId(branchId)
   }
 
+  function prefetchCategory(category: CatalogCategoryNode) {
+    router.prefetch(getCategoryHref(category))
+  }
+
+  function handleCategoryLinkClick(href: string) {
+    setPendingCategoryHref(href)
+    setDesktopCategoriesOpen(false)
+    setMobileOpen(false)
+    resetDesktopCategoryState()
+    window.setTimeout(() => {
+      setPendingCategoryHref((current) => current === href ? null : current)
+    }, 4000)
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      {pendingCategoryHref ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-primary/50" /> : null}
       <div className="container flex h-16 items-center gap-3">
         <div className="flex shrink-0 items-center">
           <Link href="/" className="flex items-center">
@@ -200,20 +324,19 @@ export function Header() {
                   <div
                     key={root.id}
                     className="relative rounded-lg border border-transparent hover:border-white/5"
-                    onMouseEnter={() => handleDesktopRootHover(root.id)}
+                    onMouseEnter={() => {
+                      handleDesktopRootHover(root.id)
+                      prefetchCategory(root)
+                    }}
                   >
-                    <div className="flex items-center rounded-md hover:bg-accent">
-                      <Link
-                        href={`/cursos?categoria=${root.slug}`}
-                        className="flex-1 px-2.5 py-2 text-left text-sm"
-                      >
-                        {root.name}
-                      </Link>{root.children.length > 0 ? (
-                        <span className="mr-2 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground">
-                          <ChevronRight className="h-4 w-4" />
-                        </span>
-                      ) : null}
-                    </div>
+                    <Link
+                      href={getCategoryHref(root)}
+                      onClick={() => handleCategoryLinkClick(getCategoryHref(root))}
+                      className="flex items-center justify-between rounded-md px-2.5 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <span>{root.name}</span>
+                      {root.children.length > 0 ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : null}
+                    </Link>
 
                     {root.children.length > 0 && openDesktopRootId === root.id ? (
                       <div className="absolute left-full top-0 z-50 ml-2 w-64 rounded-xl border border-border/60 bg-popover p-1.5 shadow-2xl">
@@ -221,28 +344,29 @@ export function Header() {
                           <div
                             key={child.id}
                             className="relative"
-                            onMouseEnter={() => child.children.length > 0 && handleDesktopBranchHover(child.id)}
+                            onMouseEnter={() => {
+                              prefetchCategory(child)
+                              if (child.children.length > 0) handleDesktopBranchHover(child.id)
+                            }}
                           >
-                            <div className="flex items-center rounded-md hover:bg-accent">
-                              <Link
-                                href={`/cursos?categoria=${child.slug}`}
-                                className="flex flex-1 cursor-pointer items-center gap-2 px-3 py-2 text-sm"
-                              >
-                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                                {child.name}
-                              </Link>{child.children.length > 0 ? (
-                                <span className="mr-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground">
-                                  <ChevronRight className="h-4 w-4" />
-                                </span>
-                              ) : null}
-                            </div>
+                            <Link
+                              href={getCategoryHref(child)}
+                              onClick={() => handleCategoryLinkClick(getCategoryHref(child))}
+                              className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+                            >
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="flex-1">{child.name}</span>
+                              {child.children.length > 0 ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : null}
+                            </Link>
 
                             {child.children.length > 0 && openDesktopBranchId === child.id ? (
                               <div className="absolute left-full top-0 z-50 ml-2 w-64 rounded-xl border border-border/60 bg-popover p-1.5 shadow-2xl">
                                 {child.children.map((grandchild) => (
                                   <DropdownMenuItem key={grandchild.id} asChild className="px-2.5 py-2">
                                     <Link
-                                      href={`/cursos?categoria=${grandchild.slug}`}
+                                      href={getCategoryHref(grandchild)}
+                                      onMouseEnter={() => prefetchCategory(grandchild)}
+                                      onClick={() => handleCategoryLinkClick(getCategoryHref(grandchild))}
                                       className="flex w-full cursor-pointer items-center gap-2"
                                     >
                                       <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
@@ -383,8 +507,8 @@ export function Header() {
                   <div key={root.id} className="rounded-lg border border-border/40 bg-card/30">
                     <div className="flex items-center">
                       <Link
-                        href={`/cursos?categoria=${root.slug}`}
-                        onClick={() => setMobileOpen(false)}
+                        href={getCategoryHref(root)}
+                        onClick={() => handleCategoryLinkClick(getCategoryHref(root))}
                         className="flex-1 px-3 py-2 text-sm font-medium"
                       >
                         {root.name}
@@ -404,8 +528,8 @@ export function Header() {
                         {root.children.map((child) => (
                           <Link
                             key={child.id}
-                            href={`/cursos?categoria=${child.slug}`}
-                            onClick={() => setMobileOpen(false)}
+                            href={getCategoryHref(child)}
+                            onClick={() => handleCategoryLinkClick(getCategoryHref(child))}
                             className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                           >
                             <ChevronRight className="h-3.5 w-3.5" />

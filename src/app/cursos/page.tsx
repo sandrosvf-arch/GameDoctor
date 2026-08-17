@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Play, Lock, Tag } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { db } from "@/lib/db"
+import { resolveCatalogCategoryTargetCourseSlug } from "@/lib/catalog"
 
 interface CourseWithFirstLesson {
   id: string
@@ -24,7 +25,7 @@ interface CategorySection {
   slug: string
   description: string | null
   courses: CourseWithFirstLesson[]
-  children: { id: string; name: string; slug: string; count: number }[]
+  children: { id: string; name: string; slug: string; count: number; targetCourseSlug: string | null }[]
 }
 
 function mapCourse(c: {
@@ -170,6 +171,7 @@ async function getSections(categorySlug?: string): Promise<{
           name: child.name,
           slug: child.slug,
           count: child.courseCategories.length,
+          targetCourseSlug: resolveCatalogCategoryTargetCourseSlug(child),
         })),
       }
     })
@@ -350,7 +352,7 @@ export default async function CursosPage({
                       {section.children.map((child) => (
                         <Link
                           key={child.id}
-                          href={`/cursos?categoria=${child.slug}`}
+                          href={child.targetCourseSlug ? `/trilhas/${child.targetCourseSlug}` : `/cursos?categoria=${child.slug}`}
                           className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
                         >
                           <Tag className="h-3 w-3" />

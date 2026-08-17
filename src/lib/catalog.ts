@@ -12,7 +12,19 @@ export interface CatalogCategoryRecord {
 }
 
 export interface CatalogCategoryNode extends CatalogCategoryRecord {
+  targetCourseSlug?: string | null
   children: CatalogCategoryNode[]
+}
+
+export function resolveCatalogCategoryTargetCourseSlug(category: {
+  slug: string
+  courseCategories: Array<{ course: { slug: string } }>
+}) {
+  const courseSlugs = category.courseCategories.map(({ course }) => course.slug)
+  const exactSlug = courseSlugs.find((slug) => slug === category.slug)
+
+  if (exactSlug) return exactSlug
+  return courseSlugs.length === 1 ? courseSlugs[0] : null
 }
 
 export interface DefaultCatalogCategoryInput {
