@@ -90,10 +90,9 @@ function HeartbeatLine() {
 }
 
 const navLinks = [
-  { label: "Trilhas", href: "/cursos" },
-  { label: "Planos", href: "/planos" },
   { label: "Comunidade", href: "/comunidade" },
   { label: "FAQ", href: "/suporte" },
+  { label: "Quem Somos", href: "/quem-somos" },
 ]
 
 interface CatalogCategoryNode {
@@ -316,9 +315,6 @@ export function Header() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-72 overflow-visible p-1.5">
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos">Ver todas as trilhas</Link>
-                </DropdownMenuItem>
                 {categories.length > 0 && <DropdownMenuSeparator />}
                 {categories.map((root) => (
                   <div
@@ -382,6 +378,9 @@ export function Header() {
                     ) : null}
                   </div>
                 ))}
+                <DropdownMenuItem asChild>
+                  <Link href="/cursos">Ver todas</Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

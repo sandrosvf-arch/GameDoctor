@@ -17,6 +17,12 @@ const footerLinks = {
   ],
 }
 
+const socialLinks = [
+  { label: "YouTube", href: "https://youtube.com", Icon: Youtube },
+  { label: "Instagram", href: "https://instagram.com", Icon: Instagram },
+  { label: "WhatsApp", href: "https://wa.me", Icon: MessageCircle },
+]
+
 export function Footer() {
   return (
     <footer className="border-t border-border/50 bg-card/30 mt-20">
@@ -36,34 +42,24 @@ export function Footer() {
             <p className="text-sm text-muted-foreground max-w-xs">
               Aprenda manutenção de videogames com videoaulas práticas. PlayStation, Xbox, Nintendo e muito mais.
             </p>
-            <div className="flex items-center gap-3">
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
-                aria-label="YouTube"
-              >
-                <Youtube className="h-5 w-5" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
-                aria-label="Instagram"
-              >
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a
-                href="https://wa.me"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
-                aria-label="WhatsApp"
-              >
-                <MessageCircle className="h-5 w-5" />
-              </a>
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Acompanhe nossas redes
+              </p>
+              <div className="flex items-center gap-3">
+                {socialLinks.map(({ label, href, Icon }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
+                    aria-label={label}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -103,7 +99,7 @@ export function Footer() {
 
         <div className="mt-10 border-t border-border/50 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} GameDoctor. Todos os direitos reservados.</p>
-          <p>Feito com dedicação para a comunidade gamer</p>
+          <p className="text-center sm:text-right">Feito com dedicação para a comunidade gamer · by MGU + Maxtech</p>
         </div>
       </div>
     </footer>

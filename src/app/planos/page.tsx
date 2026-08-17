@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, Check, CreditCard, ShieldCheck, Sparkles } from "lucide-react"
 import { auth } from "@/lib/auth"
+import { db } from "@/lib/db"
 import { listPublicPlans } from "@/lib/checkout"
 import { PlanCheckoutButton } from "@/components/checkout/PlanCheckoutButton"
 import { Header } from "@/components/layout/Header"
@@ -33,8 +34,13 @@ export const dynamic = "force-dynamic"
 export default async function PlanosPage() {
   const session = await auth()
   const isLoggedIn = Boolean(session?.user?.id)
-  const plans = await listPublicPlans(session?.user?.id ?? null)
-
+  const [plans, profile] = await Promise.all([
+    listPublicPlans(session?.user?.id ?? null),
+    session?.user?.id
+      ? db.user.findUnique({ where: { id: session.user.id }, select: { phone: true } })
+      : Promise.resolve(null),
+  ])
+  const canSeePrices = isLoggedIn && Boolean(profile?.phone?.trim())
   return (
     <main className="min-h-screen bg-[#080b10] text-slate-100">
       <Header />
@@ -140,14 +146,14 @@ export default async function PlanosPage() {
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{offer.label}</p>
                             <p className="mt-1 text-sm text-slate-400">{accessLabel(offer.period)}</p>
                           </div>
-                          {isLoggedIn && noInterest && installmentCount > 1 && (
+                          {canSeePrices && noInterest && installmentCount > 1 && (
                             <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
                               Sem juros
                             </span>
                           )}
                         </div>
 
-                        {isLoggedIn ? installmentCount > 1 ? (
+                        {canSeePrices ? installmentCount > 1 ? (
                           <div className="mt-6">
                             <p className="text-sm font-medium text-slate-400">Você paga apenas</p>
                             <p className="mt-1 text-4xl font-bold tracking-[-0.06em] text-white md:text-5xl">
@@ -171,17 +177,22 @@ export default async function PlanosPage() {
                         <div className="mt-6 [&>a]:w-full [&>button]:w-full">
                           <PlanCheckoutButton
                             href={href}
+                            requiresPhone={isLoggedIn && !canSeePrices}
                             label={
-                              isLoggedIn
-                                ? plan.currentPlan?.active ? "Renovar meu acesso" : "Quero começar agora"
-                                : "VER PREÇO"
+                              !isLoggedIn
+                                ? "VER PREÇO"
+                                : !canSeePrices
+                                  ? "LIBERAR PREÇO"
+                                  : plan.currentPlan?.active
+                                    ? "Renovar meu acesso"
+                                    : "Quero começar agora"
                             }
                           />
                         </div>
                       </div>
                     )
                   })}
-                  {isLoggedIn ? (
+                  {canSeePrices ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-4">
                         <CreditCard className="h-4 w-4 text-cyan-300" />
