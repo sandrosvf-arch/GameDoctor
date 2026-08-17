@@ -286,6 +286,7 @@ model User {
   closedTickets     Ticket[]                    @relation("TicketClosedBy")
   ticketMessages    TicketMessage[]             @relation("TicketMessageAuthor")
   ticketAttachments TicketAttachment[]          @relation("TicketAttachmentUploadedBy")
+  downloadMaterials DownloadMaterial[]          @relation("DownloadMaterialCreatedBy")
 
   @@map("users")
 }
@@ -499,6 +500,28 @@ model Material {
   @@map("materials")
 }
 
+model DownloadMaterial {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  category    String?
+  fileName    String       @map("file_name")
+  storagePath String       @map("storage_path")
+  mimeType    String       @map("mime_type")
+  sizeBytes   Int          @map("size_bytes")
+  type        MaterialType @default(OTHER)
+  order       Int          @default(0)
+  status      EntityStatus @default(ACTIVE)
+  createdById String       @map("created_by_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  createdBy User @relation("DownloadMaterialCreatedBy", fields: [createdById], references: [id])
+
+  @@index([status, category, order])
+  @@index([createdAt])
+  @@map("download_materials")
+}
 model Plan {
   id                 String      @id @default(cuid())
   name               String

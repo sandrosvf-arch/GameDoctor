@@ -18,6 +18,7 @@ import {
   UserCircle,
   Globe,
   CreditCard,
+  Download,
   ChevronRight,
   ChevronLeft,
 } from "lucide-react"
@@ -30,6 +31,7 @@ const mainNavItems = [
   // { label: "Minhas Trilhas", href: "/meus-cursos", icon: BookMarked },
   { label: "Continuar Assistindo", href: "/dashboard#continuar", icon: Play },
   { label: "Progresso", href: "/progresso", icon: TrendingUp },
+  { label: "Downloads", href: "/downloads", icon: Download },
   { label: "Certificados", href: "/certificados", icon: Award },
   // { label: "Favoritos", href: "/favoritos", icon: Heart },
 ]

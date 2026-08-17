@@ -22,6 +22,7 @@ import {
   MessageSquare,
   MessageSquarePlus,
   Tags,
+  Download,
 } from "lucide-react"
 
 type AdminBadgeKey = "tickets" | "comments" | "community" | "suggestions" | "ordersToday"
@@ -51,6 +52,7 @@ const navGroups: AdminNavGroup[] = [
       { href: "/admin/aulas", label: "Conteúdo", icon: BookOpen },
       { href: "/admin/trilhas", label: "Trilhas", icon: Map },
       { href: "/admin/categorias", label: "Categorias", icon: Tags },
+      { href: "/admin/downloads", label: "Downloads", icon: Download },
     ],
   },
   {
