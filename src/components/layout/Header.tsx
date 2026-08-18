@@ -315,7 +315,6 @@ export function Header() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-72 overflow-visible p-1.5">
-                {categories.length > 0 && <DropdownMenuSeparator />}
                 {categories.map((root) => (
                   <div
                     key={root.id}
@@ -378,8 +377,11 @@ export function Header() {
                     ) : null}
                   </div>
                 ))}
-                <DropdownMenuItem asChild>
-                  <Link href="/cursos">Ver todas</Link>
+                {categories.length > 0 && (
+                  <DropdownMenuSeparator onMouseEnter={resetDesktopCategoryState} />
+                )}
+                <DropdownMenuItem asChild onMouseEnter={resetDesktopCategoryState}>
+                  <Link href="/cursos" onClick={() => handleCategoryLinkClick("/cursos")}>Ver todas</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
