@@ -322,7 +322,7 @@ export default function BunnyAulaClient({
             </button>
 
             <div className="space-y-2">
-              <h1 className="text-lg font-bold leading-snug md:text-xl">{title}</h1>
+              <h1 className="text-xl font-bold leading-snug md:text-2xl">{title}</h1>
               {(subtitle || duration || isFree) && (
                 <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   {duration && <span>{duration}</span>}
@@ -448,11 +448,11 @@ export default function BunnyAulaClient({
             )} */}
 
             {(description || materials.length > 0) && (
-              <div className="space-y-4 rounded-xl border border-border bg-muted/30 px-5 py-4">
+              <div className="space-y-4 rounded-xl border border-white/[0.08] bg-zinc-950/70 px-5 py-4">
                 {description && (
                   <div className="space-y-1.5">
-                    <h2 className="text-sm font-semibold">Descrição</h2>
-                    <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                    <h2 className="text-lg font-semibold text-white">Descrição</h2>
+                    <p className="whitespace-pre-line text-base leading-relaxed text-white">
                       {description}
                     </p>
                   </div>
@@ -501,15 +501,15 @@ export default function BunnyAulaClient({
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 Comentários
                 {comments.length > 0 && (
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                  <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
                     {comments.length}
                   </span>
                 )}
               </h2>
 
               {!isGuest && !canViewRestrictedContent ? (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/[0.08] bg-zinc-950/70 px-5 py-6 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900">
                     <Lock className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="space-y-1">
@@ -523,8 +523,8 @@ export default function BunnyAulaClient({
                   </Button>
                 </div>
               ) : !commentsVisible && !isGuest ? (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/[0.08] bg-zinc-950/70 px-5 py-6 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900">
                     <User2 className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="space-y-1">
@@ -540,9 +540,9 @@ export default function BunnyAulaClient({
                 </div>
               ) : (
                 <div className="space-y-5">
-                  <form onSubmit={submitComment} className="rounded-xl border border-border bg-muted/20 p-4">
+                  <form onSubmit={submitComment} className="rounded-xl border border-white/[0.08] bg-zinc-950/70 p-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-900">
                         {session?.user?.image ? (
                           <img src={session.user.image} alt={session.user.name ?? "Avatar"} className="h-full w-full object-cover" />
                         ) : (
@@ -555,7 +555,7 @@ export default function BunnyAulaClient({
                         onChange={(event) => setCommentText(event.target.value)}
                         placeholder="Deixe sua dúvida ou comentário sobre esta aula..."
                         rows={4}
-                        className="w-full rounded-lg border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                        className="w-full rounded-lg border border-white/[0.1] bg-zinc-900/80 px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                       />
                       {commentError && (
                         <p className="text-xs text-destructive">{commentError}</p>
@@ -586,15 +586,15 @@ export default function BunnyAulaClient({
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
                   ) : comments.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border bg-muted/10 px-5 py-8 text-center">
+                    <div className="rounded-xl border border-dashed border-white/[0.1] bg-zinc-950/50 px-5 py-8 text-center">
                       <p className="text-sm text-muted-foreground">Seja o primeiro a comentar nesta aula.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {comments.map((comment) => (
-                        <div key={comment.id} className="rounded-xl border border-border bg-muted/15 p-4">
+                        <div key={comment.id} className="rounded-xl border border-white/[0.08] bg-zinc-950/70 p-4">
                           <div className="flex items-start gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-900">
                               {comment.user.avatarUrl ? (
                                 <img
                                   src={comment.user.avatarUrl}
@@ -658,15 +658,15 @@ export default function BunnyAulaClient({
             )}
           </div>
 
-          <aside className="sticky top-20 hidden max-h-[calc(100vh-5rem)] w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-border lg:flex xl:w-80">
-            <div className="border-b border-border bg-muted/50 px-4 py-3">
+          <aside className="sticky top-20 hidden max-h-[calc(100vh-5rem)] w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-950/80 lg:flex xl:w-80">
+            <div className="border-b border-white/[0.08] bg-zinc-950 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Trilha de aprendizado
               </p>
               <p className="mt-0.5 text-sm font-semibold">{courseTitle}</p>
             </div>
 
-            <div className="flex items-center justify-between border-b border-border/50 px-4 py-2.5">
+            <div className="flex items-center justify-between border-b border-white/[0.08] bg-zinc-950/70 px-4 py-2.5">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <SkipForward className="h-3.5 w-3.5" />
                 Avançar automaticamente
@@ -695,7 +695,7 @@ export default function BunnyAulaClient({
                 groupedLessons.map(({ module, lessons }) => (
                   <div key={module?.id ?? "no-module"}>
                     {module && (
-                      <div className="border-b border-border/40 bg-muted/30 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div className="border-b border-white/[0.06] bg-zinc-950/70 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         {module.title}
                       </div>
                     )}
