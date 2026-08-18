@@ -12,6 +12,11 @@ import crypto from "node:crypto"
 
 const LIBRARY_ID = process.env.BUNNY_LIBRARY_ID ?? ""
 const CDN_HOST   = process.env.BUNNY_CDN_HOSTNAME ?? ""
+const BUNNY_VIDEO_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function isBunnyVideoId(value: string): boolean {
+  return BUNNY_VIDEO_ID_RE.test(value.trim())
+}
 
 /** URL do player iframe embed do Bunny Stream — sem token */
 export function bunnyEmbedUrl(videoId: string): string {

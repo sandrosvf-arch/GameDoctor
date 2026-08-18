@@ -167,3 +167,7 @@
     display: none;
   }
 }
+
+.bg-1{
+  background-color: rgb(42, 42, 49);
+}

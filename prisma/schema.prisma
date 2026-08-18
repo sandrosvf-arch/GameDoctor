@@ -454,6 +454,7 @@ model Lesson {
   isFree                 Boolean             @default(false) @map("is_free")
   searchKeywords         String?             @map("search_keywords")
   previewEnabled         Boolean             @default(false) @map("preview_enabled")
+  previewVideoProviderId String?              @map("preview_video_provider_id")
   previewDurationSeconds Int?                @map("preview_duration_seconds")
   previewPercentage      Int?                @map("preview_percentage")
   releaseAfterDays       Int                 @default(7) @map("release_after_days")

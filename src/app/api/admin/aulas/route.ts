@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         isFree: true,
         releaseAfterDays: true,
         previewEnabled: true,
-        previewDurationSeconds: true,
+        previewVideoProviderId: true,
         status: true,
         order: true,
         videoDurationSeconds: true,

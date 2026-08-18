@@ -45,13 +45,33 @@ export async function hasAccessToCourse(
   return !!permission
 }
 
+function getNonProductionReleaseMinutes() {
+  if (process.env.NODE_ENV === "production") return null
+
+  const configured = process.env.LESSON_RELEASE_TEST_MINUTES
+  if (configured === undefined || configured.trim() === "") return 5
+
+  const minutes = Number(configured)
+  return Number.isFinite(minutes) && minutes >= 0 ? minutes : 5
+}
+
+export function getLessonReleaseAt(startsAt: Date, releaseAfterDays: number) {
+  if (releaseAfterDays <= 0) return new Date(startsAt)
+
+  const testMinutes = getNonProductionReleaseMinutes()
+  const delayMilliseconds = testMinutes === null
+    ? releaseAfterDays * 24 * 60 * 60 * 1000
+    : testMinutes * 60 * 1000
+
+  return new Date(startsAt.getTime() + delayMilliseconds)
+}
+
 /**
  * Determine if a user can access a lesson and under what conditions.
  *
  * Returns:
  *   hasAccess: true if user can watch anything
- *   isPreview: true if limited to preview window
- *   previewDurationSeconds: how many seconds of preview are allowed
+ *   isPreview: true if the separate preview clip is available
  */
 export async function hasAccessToLesson(
   userId: string | null,
@@ -60,7 +80,6 @@ export async function hasAccessToLesson(
 ): Promise<{
   hasAccess: boolean
   isPreview: boolean
-  previewDurationSeconds: number | null
   isReleaseLocked: boolean
   releaseAt: string | null
   releaseDaysRemaining: number | null
@@ -73,7 +92,7 @@ export async function hasAccessToLesson(
       courseId: true,
       isFree: true,
       previewEnabled: true,
-      previewDurationSeconds: true,
+      previewVideoProviderId: true,
       releaseAfterDays: true,
       status: true,
     },
@@ -82,7 +101,6 @@ export async function hasAccessToLesson(
   const noAccess = {
     hasAccess: false,
     isPreview: false,
-    previewDurationSeconds: null,
     isReleaseLocked: false,
     releaseAt: null,
     releaseDaysRemaining: null,
@@ -94,7 +112,6 @@ export async function hasAccessToLesson(
     return {
       hasAccess: true,
       isPreview: false,
-      previewDurationSeconds: null,
       isReleaseLocked: false,
       releaseAt: null,
       releaseDaysRemaining: null,
@@ -102,11 +119,10 @@ export async function hasAccessToLesson(
   }
 
   if (!userId) {
-    if (lesson.previewEnabled && lesson.previewDurationSeconds) {
+    if (lesson.previewEnabled && lesson.previewVideoProviderId) {
       return {
         hasAccess: true,
         isPreview: true,
-        previewDurationSeconds: lesson.previewDurationSeconds,
         isReleaseLocked: false,
         releaseAt: null,
         releaseDaysRemaining: null,
@@ -141,7 +157,6 @@ export async function hasAccessToLesson(
     return {
       hasAccess: true,
       isPreview: false,
-      previewDurationSeconds: null,
       isReleaseLocked: false,
       releaseAt: null,
       releaseDaysRemaining: null,
@@ -150,11 +165,7 @@ export async function hasAccessToLesson(
 
   const planReleaseDates = permissions
     .filter((permission) => permission.planId)
-    .map((permission) => {
-      const releaseAt = new Date(permission.startsAt)
-      releaseAt.setUTCDate(releaseAt.getUTCDate() + lesson.releaseAfterDays)
-      return releaseAt
-    })
+    .map((permission) => getLessonReleaseAt(permission.startsAt, lesson.releaseAfterDays))
 
   if (planReleaseDates.length > 0) {
     const releaseAt = new Date(Math.min(...planReleaseDates.map((date) => date.getTime())))
@@ -163,7 +174,6 @@ export async function hasAccessToLesson(
       return {
         hasAccess: true,
         isPreview: false,
-        previewDurationSeconds: null,
         isReleaseLocked: false,
         releaseAt: null,
         releaseDaysRemaining: null,
@@ -173,18 +183,16 @@ export async function hasAccessToLesson(
     return {
       hasAccess: false,
       isPreview: false,
-      previewDurationSeconds: null,
       isReleaseLocked: true,
       releaseAt: releaseAt.toISOString(),
       releaseDaysRemaining: Math.ceil((releaseAt.getTime() - now.getTime()) / 86400000),
     }
   }
 
-  if (lesson.previewEnabled && lesson.previewDurationSeconds) {
+  if (lesson.previewEnabled && lesson.previewVideoProviderId) {
     return {
       hasAccess: true,
       isPreview: true,
-      previewDurationSeconds: lesson.previewDurationSeconds,
       isReleaseLocked: false,
       releaseAt: null,
       releaseDaysRemaining: null,
@@ -194,6 +202,67 @@ export async function hasAccessToLesson(
   return noAccess
 }
 
+/**
+ * Resolve progressive release dates for all lessons in a course with one access query.
+ * Direct course access, free lessons and staff access are always immediate.
+ */
+export async function getCourseLessonReleaseAtMap(
+  userId: string | null,
+  courseId: string,
+  lessons: Array<{ id: string; isFree: boolean; releaseAfterDays: number }>,
+  options?: { isStaff?: boolean }
+): Promise<Record<string, string>> {
+  if (!userId || options?.isStaff || lessons.length === 0) return {}
+
+  const now = new Date()
+  const permissions = await db.accessPermission.findMany({
+    where: {
+      userId,
+      status: "ACTIVE",
+      startsAt: { lte: now },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      AND: [
+        {
+          OR: [
+            { courseId },
+            { plan: { planCourses: { some: { courseId } } } },
+          ],
+        },
+      ],
+    },
+    select: {
+      courseId: true,
+      planId: true,
+      startsAt: true,
+    },
+  })
+
+  if (permissions.some((permission) => permission.courseId === courseId)) return {}
+
+  const planStartsAt = permissions
+    .filter((permission) => permission.planId)
+    .map((permission) => permission.startsAt)
+
+  if (planStartsAt.length === 0) return {}
+
+  const earliestPlanStart = Math.min(...planStartsAt.map((date) => date.getTime()))
+  const result: Record<string, string> = {}
+
+  for (const lesson of lessons) {
+    if (lesson.isFree || lesson.releaseAfterDays <= 0) continue
+
+    const releaseAt = getLessonReleaseAt(
+      new Date(earliestPlanStart),
+      lesson.releaseAfterDays
+    )
+
+    if (releaseAt > now) {
+      result[lesson.id] = releaseAt.toISOString()
+    }
+  }
+
+  return result
+}
 /**
  * Grant course or plan access to a user.
  * Used after payment approval or by admin (manual grant).

@@ -22,10 +22,12 @@ export function LessonReleaseLock({
   releaseAt,
   onReleased,
   className,
+  compact = false,
 }: {
   releaseAt: string
   onReleased?: () => void
   className?: string
+  compact?: boolean
 }) {
   const [remaining, setRemaining] = useState(() => getRemaining(releaseAt))
   const releasedRef = useRef(false)
@@ -51,6 +53,15 @@ export function LessonReleaseLock({
     return () => window.clearInterval(interval)
   }, [releaseAt])
 
+  if (compact) {
+    return (
+      <div className={cn("pointer-events-none absolute inset-0 z-10 flex items-end justify-center bg-black/55 p-2 text-center", className)}>
+        <span className="rounded-full border border-cyan-300/30 bg-zinc-950/90 px-2.5 py-1 text-[10px] font-semibold text-cyan-200 shadow-lg">
+          {remaining > 0 ? "Libera em " + formatRemaining(remaining) : "Disponível agora"}
+        </span>
+      </div>
+    )
+  }
   return (
     <div className={cn("absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/80 px-6 text-center backdrop-blur-sm", className)}>
       <div className="flex max-w-md flex-col items-center gap-3 rounded-2xl border border-cyan-400/25 bg-zinc-950/90 px-6 py-6 shadow-2xl">

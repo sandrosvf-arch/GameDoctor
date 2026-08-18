@@ -68,6 +68,7 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                     className="object-cover"
                     draggable={false}
                     loading="lazy"
+                    unoptimized={card.thumbnail.includes(".supabase.co/")}
                   />
                 ) : null}
 

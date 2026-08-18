@@ -81,7 +81,7 @@ export async function GET(
 
   const lessonAccess = await hasAccessToLesson(userId, id, { isStaff })
   const isAccessible = lessonAccess.hasAccess && !lessonAccess.isPreview
-  const canExposeVideo = isAccessible || lessonAccess.isPreview
+  const canExposeVideo = isAccessible
 
   // Find prev/next lessons flat across all modules
   const allLessons = lesson.course.modules.flatMap((m) => m.lessons)
@@ -94,10 +94,10 @@ export async function GET(
     lesson: {
       id: lesson.id,
       title: lesson.title,
-      description: isAccessible ? lesson.description : null,
+      description: lessonAccess.isReleaseLocked ? null : lesson.description,
       durationSeconds: lesson.videoDurationSeconds ?? lesson.durationSeconds,
-      // Only full access or the short preview may receive a video URL.
-      // Scheduled lessons never expose a signed URL before release.
+      // Apenas acesso completo recebe URL do vídeo. A prévia usa um clipe separado.
+      // Aulas agendadas nunca expõem URL assinada antes da liberação.
       videoEmbedUrl: canExposeVideo && lesson.videoProvider === "BUNNY" && lesson.videoProviderId
         ? bunnySignedEmbedUrl(lesson.videoProviderId, 4 * 3600, { autoplay: true, muted: true })
         : canExposeVideo ? lesson.videoEmbedUrl : null,
@@ -108,11 +108,11 @@ export async function GET(
       isFree: lesson.isFree,
       isAccessible,
       previewEnabled: lesson.previewEnabled,
+      previewAvailable: lessonAccess.isPreview && Boolean(lesson.previewVideoProviderId),
       releaseAfterDays: lesson.releaseAfterDays,
       isReleaseLocked: lessonAccess.isReleaseLocked,
       releaseAt: lessonAccess.releaseAt,
       releaseDaysRemaining: lessonAccess.releaseDaysRemaining,
-      previewDurationSeconds: lessonAccess.isPreview ? lessonAccess.previewDurationSeconds : null,
       materials: isAccessible ? lesson.materials : [],
       progress: isAccessible && Array.isArray(lesson.lessonProgress) ? (lesson.lessonProgress[0] ?? null) : null,
     },

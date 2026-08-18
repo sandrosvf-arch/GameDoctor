@@ -344,7 +344,7 @@ export default async function HomePage() {
         <HeroBannerClient banners={banners} />
 
         {/* CARROSSÉIS */}
-        <section className="pb-16 space-y-10 pt-2">
+        <section className="pb-16 space-y-10 pt-2 bg-1">
           {initialHomeRows.length > 0 || continueHomeRow ? (
             <>
               {[...(continueHomeRow ? [continueHomeRow] : []), ...initialHomeRows].map((row) => (

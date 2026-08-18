@@ -4,7 +4,7 @@
  * CRITICAL endpoint — validates backend access and returns video playback info.
  * The video URL is NEVER exposed without this server-side check.
  *
- * Response 200: { embedUrl, playbackUrl, thumbnailUrl, durationSeconds, isPreview, previewDurationSeconds }
+ * Response 200: { embedUrl, playbackUrl, thumbnailUrl, durationSeconds }
  * Response 403: { error: "NO_ACCESS" }
  * Response 404: { error: "NOT_FOUND" }
  */
@@ -24,12 +24,12 @@ export async function GET(
   const { id } = await params
 
   const lessonAccess = await hasAccessToLesson(userId, id, { isStaff })
-  const { hasAccess, isPreview, previewDurationSeconds } = lessonAccess
+  const { hasAccess, isPreview } = lessonAccess
 
-  if (!hasAccess) {
+  if (!hasAccess || isPreview) {
     return NextResponse.json(
       {
-        error: lessonAccess.isReleaseLocked ? "RELEASE_LOCKED" : "NO_ACCESS",
+        error: lessonAccess.isReleaseLocked ? "RELEASE_LOCKED" : isPreview ? "PREVIEW_ONLY" : "NO_ACCESS",
         releaseAt: lessonAccess.releaseAt,
         releaseDaysRemaining: lessonAccess.releaseDaysRemaining,
         message:
@@ -74,7 +74,5 @@ export async function GET(
     isReleaseLocked: lessonAccess.isReleaseLocked,
     releaseAt: lessonAccess.releaseAt,
     releaseDaysRemaining: lessonAccess.releaseDaysRemaining,
-    isPreview,
-    previewDurationSeconds,
   })
 }

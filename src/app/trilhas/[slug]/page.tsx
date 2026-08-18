@@ -3,6 +3,7 @@ import Link from "next/link"
 import { existsSync } from "fs"
 import { join } from "path"
 import { db } from "@/lib/db"
+import { getCourseLessonReleaseAtMap, hasAccessToCourse } from "@/lib/access"
 import { auth } from "@/lib/auth"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
@@ -48,9 +49,14 @@ export default async function TrailPage({ params }: TrailPageProps) {
 
   // Determine free access before async work (pure computation)
   const hasFree = course.lessons.some((l) => l.isFree) || course.modules.some((m) => m.lessons.some((l) => l.isFree))
+  const allLessons = [
+    ...course.lessons,
+    ...course.modules.flatMap((m) => m.lessons),
+  ]
+  const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR"
 
   // Phase 2 – progress + access check run in parallel (both depend on course)
-  const [userProgress, courseAccess] = await Promise.all([
+  const [userProgress, courseAccess, lessonReleaseAt] = await Promise.all([
     userId
       ? db.lessonProgress.findMany({
           where: { userId, lesson: { courseId: course.id } },
@@ -59,14 +65,11 @@ export default async function TrailPage({ params }: TrailPageProps) {
       : Promise.resolve([] as Awaited<ReturnType<typeof db.lessonProgress.findMany<{ select: { lessonId: true; watchedSeconds: true; completedAt: true } }>>>),
     hasFree || !userId
       ? Promise.resolve(hasFree)
-      : import("@/lib/access").then(({ hasAccessToCourse }) => hasAccessToCourse(userId!, course.id)),
+      : hasAccessToCourse(userId, course.id),
+    getCourseLessonReleaseAtMap(userId ?? null, course.id, allLessons, { isStaff }),
   ])
 
   // Calculate stats
-  const allLessons = [
-    ...course.lessons,
-    ...course.modules.flatMap((m) => m.lessons),
-  ]
   const totalDuration = allLessons.reduce(
     (sum, l) => sum + (l.videoDurationSeconds || l.durationSeconds || 0),
     0
@@ -201,6 +204,7 @@ export default async function TrailPage({ params }: TrailPageProps) {
             progressMap={progressMap}
             courseAccess={courseAccess}
             userHasAccess={!!userId}
+            lessonReleaseAt={lessonReleaseAt}
           />
         </div>
       </main>

@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation"
 import BunnyAulaClient, { type CourseLessonInfo, type LessonMaterial } from "./BunnyAulaClient"
 import { auth } from "@/lib/auth"
 import { bunnySignedEmbedUrl } from "@/lib/bunny"
@@ -58,11 +59,13 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
         description: true,
         courseId: true,
         previewEnabled: true,
-        previewDurationSeconds: true,
+        previewVideoProviderId: true,
         course: { select: { title: true, slug: true } },
       },
     }),
   ]) 
+
+  if (!lesson) notFound()
 
   const userId = session?.user?.id ?? null
   const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR"
@@ -103,12 +106,11 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       : Promise.resolve(null),
   ])
 
-  const isAccessible = lesson ? lesson.isFree || Boolean(lessonAccess?.hasAccess && !lessonAccess.isPreview) : true
+  const isAccessible = lesson.isFree || Boolean(lessonAccess?.hasAccess && !lessonAccess.isPreview)
   const isReleaseLocked = lessonAccess?.isReleaseLocked ?? false
   const hasRestrictedContentAccess = isAccessible
   // previewEnabled is now admin-editable per lesson (see /admin/aulas) and defaults to true for existing paid lessons
-  const canPreview = Boolean(lessonAccess?.isPreview)
-  const previewDurationSeconds = lessonAccess?.previewDurationSeconds ?? 7
+  const canPreview = Boolean(lessonAccess?.isPreview && lesson?.previewVideoProviderId)
   const title = titulo ?? lesson?.title ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
   const durationSeconds = meta?.length ?? null
   const duration = meta?.length ? formatDuration(meta.length) : null
@@ -116,7 +118,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   const courseTitle = lesson?.course.title ?? "Início da Jornada"
   const courseSlug = lesson?.course.slug ?? null
   const previewImage = lesson?.thumbnail ?? lesson?.videoThumbnailUrl ?? null
-  const description = lesson?.description ?? null
+  const description = isReleaseLocked ? null : (lesson?.description ?? null)
 
   const currentIndex = courseLessons.findIndex(l => l.videoProviderId === videoId)
   const nextLesson = currentIndex >= 0 && currentIndex < courseLessons.length - 1
@@ -129,7 +131,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       videoId={videoId}
       lessonId={lesson?.id ?? null}
       title={title}
-      subtitle={legenda ?? null}
+      subtitle={isReleaseLocked ? null : (legenda ?? null)}
       duration={duration}
       durationSeconds={durationSeconds}
       previewImage={previewImage}
@@ -139,7 +141,6 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       releaseAt={lessonAccess?.releaseAt ?? null}
       canViewRestrictedContent={hasRestrictedContentAccess}
       canPreview={canPreview}
-      previewDurationSeconds={previewDurationSeconds}
       isFree={lesson?.isFree ?? true}
       courseTitle={courseTitle}
       courseSlug={courseSlug}

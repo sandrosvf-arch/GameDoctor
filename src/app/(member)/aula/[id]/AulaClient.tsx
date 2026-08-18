@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import { useSession } from "next-auth/react"
 import {
@@ -27,6 +28,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
+import { BunnyPreviewPlayer } from "@/components/lessons/BunnyPreviewPlayer"
 
 interface Material {
   id: string
@@ -69,7 +71,7 @@ interface LessonData {
   releaseAt: string | null
   releaseDaysRemaining: number | null
   previewEnabled: boolean
-  previewDurationSeconds: number
+  previewAvailable: boolean
   materials: Material[]
   progress: { completedAt: string | null; watchedSeconds: number } | null
 }
@@ -168,13 +170,15 @@ function PaywallOverlay({ lessonId }: { lessonId: string }) {
 }
 
 export default function AulaClient({ lessonId }: { lessonId: string }) {
+  const router = useRouter()
   const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [paywallVisible, setPaywallVisible] = useState(false)
   const [openModules, setOpenModules] = useState<Set<string>>(new Set())
 
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
+  const isGuest = sessionStatus === "unauthenticated"
   const [comments, setComments] = useState<CommentItem[]>([])
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [commentsVisible, setCommentsVisible] = useState(false)
@@ -183,18 +187,10 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   const [commentError, setCommentError] = useState<string | null>(null)
   const [commentInfo, setCommentInfo] = useState<string | null>(null)
 
-  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const showPaywall = useCallback(() => {
-    setPaywallVisible(true)
-    if (previewTimerRef.current) clearTimeout(previewTimerRef.current)
-  }, [])
-
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     setPaywallVisible(false)
-    if (previewTimerRef.current) clearTimeout(previewTimerRef.current)
 
     try {
       const res = await fetch(`/api/lessons/${lessonId}`)
@@ -207,10 +203,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
       )
       if (activeModule) setOpenModules(new Set([activeModule.id]))
 
-      if (!json.lesson.isAccessible && !json.lesson.isReleaseLocked) {
-        const secs = json.lesson.previewDurationSeconds ?? 7
-        previewTimerRef.current = setTimeout(() => setPaywallVisible(true), secs * 1000)
-      }
     } catch {
       setError("ERROR")
     } finally {
@@ -222,16 +214,8 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
 
   useEffect(() => {
     load()
-    return () => { if (previewTimerRef.current) clearTimeout(previewTimerRef.current) }
   }, [load])
 
-  const handleProgress = useCallback((state: { playedSeconds?: number }) => {
-    if (!data || data.lesson.isAccessible || data.lesson.isReleaseLocked) return
-    const playedSeconds = state.playedSeconds ?? 0
-    if (playedSeconds >= data.lesson.previewDurationSeconds) {
-      showPaywall()
-    }
-  }, [data, showPaywall])
 
   const toggleModule = (moduleId: string) => {
     setOpenModules((prev) => {
@@ -251,13 +235,20 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     }
   }, [lessonId])
 
-  useEffect(() => { if (commentsVisible) loadComments() }, [commentsVisible, loadComments])
+  useEffect(() => { if (commentsVisible && !isGuest) loadComments() }, [commentsVisible, isGuest, loadComments])
 
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault()
     setCommentError(null)
     setCommentInfo(null)
     if (!commentText.trim()) return
+
+    if (isGuest) {
+      const callbackUrl = window.location.pathname + window.location.search
+      router.push("/login?callbackUrl=" + encodeURIComponent(callbackUrl))
+      return
+    }
+
     setSubmittingComment(true)
     const res = await fetch(`/api/lessons/${lessonId}/comments`, {
       method: "POST",
@@ -273,14 +264,14 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     }
     const data = await res.json()
     if (data.pending) {
-      setCommentInfo(data.message ?? "Comentario enviado para aprovacao.")
+      setCommentInfo(data.message ?? "Comentário enviado para aprovação.")
       setCommentText("")
       return
     }
     const newComment: CommentItem = data.comment
     setComments((prev) => [...prev, newComment])
     setCommentText("")
-    setCommentInfo("Comentario publicado com sucesso.")
+    setCommentInfo("Comentário publicado com sucesso.")
   }
 
   const {
@@ -340,8 +331,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
 
             {/* Video player */}
             <div className="relative w-[calc(100%+4rem)] md:w-full -mx-8 md:mx-0 rounded-none md:rounded-xl overflow-hidden bg-black shadow-xl" style={{ aspectRatio: "16/9" }}>
-              {paywallVisible && <PaywallOverlay lessonId={lessonId} />}
-
               {lesson.isReleaseLocked ? (
                 <div className="absolute inset-0">
                   {lesson.videoThumbnailUrl && (
@@ -358,50 +347,65 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     />
                   )}
                 </div>
+              ) : !lesson.isAccessible && lesson.previewAvailable && !paywallVisible ? (
+                <BunnyPreviewPlayer
+                  lessonId={lesson.id}
+                  title={lesson.title}
+                  thumbnail={lesson.videoThumbnailUrl}
+                  onEnded={() => setPaywallVisible(true)}
+                />
+              ) : !lesson.isAccessible && !paywallVisible ? (
+                <div className="absolute inset-0">
+                  {lesson.videoThumbnailUrl && (
+                    <img
+                      src={lesson.videoThumbnailUrl}
+                      alt={lesson.title}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPaywallVisible(true)}
+                    aria-label="Ver opções de acesso"
+                    className="absolute inset-0 flex items-center justify-center bg-black/35 transition-colors hover:bg-black/45"
+                  >
+                    <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur">
+                      <Play className="h-7 w-7 fill-white" />
+                    </span>
+                  </button>
+                </div>
               ) : !paywallVisible && lesson.videoEmbedUrl ? (
                 <iframe
                   src={buildAutoplayUrl(lesson.videoEmbedUrl)}
                   className="absolute inset-0 h-full w-full"
                   allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-                  allowFullScreen={lesson.isAccessible}
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
                   title={lesson.title}
                 />
               ) : !paywallVisible && lesson.videoPlaybackUrl ? (
                 <ReactPlayer
                   src={lesson.videoPlaybackUrl}
                   playing
-                  controls={lesson.isAccessible}
+                  controls
                   muted
                   playsInline
                   config={{ file: { attributes: { playsInline: true, "webkit-playsinline": "true" } } }}
                   width="100%"
                   height="100%"
                   className="absolute inset-0"
-                  onProgress={(state) => {
-                    if (lesson.isAccessible) {
-                      handlePlaybackProgress(state.playedSeconds ?? 0)
-                    } else {
-                      handleProgress(state)
-                    }
-                  }}
-                  onPause={() => {
-                    if (lesson.isAccessible) flushProgress()
-                  }}
+                  onProgress={(state) => handlePlaybackProgress(state.playedSeconds ?? 0)}
+                  onPause={() => flushProgress()}
                   onEnded={() => {
-                    if (lesson.isAccessible) {
-                      flushProgress({
-                        playedSeconds: lesson.durationSeconds ?? lesson.progress?.watchedSeconds ?? 0,
-                        completed: true,
-                      })
-                    }
+                    flushProgress({
+                      playedSeconds: lesson.durationSeconds ?? lesson.progress?.watchedSeconds ?? 0,
+                      completed: true,
+                    })
                   }}
                 />
-              ) : !paywallVisible ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900">
-                  <Play className="h-14 w-14 opacity-20" />
-                  <p className="text-zinc-500 text-sm">V?deo em processamento</p>
-                </div>
               ) : null}
+
+              {paywallVisible && <PaywallOverlay lessonId={lessonId} />}
             </div>
 
             {/* Title + actions bar */}
@@ -412,7 +416,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                   {lesson.durationSeconds && (
                     <span className="text-sm text-muted-foreground">{formatDuration(lesson.durationSeconds)}</span>
                   )}
-                  {!lesson.isReleaseLocked && !lesson.isAccessible && (
+                  {!lesson.isReleaseLocked && !lesson.isAccessible && lesson.previewAvailable && (
                     <span className="text-xs bg-primary/15 text-primary border border-primary/30 px-2 py-0.5 rounded-full">
                       Prévia gratuita
                     </span>
@@ -446,7 +450,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
             </div>
 
             {/* Description */}
-            {lesson.isAccessible && lesson.description && (
+            {lesson.description && (
               <div className="prose prose-sm prose-invert max-w-none">
                 <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{lesson.description}</p>
               </div>
@@ -485,7 +489,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
             )}
 
             {/* Paywall CTA (inline) */}
-            {!lesson.isAccessible && (
+            {!lesson.isAccessible && !lesson.isReleaseLocked && (
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <Lock className="h-8 w-8 text-primary shrink-0" />
                 <div className="flex-1">
@@ -513,7 +517,17 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                 )}
               </h2>
 
-              {!commentsVisible ? (
+              {!isGuest && !lesson.isAccessible ? (
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
+                  <Lock className="h-6 w-6 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Assine um plano para acessar os comentários desta aula.
+                  </p>
+                  <Button size="sm" asChild>
+                    <Link href="/planos">Ver planos</Link>
+                  </Button>
+                </div>
+              ) : !commentsVisible && !isGuest ? (
                 <div className="flex justify-center py-6">
                   <Button variant="outline" size="sm" onClick={() => setCommentsVisible(true)}>
                     <MessageSquare className="h-4 w-4 mr-2" />
@@ -557,7 +571,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                         ) : (
                           <Send className="h-3.5 w-3.5 mr-1.5" />
                         )}
-                        Enviar
+                        {isGuest ? "Entrar para comentar" : "Enviar"}
                       </Button>
                     </div>
                   </div>
@@ -565,7 +579,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
               </form>
 
               {/* Comments list */}
-              {commentsLoading ? (
+              {!isGuest && (commentsLoading ? (
                 <div className="flex justify-center py-10">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
@@ -635,6 +649,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     </div>
                   ))}
                 </div>
+              )
               )}
                 </>
               )}

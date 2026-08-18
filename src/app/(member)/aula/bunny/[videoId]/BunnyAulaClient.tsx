@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button"
 import { BUNNY_CDN_HOST } from "@/lib/constants"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
+import { BunnyPreviewPlayer } from "@/components/lessons/BunnyPreviewPlayer"
 
 export interface LessonMaterial {
   id: string
@@ -87,7 +88,6 @@ interface BunnyAulaClientProps {
   releaseAt: string | null
   canViewRestrictedContent: boolean
   canPreview: boolean
-  previewDurationSeconds: number | null
   isFree: boolean
   courseTitle: string
   courseSlug: string | null
@@ -113,7 +113,6 @@ export default function BunnyAulaClient({
   releaseAt,
   canViewRestrictedContent,
   canPreview,
-  previewDurationSeconds,
   isFree,
   courseTitle,
   courseSlug,
@@ -125,11 +124,10 @@ export default function BunnyAulaClient({
   initialWatchedSeconds,
 }: BunnyAulaClientProps) {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
+  const isGuest = sessionStatus === "unauthenticated"
   const [mounted, setMounted] = useState(false)
   const [paywallVisible, setPaywallVisible] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [previewLoading, setPreviewLoading] = useState(false)
   const [autoAdvance, setAutoAdvance] = useState(false)
   const [completingLesson, setCompletingLesson] = useState(false)
   const [listOpen, setListOpen] = useState(false)
@@ -140,7 +138,6 @@ export default function BunnyAulaClient({
   const [submittingComment, setSubmittingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
   const [commentInfo, setCommentInfo] = useState<string | null>(null)
-  const paywallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const {
     completed,
     handlePlaybackProgress,
@@ -158,45 +155,17 @@ export default function BunnyAulaClient({
   useEffect(() => {
     setMounted(true)
     setPaywallVisible(false)
-    setPreviewUrl(null)
     setComments([])
     setCommentsVisible(false)
     setCommentText("")
     setCommentError(null)
     setCommentInfo(null)
 
-    if (paywallTimerRef.current) {
-      clearTimeout(paywallTimerRef.current)
-      paywallTimerRef.current = null
-    }
-
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
     const saved = localStorage.getItem("gamedoctor_autoadvance")
     if (saved === "1") setAutoAdvance(true)
-
-    return () => {
-      if (paywallTimerRef.current) {
-        clearTimeout(paywallTimerRef.current)
-        paywallTimerRef.current = null
-      }
-    }
   }, [videoId])
 
-  const handlePreviewPlay = useCallback(async () => {
-    if (previewLoading || previewUrl || !canPreview) return
-
-    setPreviewLoading(true)
-    try {
-      const res = await fetch(`/api/bunny/preview-embed?videoId=${videoId}`)
-      if (!res.ok) return
-      const data = await res.json()
-      setPreviewUrl(data.embedUrl)
-      const previewMs = (data.previewDurationSeconds ?? previewDurationSeconds ?? 7) * 1000
-      paywallTimerRef.current = setTimeout(() => setPaywallVisible(true), previewMs)
-    } finally {
-      setPreviewLoading(false)
-    }
-  }, [canPreview, previewDurationSeconds, previewLoading, previewUrl, videoId])
 
   const handleMarkComplete = useCallback(async () => {
     if (!lessonId || completingLesson || completed) return
@@ -248,14 +217,20 @@ export default function BunnyAulaClient({
   }, [lessonId])
 
   useEffect(() => {
-    if (commentsVisible && canViewRestrictedContent) {
+    if (commentsVisible && canViewRestrictedContent && !isGuest) {
       void loadComments()
     }
-  }, [canViewRestrictedContent, commentsVisible, loadComments])
+  }, [canViewRestrictedContent, commentsVisible, isGuest, loadComments])
 
   const submitComment = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!lessonId || !commentText.trim()) return
+
+    if (isGuest) {
+      const callbackUrl = window.location.pathname + window.location.search
+      router.push("/login?callbackUrl=" + encodeURIComponent(callbackUrl))
+      return
+    }
 
     setCommentError(null)
     setCommentInfo(null)
@@ -292,7 +267,7 @@ export default function BunnyAulaClient({
     } finally {
       setSubmittingComment(false)
     }
-  }, [commentText, lessonId])
+  }, [commentText, isGuest, lessonId, router])
 
   const groupedLessons = useMemo(() => {
     const groups: Array<{
@@ -375,56 +350,35 @@ export default function BunnyAulaClient({
                 </div>
               ) : !isAccessible ? (
                 <div className="absolute inset-0">
-                  {previewImage && (
-                    <img
-                      src={previewImage}
-                      alt={title}
-                      className="absolute inset-0 h-full w-full object-cover"
-                      draggable={false}
+                  {canPreview && lessonId && !paywallVisible ? (
+                    <BunnyPreviewPlayer
+                      lessonId={lessonId}
+                      title={title}
+                      thumbnail={previewImage}
+                      onEnded={() => setPaywallVisible(true)}
                     />
-                  )}
-
-                  {canPreview && !previewUrl && !paywallVisible && (
-                    <button
-                      onClick={handlePreviewPlay}
-                      disabled={previewLoading}
-                      aria-label="Reproduzir vídeo"
-                      className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors hover:bg-black/40 disabled:cursor-wait"
-                    >
-                      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
-                        {previewLoading ? (
-                          <Loader2 className="h-7 w-7 animate-spin" />
-                        ) : (
-                          <Play className="h-7 w-7 fill-white" />
-                        )}
-                      </span>
-                    </button>
-                  )}
-
-                  {previewUrl && !paywallVisible && (
-                    // pointer-events-none: preview is a non-interactive trailer, not a real player (no seek/pause/fullscreen)
-                    <div className="absolute inset-0 pointer-events-none">
-                      <iframe
-                        src={previewUrl}
-                        className="absolute inset-0 h-full w-full"
-                        width="100%"
-                        height="100%"
-                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                        title={title}
-                      />
-                    </div>
-                  )}
-
-                  {!canPreview && !paywallVisible && (
-                    <button
-                      onClick={() => setPaywallVisible(true)}
-                      aria-label="Ver planos"
-                      className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors hover:bg-black/40"
-                    >
-                      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
-                        <Play className="h-7 w-7 fill-white" />
-                      </span>
-                    </button>
+                  ) : (
+                    <>
+                      {previewImage && (
+                        <img
+                          src={previewImage}
+                          alt={title}
+                          className="absolute inset-0 h-full w-full object-cover"
+                          draggable={false}
+                        />
+                      )}
+                      {!paywallVisible && (
+                        <button
+                          onClick={() => setPaywallVisible(true)}
+                          aria-label="Ver opções de acesso"
+                          className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors hover:bg-black/40"
+                        >
+                          <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
+                            <Play className="h-7 w-7 fill-white" />
+                          </span>
+                        </button>
+                      )}
+                    </>
                   )}
 
                   {paywallVisible && (
@@ -467,6 +421,7 @@ export default function BunnyAulaClient({
                   height="100%"
                   allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
                   title={title}
                 />
               ) : null}
@@ -552,7 +507,7 @@ export default function BunnyAulaClient({
                 )}
               </h2>
 
-              {!canViewRestrictedContent ? (
+              {!isGuest && !canViewRestrictedContent ? (
                 <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                     <Lock className="h-5 w-5 text-muted-foreground" />
@@ -567,7 +522,7 @@ export default function BunnyAulaClient({
                     <Link href="/planos">Ver planos</Link>
                   </Button>
                 </div>
-              ) : !commentsVisible ? (
+              ) : !commentsVisible && !isGuest ? (
                 <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/20 px-5 py-6 text-center">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                     <User2 className="h-5 w-5 text-muted-foreground" />
@@ -619,14 +574,14 @@ export default function BunnyAulaClient({
                           ) : (
                             <Send className="mr-2 h-4 w-4" />
                           )}
-                          Publicar comentário
+                          {isGuest ? "Entrar para comentar" : "Publicar comentário"}
                         </Button>
                       </div>
                       </div>
                     </div>
                   </form>
 
-                  {commentsLoading ? (
+                  {!isGuest && (commentsLoading ? (
                     <div className="flex justify-center py-6">
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
@@ -696,7 +651,7 @@ export default function BunnyAulaClient({
                         </div>
                       ))}
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
             </div>

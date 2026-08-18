@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { Play, CheckCircle2 } from "lucide-react"
+import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 import type { Module, Lesson, Course } from "@prisma/client"
 
 interface TrailViewClientProps {
@@ -12,6 +13,7 @@ interface TrailViewClientProps {
   progressMap: Map<string, { completedAt: Date | null }>
   courseAccess: boolean
   userHasAccess: boolean
+  lessonReleaseAt: Record<string, string>
 }
 
 export function TrailViewClient({
@@ -21,6 +23,7 @@ export function TrailViewClient({
   progressMap,
   courseAccess,
   userHasAccess,
+  lessonReleaseAt,
 }: TrailViewClientProps) {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(
     new Set(modules.map((m) => m.id))
@@ -69,6 +72,7 @@ export function TrailViewClient({
     const progress = progressMap.get(lesson.id)
     const isCompleted = !!progress?.completedAt
     const isLocked = !courseAccess && !lesson.isFree
+    const releaseAt = lessonReleaseAt[lesson.id] ?? null
     const dur = handleDurationFormat(lesson.videoDurationSeconds ?? lesson.durationSeconds)
 
     const href = lesson.videoProviderId
@@ -102,6 +106,7 @@ export function TrailViewClient({
               className="absolute inset-0 h-full w-full object-cover"
               draggable={false}
             />
+            {releaseAt && <LessonReleaseLock releaseAt={releaseAt} compact />}
 
             {/* Bottom shadow — strong, starts at mid-card */}
             <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/95 via-black/60 to-transparent" />

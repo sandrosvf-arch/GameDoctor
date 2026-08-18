@@ -27,6 +27,8 @@ interface Lesson {
   thumbnail: string | null
   isFree: boolean
   releaseAfterDays: number
+  previewEnabled: boolean
+  previewVideoProviderId: string | null
   status: string
   order: number
 }
@@ -310,6 +312,8 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [newThumbnail, setNewThumbnail] = useState("")
   const [newIsFree, setNewIsFree] = useState(false)
   const [newReleaseAfterDays, setNewReleaseAfterDays] = useState(7)
+  const [newPreviewEnabled, setNewPreviewEnabled] = useState(false)
+  const [newPreviewVideoProviderId, setNewPreviewVideoProviderId] = useState("")
   const [creatingLesson, setCreatingLesson] = useState(false)
 
   // Lesson inline edit
@@ -418,10 +422,13 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
         thumbnail: newThumbnail.trim() || undefined,
         isFree: newIsFree,
         releaseAfterDays: newReleaseAfterDays,
+        previewEnabled: newPreviewEnabled,
+        previewVideoProviderId: newPreviewVideoProviderId.trim() || undefined,
       }),
     })
     setCreatingLesson(false)
     setNewLessonTitle(""); setNewLessonDescription(""); setNewBunnyId(""); setNewThumbnail(""); setNewIsFree(false); setNewReleaseAfterDays(7)
+    setNewPreviewEnabled(false); setNewPreviewVideoProviderId("")
     setShowLessonForm(false)
     load(trilhaId)
   }
@@ -458,6 +465,8 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
         thumbnail: lesson.thumbnail ?? "",
         isFree: lesson.isFree,
         releaseAfterDays: lesson.releaseAfterDays,
+        previewEnabled: lesson.previewEnabled,
+        previewVideoProviderId: lesson.previewVideoProviderId ?? "",
         status: lesson.status,
       },
     }))
@@ -673,7 +682,27 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                 value={newReleaseAfterDays} onChange={e => setNewReleaseAfterDays(Number(e.target.value))} />
               <span className="text-xs text-muted-foreground">0 = imediato</span>
             </div>
-            {/* Descrição */}
+            <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-end">
+              <label className="flex items-center gap-2 pb-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={newPreviewEnabled}
+                  onChange={e => setNewPreviewEnabled(e.target.checked)}
+                  className="rounded"
+                />
+                Prévia para não assinantes
+              </label>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Bunny Video ID da prévia</label>
+                <input
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  disabled={!newPreviewEnabled}
+                  value={newPreviewVideoProviderId}
+                  onChange={e => setNewPreviewVideoProviderId(e.target.value)}
+                />
+              </div>
+            </div>            {/* Descrição */}
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Descrição</label>
               <textarea
@@ -758,6 +787,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                     <div className="flex items-center gap-2 mt-0.5">
                       {dur && <span className="text-xs text-muted-foreground shrink-0">{dur}</span>}
                       {lesson.isFree && <span className="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 rounded-full shrink-0">Grátis</span>}
+                      {!lesson.isFree && lesson.previewEnabled && <span className="text-xs bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-1.5 rounded-full shrink-0">{lesson.previewVideoProviderId ? "Clipe de prévia" : "Prévia sem clipe"}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -830,7 +860,27 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                           onChange={e => patchEdit(lesson.id, "releaseAfterDays", Number(e.target.value))} />
                         dias
                       </label>
-                    <div className="flex items-center gap-4">
+                    <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-end">
+                      <label className="flex items-center gap-2 pb-2 text-sm cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={(edits.previewEnabled as boolean) ?? lesson.previewEnabled}
+                          onChange={e => patchEdit(lesson.id, "previewEnabled", e.target.checked)}
+                          className="rounded"
+                        />
+                        Prévia para não assinantes
+                      </label>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Bunny Video ID da prévia</label>
+                        <input
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+                          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                          disabled={!((edits.previewEnabled as boolean) ?? lesson.previewEnabled)}
+                          value={(edits.previewVideoProviderId as string) ?? lesson.previewVideoProviderId ?? ""}
+                          onChange={e => patchEdit(lesson.id, "previewVideoProviderId", e.target.value)}
+                        />
+                      </div>
+                    </div>                    <div className="flex items-center gap-4">
                       <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                         <input type="checkbox"
                           checked={(edits.isFree as boolean) ?? lesson.isFree}

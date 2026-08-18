@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { bunnyVideoFields } from "@/lib/bunny"
+import { bunnyVideoFields, isBunnyVideoId } from "@/lib/bunny"
 
 async function requireAdmin() {
   const session = await auth()
@@ -22,7 +22,8 @@ export async function PATCH(
 
   const {
     title, description, searchKeywords, bunnyVideoId, isFree, status, thumbnail,
-    releaseAfterDays: rawReleaseAfterDays, previewEnabled, previewDurationSeconds: rawPreviewDurationSeconds,
+    releaseAfterDays: rawReleaseAfterDays, previewEnabled,
+    previewVideoProviderId: rawPreviewVideoProviderId,
   } = body as {
     title?: string
     description?: string
@@ -33,7 +34,7 @@ export async function PATCH(
     thumbnail?: string
     releaseAfterDays?: number
     previewEnabled?: boolean
-    previewDurationSeconds?: number
+    previewVideoProviderId?: string
   }
 
   const videoFields = bunnyVideoId ? bunnyVideoFields(bunnyVideoId) : {}
@@ -42,9 +43,14 @@ export async function PATCH(
     return NextResponse.json({ error: "O prazo de liberação deve estar entre 0 e 3650 dias." }, { status: 400 })
   }
 
-  const previewDurationSeconds = rawPreviewDurationSeconds === undefined ? undefined : Number(rawPreviewDurationSeconds)
-  if (previewDurationSeconds !== undefined && (!Number.isInteger(previewDurationSeconds) || previewDurationSeconds < 3 || previewDurationSeconds > 120)) {
-    return NextResponse.json({ error: "A duração do preview deve estar entre 3 e 120 segundos." }, { status: 400 })
+  const previewVideoProviderId = rawPreviewVideoProviderId === undefined
+    ? undefined
+    : typeof rawPreviewVideoProviderId === "string"
+      ? rawPreviewVideoProviderId.trim()
+      : null
+
+  if (previewVideoProviderId === null || (previewVideoProviderId && !isBunnyVideoId(previewVideoProviderId))) {
+    return NextResponse.json({ error: "O Bunny Video ID da prévia deve ser um UUID válido." }, { status: 400 })
   }
 
   const lesson = await db.lesson.update({
@@ -56,7 +62,7 @@ export async function PATCH(
       ...(isFree !== undefined && { isFree }),
       ...(releaseAfterDays !== undefined && { releaseAfterDays }),
       ...(previewEnabled !== undefined && { previewEnabled }),
-      ...(previewDurationSeconds !== undefined && { previewDurationSeconds }),
+      ...(previewVideoProviderId !== undefined && { previewVideoProviderId: previewVideoProviderId || null }),
       ...(status !== undefined && { status: status as never }),
       ...(thumbnail !== undefined && { thumbnail: thumbnail || null }),
       ...videoFields,

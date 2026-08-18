@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { bunnyVideoFields } from "@/lib/bunny"
+import { bunnyVideoFields, isBunnyVideoId } from "@/lib/bunny"
 
 async function requireAdmin() {
   const session = await auth()
@@ -25,7 +25,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       durationSeconds: true, videoDurationSeconds: true,
       videoProvider: true, videoProviderId: true,
       videoEmbedUrl: true, videoThumbnailUrl: true,
-      isFree: true, releaseAfterDays: true, status: true, order: true,
+      isFree: true, releaseAfterDays: true,
+      previewEnabled: true, previewVideoProviderId: true,
+      status: true, order: true,
     },
   })
 
@@ -37,20 +39,38 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id: courseId } = await params
   const body = await request.json().catch(() => ({}))
 
-  const { title, description, bunnyVideoId, isFree = false, order, thumbnail, releaseAfterDays: rawReleaseAfterDays } = body as {
-    title?: string; description?: string; bunnyVideoId?: string
-    isFree?: boolean; order?: number; thumbnail?: string; releaseAfterDays?: number
+  const {
+    title, description, bunnyVideoId, isFree = false, order, thumbnail,
+    releaseAfterDays: rawReleaseAfterDays, previewEnabled = false,
+    previewVideoProviderId: rawPreviewVideoProviderId,
+  } = body as {
+    title?: string
+    description?: string
+    bunnyVideoId?: string
+    isFree?: boolean
+    order?: number
+    thumbnail?: string
+    releaseAfterDays?: number
+    previewEnabled?: boolean
+    previewVideoProviderId?: string
   }
 
   if (!title?.trim()) return NextResponse.json({ error: "Título obrigatório" }, { status: 400 })
 
-  // Count existing lessons to auto-set order
   const count = await db.lesson.count({ where: { courseId } })
-
   const videoFields = bunnyVideoId ? bunnyVideoFields(bunnyVideoId) : {}
   const releaseAfterDays = rawReleaseAfterDays === undefined ? 7 : Number(rawReleaseAfterDays)
+
   if (!Number.isInteger(releaseAfterDays) || releaseAfterDays < 0 || releaseAfterDays > 3650) {
     return NextResponse.json({ error: "O prazo de liberação deve estar entre 0 e 3650 dias." }, { status: 400 })
+  }
+
+  const previewVideoProviderId = typeof rawPreviewVideoProviderId === "string"
+    ? rawPreviewVideoProviderId.trim()
+    : ""
+
+  if (previewVideoProviderId && !isBunnyVideoId(previewVideoProviderId)) {
+    return NextResponse.json({ error: "O Bunny Video ID da prévia deve ser um UUID válido." }, { status: 400 })
   }
 
   const lesson = await db.lesson.create({
@@ -59,6 +79,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       title: title.trim(),
       description: description?.trim(),
       isFree,
+      releaseAfterDays,
+      previewEnabled,
+      previewVideoProviderId: previewVideoProviderId || null,
       order: order ?? count,
       status: "PUBLISHED",
       ...(thumbnail?.trim() && { thumbnail: thumbnail.trim() }),

@@ -1,9 +1,8 @@
 /**
- * GET /api/bunny/preview-embed?videoId=[id]
+ * GET /api/bunny/preview-embed?lessonId=[id]
  *
- * Returns a short-lived signed Bunny embed URL sized to the lesson's configured
- * preview duration. Token is generated at request time so it doesn't expire
- * before the user clicks play. Public endpoint — no auth required for previews.
+ * Retorna somente o clipe de prévia configurado na aula. O vídeo completo
+ * nunca é assinado por esta rota.
  */
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
@@ -13,53 +12,64 @@ import { bunnySignedEmbedUrl } from "@/lib/bunny"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const videoId = searchParams.get("videoId")
+  const lessonId = searchParams.get("lessonId")?.trim()
 
-  if (!videoId || !/^[0-9a-f-]{36}$/i.test(videoId)) {
-    return NextResponse.json({ error: "Invalid videoId" }, { status: 400 })
+  if (!lessonId) {
+    return NextResponse.json({ error: "LESSON_ID_REQUIRED" }, { status: 400 })
   }
 
-  const lesson = await db.lesson.findFirst({
-    where: { videoProvider: "BUNNY", videoProviderId: videoId, status: "PUBLISHED" },
-    select: { id: true },
+  const lesson = await db.lesson.findUnique({
+    where: { id: lessonId },
+    select: {
+      id: true,
+      status: true,
+      previewEnabled: true,
+      previewVideoProviderId: true,
+    },
   })
 
-  // Default teaser length when the lesson has no explicit previewDurationSeconds configured
-  let previewDurationSeconds = 7
+  if (!lesson || lesson.status !== "PUBLISHED") {
+    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
+  }
 
-  if (lesson) {
-    const session = await auth()
-    const access = await hasAccessToLesson(
-      session?.user?.id ?? null,
-      lesson.id,
-      { isStaff: session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR" },
+  const session = await auth()
+  const access = await hasAccessToLesson(
+    session?.user?.id ?? null,
+    lesson.id,
+    {
+      isStaff:
+        session?.user?.role === "ADMIN" ||
+        session?.user?.role === "EDITOR",
+    }
+  )
+
+  if (access.isReleaseLocked) {
+    return NextResponse.json(
+      { error: "RELEASE_LOCKED", releaseAt: access.releaseAt },
+      { status: 403 }
     )
-
-    if (access.isReleaseLocked) {
-      return NextResponse.json(
-        { error: "RELEASE_LOCKED", releaseAt: access.releaseAt },
-        { status: 403 },
-      )
-    }
-
-    // Already fully accessible — no need for a time-boxed preview token
-    if (access.hasAccess && !access.isPreview) {
-      return NextResponse.json({ error: "ALREADY_ACCESSIBLE" }, { status: 403 })
-    }
-
-    // Admin explicitly disabled preview for this lesson (see /admin/aulas)
-    if (!access.isPreview) {
-      return NextResponse.json({ error: "PREVIEW_DISABLED" }, { status: 403 })
-    }
-
-    previewDurationSeconds = access.previewDurationSeconds ?? 7
   }
 
-  // Token TTL matches the preview length + small buffer, not an arbitrary flat value
-  const embedUrl = bunnySignedEmbedUrl(videoId, previewDurationSeconds + 5, {
-    autoplay: true,
-    muted: true,
+  if (access.hasAccess && !access.isPreview) {
+    return NextResponse.json({ error: "ALREADY_ACCESSIBLE" }, { status: 403 })
+  }
+
+  if (
+    !lesson.previewEnabled ||
+    !access.isPreview ||
+    !lesson.previewVideoProviderId
+  ) {
+    return NextResponse.json({ error: "PREVIEW_UNAVAILABLE" }, { status: 404 })
+  }
+
+  const response = NextResponse.json({
+    embedUrl: bunnySignedEmbedUrl(
+      lesson.previewVideoProviderId,
+      15 * 60,
+      { autoplay: false, muted: false }
+    ),
   })
 
-  return NextResponse.json({ embedUrl, previewDurationSeconds })
+  response.headers.set("Cache-Control", "private, no-store, max-age=0")
+  return response
 }

@@ -68,7 +68,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
               durationSeconds: true, videoDurationSeconds: true,
               videoProvider: true, videoProviderId: true,
               videoEmbedUrl: true, videoThumbnailUrl: true, thumbnail: true,
-              isFree: true, releaseAfterDays: true, status: true, order: true,
+              isFree: true, releaseAfterDays: true, previewEnabled: true, previewVideoProviderId: true, status: true, order: true,
             },
           },
         },
@@ -87,7 +87,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       durationSeconds: true, videoDurationSeconds: true,
       videoProvider: true, videoProviderId: true,
       videoEmbedUrl: true, videoThumbnailUrl: true, thumbnail: true,
-      isFree: true, releaseAfterDays: true, status: true, order: true,
+      isFree: true, releaseAfterDays: true, previewEnabled: true, previewVideoProviderId: true, status: true, order: true,
     },
   })
 

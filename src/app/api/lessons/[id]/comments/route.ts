@@ -97,11 +97,11 @@ export async function POST(
   const content = typeof body?.content === "string" ? body.content.trim() : ""
 
   if (!content || content.length < 2) {
-    return NextResponse.json({ error: "Comentario muito curto" }, { status: 400 })
+    return NextResponse.json({ error: "Comentário muito curto" }, { status: 400 })
   }
 
   if (content.length > 2000) {
-    return NextResponse.json({ error: "Comentario muito longo" }, { status: 400 })
+    return NextResponse.json({ error: "Comentário muito longo" }, { status: 400 })
   }
 
   const access = await canAccessLessonComments(id, session.user.id, session.user.role)
@@ -164,7 +164,7 @@ export async function POST(
     return NextResponse.json(
       {
         pending: true,
-        message: "Comentario enviado para aprovacao.",
+        message: "Comentário enviado para aprovação.",
       },
       { status: 201 }
     )
