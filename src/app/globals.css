@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* ── Dark theme (default) — streaming-inspired ── */
-    --background: 220 15% 7%;
+    --background: 240 16% 18%;
     --foreground: 210 40% 98%;
 
     --card: 220 15% 10%;
@@ -169,5 +169,5 @@
 }
 
 .bg-1{
-  background-color: rgb(42, 42, 49);
+  background-color: #2a2a31;
 }
