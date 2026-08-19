@@ -23,7 +23,7 @@ const ADMIN_PREFIXES = ["/admin"]
 const AUTH_ONLY_PREFIXES = ["/login", "/cadastro", "/recuperar-senha"]
 
 const ADMIN_HOME = "/admin/dashboard"
-const MEMBER_HOME = "/dashboard"
+const MEMBER_HOME = "/"
 
 export default auth((req: NextAuthRequest) => {
   const { nextUrl } = req

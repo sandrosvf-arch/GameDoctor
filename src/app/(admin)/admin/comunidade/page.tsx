@@ -1020,7 +1020,7 @@ export default function AdminComunidadePage() {
                       <input
                         value={auditModeratorEmail}
                         onChange={(event) => setAuditModeratorEmail(event.target.value)}
-                        placeholder="Ex.: admin@gamedoctor.com"
+                        placeholder="Ex.: admin@gamedoctor.com.br"
                         className="h-10 w-full rounded-md border border-white/[0.1] bg-[#080b10] px-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-slate-500"
                       />
                     </Field>

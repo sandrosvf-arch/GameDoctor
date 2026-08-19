@@ -20,6 +20,8 @@ interface UsageStatus {
   monthlyCredits: number
 }
 
+const STORAGE_KEY = "gamedoctor_assistant_state"
+
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
@@ -50,6 +52,7 @@ export function PlatformAssistant({ page = false }: { page?: boolean }) {
   const [usage, setUsage] = useState<UsageStatus | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hydrated, setHydrated] = useState(false)
 
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
 
@@ -64,8 +67,38 @@ export function PlatformAssistant({ page = false }: { page?: boolean }) {
     return () => window.removeEventListener("gamedoctor:open-assistant", handleOpenAssistant)
   }, [])
 
+  // Restore chat state after a page refresh
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved) as {
+          messages?: AssistantMessage[]
+          conversationId?: string | null
+          usage?: UsageStatus | null
+        }
+        if (Array.isArray(parsed.messages)) setMessages(parsed.messages)
+        if (parsed.conversationId) setConversationId(parsed.conversationId)
+        if (parsed.usage) setUsage(parsed.usage)
+      }
+    } catch {
+      // ignore corrupted storage
+    } finally {
+      setHydrated(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, conversationId, usage }))
+  }, [hydrated, messages, conversationId, usage])
+
   async function sendMessage(event: FormEvent) {
     event.preventDefault()
+    await submitMessage()
+  }
+
+  async function submitMessage() {
     const text = message.trim()
     if (!text || loading) return
 
@@ -101,6 +134,7 @@ export function PlatformAssistant({ page = false }: { page?: boolean }) {
     setConversationId(null)
     setMessages([])
     setError(null)
+    localStorage.removeItem(STORAGE_KEY)
   }
 
   return (
@@ -179,6 +213,12 @@ export function PlatformAssistant({ page = false }: { page?: boolean }) {
                 <textarea
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.ctrlKey && !event.shiftKey) {
+                      event.preventDefault()
+                      void submitMessage()
+                    }
+                  }}
                   placeholder="Digite sua pergunta..."
                   rows={2}
                   disabled={loading}

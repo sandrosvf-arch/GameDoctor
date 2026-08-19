@@ -9,10 +9,15 @@ import { searchAiContext } from "@/lib/ai/search"
 
 const bodySchema = z.object({
   message: z.string().trim().min(1).max(4_000),
-  conversationId: z.string().cuid().optional(),
+  conversationId: z.string().cuid().nullable().optional(),
 })
 
 const model = process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini"
+
+// Strips any domain/protocol the model might hallucinate in front of internal links, e.g. "gamedoctor.com/aula/..." -> "/aula/..."
+function stripLinkDomains(text: string) {
+  return text.replace(/\]\((?:https?:\/\/)?(?:www\.)?[^\/\s)]+(\/[^)]*)\)/g, "]($1)")
+}
 
 function getOpenAiClient() {
   const apiKey = process.env.OPENAI_API_KEY?.trim()
@@ -90,6 +95,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "O assistente não retornou uma resposta." }, { status: 502 })
   }
 
+  const sanitizedAnswer = stripLinkDomains(answer)
+
   const usage = await consumeAiCredit(session.user.id, access)
   const inputTokens = completion.usage?.prompt_tokens ?? null
   const outputTokens = completion.usage?.completion_tokens ?? null
@@ -120,7 +127,7 @@ export async function POST(request: Request) {
         conversationId,
         userId: session.user.id,
         role: "ASSISTANT",
-        content: answer,
+        content: sanitizedAnswer,
         model,
         inputTokens,
         outputTokens,
@@ -135,7 +142,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     conversationId,
-    answer,
+    answer: sanitizedAnswer,
     sources: context.map(({ title, href, source }) => ({ title, href, source })),
     usage,
   })

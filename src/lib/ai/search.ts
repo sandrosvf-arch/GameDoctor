@@ -27,6 +27,14 @@ function containsTerms(terms: string[], fields: string[]) {
   return terms.flatMap((term) => fields.map((field) => ({ [field]: { contains: term, mode: "insensitive" as const } })))
 }
 
+function buildLessonHref(lesson: { id: string; title: string; description: string | null; videoProviderId: string | null }) {
+  if (!lesson.videoProviderId) return `/aula/${lesson.id}`
+
+  const params = new URLSearchParams({ titulo: lesson.title })
+  if (lesson.description) params.set("legenda", lesson.description)
+  return `/aula/bunny/${lesson.videoProviderId}?${params.toString()}`
+}
+
 export async function searchAiContext(question: string): Promise<AiContextItem[]> {
   const terms = getSearchTerms(question)
   if (terms.length === 0) return []
@@ -42,7 +50,7 @@ export async function searchAiContext(question: string): Promise<AiContextItem[]
       where: { status: "PUBLISHED", OR: containsTerms(terms, ["title", "description", "searchKeywords"]) },
       take: 6,
       orderBy: [{ course: { displayOrder: "asc" } }, { order: "asc" }],
-      select: { id: true, title: true, description: true, searchKeywords: true, course: { select: { title: true } } },
+      select: { id: true, title: true, description: true, searchKeywords: true, videoProviderId: true, course: { select: { title: true } } },
     }),
     db.helpArticle.findMany({
       where: { status: "ACTIVE", OR: containsTerms(terms, ["title", "excerpt", "content"]) },
@@ -69,7 +77,7 @@ export async function searchAiContext(question: string): Promise<AiContextItem[]
       source: "lesson" as const,
       title: `${lesson.course.title} - ${lesson.title}`,
       text: [lesson.description, lesson.searchKeywords].filter(Boolean).join(" ").slice(0, 700),
-      href: `/aula/${lesson.id}`,
+      href: buildLessonHref(lesson),
     })),
     ...articles.map((article) => ({
       source: "help" as const,
