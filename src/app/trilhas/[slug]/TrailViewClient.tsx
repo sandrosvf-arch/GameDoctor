@@ -94,7 +94,7 @@ export function TrailViewClient({
           className="relative overflow-hidden rounded-[12px] p-[1.2px] transition-colors duration-200 ease-out"
           style={{
             background: `radial-gradient(58% 96% at 0% 50%, ${accentColor}ff 0%, ${accentColor}cc 12%, ${accentColor}55 24%, ${accentColor}22 36%, transparent 48%), linear-gradient(to right, ${accentColor}20, ${accentColor}1a)`,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.45)",
+            // boxShadow: "0 4px 20px rgba(0,0,0,0.45)",
           }}
         >
           <div className="relative aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
