@@ -54,7 +54,7 @@ export function MemberSidebar() {
   return (
     <aside
       className={cn(
-        "relative flex flex-col h-[calc(100vh-4rem)] border-r border-border/40 bg-card/20 sticky top-16 transition-all duration-300 ease-in-out",
+        "relative flex flex-col h-[calc(100vh-4rem)] border-r border-border/40 bg-zinc-950/85 sticky top-16 transition-all duration-300 ease-in-out",
         collapsed ? "w-16" : "w-64"
       )}
     >

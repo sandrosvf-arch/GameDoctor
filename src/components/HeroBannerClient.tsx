@@ -140,9 +140,10 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
         />
       ) : null}
 
-      {/* Gradient overlays — dark left (text), transparent right (video visible) */}
-      <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 from-[20%] via-zinc-950/60 via-[50%] to-transparent to-[75%]" />
-      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 from-[0%] via-zinc-950/50 via-[18%] to-transparent to-[40%]" />
+      {/* Overlays discretos para manter a leitura sem criar corte de cor no fim do hero */}
+      <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/90 from-[20%] via-zinc-950/60 via-[50%] to-transparent to-[75%]" />
+      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 from-[0%] via-zinc-950/10 via-[18%] to-transparent to-[40%]" />
+      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent via-[#2a2a31]/30 to-[#2a2a31] pointer-events-none" />
 
       {/* Content */}
       <div

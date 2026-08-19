@@ -237,7 +237,7 @@ export default function BuscaPage() {
                       className="relative overflow-hidden rounded-[12px] p-[1.2px]"
                       style={{
                         background: `radial-gradient(58% 96% at 0% 50%, ${accent}ff 0%, ${accent}f0 12%, ${accent}66 24%, ${accent}22 36%, transparent 48%), linear-gradient(to right, ${accent}20, ${accent}1a)`,
-                        boxShadow: `0 4px 20px rgba(0,0,0,0.45)`,
+                        // boxShadow: `0 4px 20px rgba(0,0,0,0.45)`,
                       }}
                     >
                       <div className="relative z-10 aspect-video rounded-[11px] overflow-hidden bg-zinc-950">

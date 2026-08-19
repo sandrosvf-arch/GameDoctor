@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { Button } from "@/components/ui/button"
-import { Play, Lock, Tag } from "lucide-react"
+import { Play, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { db } from "@/lib/db"
 import { resolveCatalogCategoryTargetCourseSlug } from "@/lib/catalog"
@@ -14,9 +14,11 @@ interface CourseWithFirstLesson {
   title: string
   slug: string
   coverImage: string | null
+  shortDescription: string | null
   isFree: boolean
   firstLessonId: string | null
   lessonCount: number
+  displayOrder: number
 }
 
 interface CategorySection {
@@ -28,11 +30,40 @@ interface CategorySection {
   children: { id: string; name: string; slug: string; count: number; targetCourseSlug: string | null }[]
 }
 
+const childCategoryOrder = [
+  "inicio-da-jornada",
+  "eletronica-basica",
+  "ferramental",
+  "micro-solda",
+  "softwares",
+  "administracao",
+  "manutencao-geral",
+  "conhecendo-professor-e-ferramentas",
+]
+
+function sortChildCategories<T extends { slug: string; name: string }>(children: T[]) {
+  return [...children].sort((a, b) => {
+    const aIndex = childCategoryOrder.indexOf(a.slug)
+    const bIndex = childCategoryOrder.indexOf(b.slug)
+    return (aIndex === -1 ? childCategoryOrder.length : aIndex) - (bIndex === -1 ? childCategoryOrder.length : bIndex) || a.name.localeCompare(b.name)
+  })
+}
+
+function isPaidTrafficCourse(course: CourseWithFirstLesson) {
+  return course.title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .includes("trafego pago")
+}
+
 function mapCourse(c: {
   id: string
   title: string
   slug: string
   coverImage: string | null
+  shortDescription: string | null
+  displayOrder: number
   modules: { lessons: { id: string; isFree: boolean }[] }[]
   lessons: { id: string }[]
 }): CourseWithFirstLesson {
@@ -42,9 +73,11 @@ function mapCourse(c: {
     title: c.title,
     slug: c.slug,
     coverImage: c.coverImage,
+    shortDescription: c.shortDescription,
     isFree: firstLesson?.isFree ?? false,
     firstLessonId: firstLesson?.id ?? null,
     lessonCount: c.lessons.length,
+    displayOrder: c.displayOrder,
   }
 }
 
@@ -87,6 +120,8 @@ async function getSections(categorySlug?: string): Promise<{
                   title: true,
                   slug: true,
                   coverImage: true,
+                  shortDescription: true,
+                  displayOrder: true,
                   modules: {
                     where: { status: "ACTIVE" },
                     orderBy: { order: "asc" },
@@ -122,6 +157,8 @@ async function getSections(categorySlug?: string): Promise<{
               title: true,
               slug: true,
               coverImage: true,
+              shortDescription: true,
+              displayOrder: true,
               modules: {
                 where: { status: "ACTIVE" },
                 orderBy: { order: "asc" },
@@ -165,14 +202,14 @@ async function getSections(categorySlug?: string): Promise<{
         name: root.name,
         slug: root.slug,
         description: root.description,
-        courses: Array.from(courseMap.values()).sort((a, b) => a.title.localeCompare(b.title)),
-        children: root.children.map((child) => ({
+        courses: Array.from(courseMap.values()).sort((a, b) => a.displayOrder - b.displayOrder || a.title.localeCompare(b.title)),
+        children: sortChildCategories(root.children.map((child) => ({
           id: child.id,
           name: child.name,
           slug: child.slug,
           count: child.courseCategories.length,
           targetCourseSlug: resolveCatalogCategoryTargetCourseSlug(child),
-        })),
+        }))),
       }
     })
     .filter((section) => section.courses.length > 0)
@@ -189,6 +226,8 @@ async function getSections(categorySlug?: string): Promise<{
         title: true,
         slug: true,
         coverImage: true,
+        shortDescription: true,
+        displayOrder: true,
         modules: {
           where: { status: "ACTIVE" },
           orderBy: { order: "asc" },
@@ -231,17 +270,18 @@ function CourseCard({ course }: { course: CourseWithFirstLesson }) {
   const href = course.firstLessonId ? `/aula/${course.firstLessonId}` : `/trilhas/${course.slug}`
 
   return (
-    <Link href={href} className="group block">
-      <div className={cn(
-        "relative w-full aspect-video rounded-lg overflow-hidden bg-zinc-900",
-        "ring-0 group-hover:ring-2 ring-primary/60 transition-all duration-300"
+    <Link href={href} className="group block h-full">
+      <article className={cn(
+        "flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.1] bg-card/80 shadow-lg shadow-black/10",
+        "transition duration-300 hover:-translate-y-1 hover:border-primary/50 hover:bg-card hover:shadow-xl hover:shadow-black/20"
       )}>
+        <div className="relative aspect-video shrink-0 overflow-hidden bg-zinc-900">
         {course.coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={course.coverImage}
             alt={course.title}
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
           />
         ) : (
           <div
@@ -270,13 +310,19 @@ function CourseCard({ course }: { course: CourseWithFirstLesson }) {
           </div>
         </div>
 
-        <div className="absolute bottom-0 inset-x-0 px-2 pb-2">
-          <p className="text-white text-xs font-medium leading-snug line-clamp-2">{course.title}</p>
-          {course.lessonCount > 0 && (
-            <p className="text-white/50 text-[10px] mt-0.5">{course.lessonCount} aula{course.lessonCount !== 1 ? "s" : ""}</p>
-          )}
         </div>
-      </div>
+        <div className="flex min-h-[142px] flex-1 flex-col p-4">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+              {course.title}
+            </h3>
+            <span className="mt-0.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5">-&gt;</span>
+          </div>
+          <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+            {course.shortDescription || "Aprenda no seu ritmo com aulas praticas e organizadas."}
+          </p>
+        </div>
+      </article>
     </Link>
   )
 }
@@ -300,17 +346,26 @@ export default async function CursosPage({
     sections = []
   }
 
+  const catalogCourses = sections.flatMap((section) => section.courses)
+  const courses = [
+    ...catalogCourses.filter((course) => !isPaidTrafficCourse(course)),
+    ...catalogCourses.filter(isPaidTrafficCourse),
+  ]
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-12">
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold">
-            {currentCategoryName ? `Trilhas em ${currentCategoryName}` : "Todas as trilhas"}
+        <div className="mb-10 max-w-3xl">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Catálogo GameDoctor</p>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            {currentCategoryName ? `Trilhas em ${currentCategoryName}` : "Conheça todas as trilhas de aprendizado"}
           </h1>
-          <p className="text-muted-foreground mt-2">
-            Escolha por especialidade, console ou fundamento e comece a aprender agora nas trilhas.
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
+            {currentCategoryName
+              ? "Explore as aulas desta categoria e avance passo a passo no seu ritmo."
+              : "Saia do zero e avance no seu ritmo até se tornar um técnico profissional."}
           </p>
           {currentCategoryName && (
             <div className="mt-4">
@@ -321,54 +376,15 @@ export default async function CursosPage({
           )}
         </div>
 
-        <div className="mb-10 rounded-xl bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border border-primary/20 px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <p className="font-semibold text-lg">Desbloqueie todos as trilhas</p>
-            <p className="text-muted-foreground text-sm mt-0.5">Acesso vitalicio a todo o conteudo das trilhas por um unico pagamento.</p>
-          </div>
-          <Button asChild size="lg" className="shrink-0">
-            <Link href="/planos">Ver plano</Link>
-          </Button>
-        </div>
-
         {sections.length === 0 ? (
           <div className="py-20 text-center text-muted-foreground">
             <p>Nenhuma trilha publicada para essa categoria ainda.</p>
             <p className="text-sm mt-1">Volte em breve ou escolha outra categoria.</p>
           </div>
         ) : (
-          <div className="space-y-12">
-            {sections.map((section) => (
-              <section key={section.id}>
-                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold">{section.name}</h2>
-                    {section.description && (
-                      <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
-                    )}
-                  </div>
-                  {section.children.length > 0 && !categorySlug && (
-                    <div className="flex flex-wrap gap-2">
-                      {section.children.map((child) => (
-                        <Link
-                          key={child.id}
-                          href={child.targetCourseSlug ? `/trilhas/${child.targetCourseSlug}` : `/cursos?categoria=${child.slug}`}
-                          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
-                        >
-                          <Tag className="h-3 w-3" />
-                          {child.name}
-                          <span className="opacity-60">({child.count})</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-5">
-                  {section.courses.map((course) => (
-                    <CourseCard key={course.id} course={course} />
-                  ))}
-                </div>
-              </section>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {courses.map((course) => (
+              <CourseCard key={course.id} course={course} />
             ))}
           </div>
         )}
