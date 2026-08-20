@@ -91,8 +91,8 @@ function HeartbeatLine() {
 
 const navLinks = [
   { label: "Quem Somos", href: "/quem-somos" },
-  { label: "Fale com nossa IA", href: "/assistente" },
   { label: "Comunidade", href: "/comunidade" },
+  { label: "Nossa IA", href: "/assistente" },
 ]
 
 interface CatalogCategoryNode {
