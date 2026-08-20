@@ -42,7 +42,10 @@ export default function TrailLoading() {
       </section>
 
       {/* Content section — matches TrailViewClient: px-4 pb-16 md:px-8 lg:px-14 */}
-      <div className="px-4 pb-16 md:px-8 lg:px-14 space-y-8 animate-pulse">
+      <div
+        className="bg-1 px-4 pb-16 md:px-8 lg:px-14 space-y-8 animate-pulse"
+        style={{ background: "linear-gradient(to bottom, transparent 0, transparent 2rem, #2a2a31 6rem)" }}
+      >
 
         {/* Module container 1 */}
         <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/35 p-4 md:p-6">

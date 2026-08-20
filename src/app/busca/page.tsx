@@ -1,11 +1,10 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
+import type { ReactNode } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
-import { Search, BookOpen, Play, Clock, Tag, Loader2, X, ArrowLeft } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Search, Play, Loader2, X, ArrowLeft } from "lucide-react"
 import { BUNNY_CDN_HOST } from "@/lib/constants"
 import { Header } from "@/components/layout/Header"
 
@@ -37,10 +36,67 @@ interface LessonResult {
   course: { id: string; title: string; slug: string; trailColorRgb: string | null; badgeLabel: string | null; coverImage: string | null; bannerImage: string | null }
 }
 
-function formatDur(secs: number | null | undefined) {
-  if (!secs) return null
-  const m = Math.floor(secs / 60)
-  return m > 0 ? `${m}min` : `${secs}s`
+function accentToHex(value: string | null | undefined) {
+  const raw = value?.trim()
+  if (!raw) return "#06b6d4"
+  if (raw.startsWith("#")) return raw
+  const match = raw.match(/(?:rgb\(\s*)?(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*\))?/i)
+  if (!match) return "#06b6d4"
+  const [red, green, blue] = match.slice(1).map(Number)
+  if ([red, green, blue].some((channel) => channel < 0 || channel > 255)) return "#06b6d4"
+  return `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`
+}
+
+function SearchTrailCard({
+  href,
+  accent,
+  thumbnail,
+  badge,
+  title,
+  description,
+}: {
+  href: string
+  accent: string
+  thumbnail: string | null
+  badge?: string | null
+  title: ReactNode
+  description?: ReactNode
+}) {
+  return (
+    <Link href={href} className="group block h-full">
+      <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.1] bg-card/80 shadow-lg shadow-black/10 transition duration-300 hover:-translate-y-1 hover:border-primary/50 hover:bg-card hover:shadow-xl hover:shadow-black/20">
+        <div className="relative aspect-video shrink-0 overflow-hidden bg-zinc-900">
+          {thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+          ) : (
+            <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}08)` }} />
+          )}
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+          {badge && (
+            <span className="absolute top-2 left-2 rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ backgroundColor: accent, color: "#000" }}>
+              {badge}
+            </span>
+          )}
+
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="rounded-full bg-white/20 p-3 backdrop-blur-sm">
+              <Play className="ml-0.5 h-5 w-5 fill-white text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="flex min-h-[142px] flex-1 flex-col p-4">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">{title}</h3>
+            <span className="mt-0.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5">-&gt;</span>
+          </div>
+          {description && <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{description}</p>}
+        </div>
+      </article>
+    </Link>
+  )
 }
 
 function highlight(text: string, query: string) {
@@ -160,10 +216,10 @@ export default function BuscaPage() {
   const total = courses.length + lessons.length
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-1">
       <Header />
       {/* Page header — back link + result count */}
-      <div className="border-b border-border/40 bg-card/30 py-4">
+      <div className="border-b border-white/10 bg-transparent py-4">
         <div className="container max-w-7xl flex items-center gap-4">
           <Link
             href="/"
@@ -219,74 +275,24 @@ export default function BuscaPage() {
         {/* Courses */}
         {!loading && courses.length > 0 && (
           <section>
-            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground/60">
-              <BookOpen className="h-4 w-4" />
+            <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-white">
+              <span className="inline-block h-6 w-1 rounded-full bg-cyan-400" />
               Trilhas / Aulas ({courses.length})
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {courses.map((course) => {
-                const accent = course.trailColorRgb ? `rgb(${course.trailColorRgb})` : "#06b6d4"
+                const accent = accentToHex(course.trailColorRgb)
                 const thumb = course.bannerImage ?? course.coverImage
                 return (
-                  <Link
+                  <SearchTrailCard
                     key={course.id}
                     href={`/trilhas/${course.slug}`}
-                    className="group flex-shrink-0 w-full"
-                  >
-                    <div
-                      className="relative overflow-hidden rounded-[12px] p-[1.2px]"
-                      style={{
-                        background: `radial-gradient(58% 96% at 0% 50%, ${accent}ff 0%, ${accent}f0 12%, ${accent}66 24%, ${accent}22 36%, transparent 48%), linear-gradient(to right, ${accent}20, ${accent}1a)`,
-                        // boxShadow: `0 4px 20px rgba(0,0,0,0.45)`,
-                      }}
-                    >
-                      <div className="relative z-10 aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={thumb} alt={course.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        ) : (
-                          <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}08)` }} />
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                        <div className="absolute bottom-3 left-3 right-3">
-                          <p className="text-sm font-bold text-white leading-snug line-clamp-2 drop-shadow">
-                            {highlight(course.title, debouncedQ)}
-                          </p>
-                          {course.shortDescription && (
-                            <p className="mt-1 text-[11px] text-white/60 line-clamp-1">
-                              {highlight(course.shortDescription, debouncedQ)}
-                            </p>
-                          )}
-                        </div>
-                        {course.badgeLabel && (
-                          <span
-                            className="absolute top-2.5 left-2.5 rounded px-2 py-0.5 text-[10px] font-black uppercase tracking-widest"
-                            style={{ backgroundColor: accent, color: "#000" }}
-                          >
-                            {course.badgeLabel}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 px-1 pt-2 pb-1 text-[11px] text-muted-foreground/70">
-                      {(course.courseCategories.length > 0 || course.category) && (
-                        <span className="flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
-                          {(course.courseCategories[0]?.category.name ?? course.category?.name) || ""}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Play className="h-3 w-3" />
-                        {course._count.lessons} aula{course._count.lessons !== 1 ? "s" : ""}
-                      </span>
-                      {course.workloadHours && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {course.workloadHours}h
-                        </span>
-                      )}
-                    </div>
-                  </Link>
+                    accent={accent}
+                    thumbnail={thumb}
+                    badge={course.badgeLabel}
+                    title={highlight(course.title, debouncedQ)}
+                    description={course.shortDescription ? highlight(course.shortDescription, debouncedQ) : `${course._count.lessons} aulas`}
+                  />
                 )
               })}
             </div>
@@ -296,58 +302,31 @@ export default function BuscaPage() {
         {/* Lessons */}
         {!loading && lessons.length > 0 && (
           <section>
-            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground/60">
-              <Play className="h-4 w-4" />
+            <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-white">
+              <span className="inline-block h-6 w-1 rounded-full bg-cyan-400" />
               Aulas ({lessons.length})
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {lessons.map((lesson) => {
-                const accent = lesson.course.trailColorRgb ? `rgb(${lesson.course.trailColorRgb})` : "#06b6d4"
+                const accent = accentToHex(lesson.course.trailColorRgb)
                 const thumb = lesson.thumbnail
                   ?? (lesson.videoProviderId ? `https://${BUNNY_CDN_HOST}/${lesson.videoProviderId}/thumbnail.jpg` : null)
                   ?? lesson.videoThumbnailUrl
                   ?? lesson.course.bannerImage
                   ?? lesson.course.coverImage
-                const dur = formatDur(lesson.videoDurationSeconds ?? lesson.durationSeconds)
                 const href = lesson.videoProviderId
                   ? `/aula/bunny/${lesson.videoProviderId}`
                   : `/aula/${lesson.id}`
                 return (
-                  <Link
+                  <SearchTrailCard
                     key={lesson.id}
                     href={href}
-                    className="group rounded-xl border border-zinc-800/80 bg-zinc-900/40 overflow-hidden hover:border-zinc-700 transition-all"
-                  >
-                    {/* Thumbnail */}
-                    <div
-                      className="relative aspect-video overflow-hidden bg-zinc-900"
-                    >
-                      {thumb ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={thumb} alt={lesson.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center" style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}08)` }}>
-                          <Play className="h-8 w-8 text-zinc-600" />
-                        </div>
-                      )}
-                      {dur && (
-                        <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white/80">{dur}</span>
-                      )}
-                      {lesson.isFree && (
-                        <span className="absolute top-1.5 left-1.5 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest bg-emerald-500/90 text-white">
-                          Grátis
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="p-3 space-y-1">
-                      <p className="text-xs font-semibold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                        {highlight(lesson.title, debouncedQ)}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground/70 truncate">{lesson.course.title}</p>
-                    </div>
-                  </Link>
+                    accent={accent}
+                    thumbnail={thumb}
+                    badge={lesson.isFree ? "GRÁTIS" : lesson.course.badgeLabel}
+                    title={highlight(lesson.title, debouncedQ)}
+                    description={lesson.course.title}
+                  />
                 )
               })}
             </div>
@@ -356,7 +335,7 @@ export default function BuscaPage() {
 
         {/* CTA — always visible after a search attempt */}
         {searched && (
-          <div className="mt-6 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 px-8 py-10 text-center space-y-4">
+          <div className="mt-6 border-t border-white/10 px-8 py-10 text-center space-y-4">
             <p className="text-lg font-semibold">Não encontrou o conteúdo que procura?</p>
             <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
               Essa plataforma é viva! Subimos aulas novas toda semana. Qual aula você gostaria de ver por aqui?

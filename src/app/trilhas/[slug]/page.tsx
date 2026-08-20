@@ -196,7 +196,10 @@ export default async function TrailPage({ params }: TrailPageProps) {
         </section>
 
         {/* Content — negative margin pulls the section up to overlap the banner bottom */}
-        <div className="relative z-10 -mt-36 md:-mt-32">
+        <div
+          className="relative z-10 -mt-36 bg-1 md:-mt-32"
+          style={{ background: "linear-gradient(to bottom, transparent 0, transparent 2rem, #2a2a31 6rem)" }}
+        >
           <TrailViewClient
             course={course}
             modules={course.modules}
