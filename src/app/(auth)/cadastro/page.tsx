@@ -32,6 +32,7 @@ function CadastroContent() {
 
   const invitedEmail = searchParams.get("email") ?? ""
   const isAdminInvite = searchParams.get("invite") === "admin"
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/"
 
   useEffect(() => {
     if (invitedEmail) {
@@ -68,13 +69,13 @@ function CadastroContent() {
 
     // Auto-login após cadastro
     await signIn("credentials", { email, password, redirect: false })
-    router.push("/dashboard")
+    router.push(callbackUrl)
     router.refresh()
   }
 
   const handleGoogle = async () => {
     setGoogleLoading(true)
-    await signIn("google", { callbackUrl: "/dashboard" })
+    await signIn("google", { callbackUrl })
   }
 
   return (

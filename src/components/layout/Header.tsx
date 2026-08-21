@@ -89,10 +89,12 @@ function HeartbeatLine() {
   )
 }
 
-const navLinks = [
+type NavLink = { label: string; href: string } | { label: string; action: "assistant" }
+
+const navLinks: NavLink[] = [
   { label: "Quem Somos", href: "/quem-somos" },
   { label: "Comunidade", href: "/comunidade" },
-  { label: "Nossa IA", href: "/assistente" },
+  { label: "Nossa IA", action: "assistant" },
 ]
 
 interface CatalogCategoryNode {
@@ -287,6 +289,11 @@ export function Header() {
     }, 4000)
   }
 
+  function openAssistant() {
+    window.dispatchEvent(new Event("gamedoctor:open-assistant"))
+    setMobileOpen(false)
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-zinc-950/80 backdrop-blur-xl">
       {pendingCategoryHref ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-primary/50" /> : null}
@@ -408,13 +415,24 @@ export function Header() {
 
           <div className="flex items-center gap-1">
             {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
-              >
-                {link.label}
-              </Link>
+              "href" in link ? (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <button
+                  key={link.action}
+                  type="button"
+                  onClick={openAssistant}
+                  className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  {link.label}
+                </button>
+              )
             ))}
           </div>
         </nav>
@@ -542,14 +560,25 @@ export function Header() {
                   </div>
                 ))}
                 {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
-                  >
-                    {link.label}
-                  </Link>
+                  "href" in link ? (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMobileOpen(false)}
+                      className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <button
+                      key={link.action}
+                      type="button"
+                      onClick={openAssistant}
+                      className="rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-secondary"
+                    >
+                      {link.label}
+                    </button>
+                  )
                 ))}
               </nav>
               <div className="flex flex-col gap-2 border-t border-border pt-4">
