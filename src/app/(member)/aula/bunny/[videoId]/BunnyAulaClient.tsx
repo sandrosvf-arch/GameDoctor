@@ -134,7 +134,6 @@ export default function BunnyAulaClient({
   const [listOpen, setListOpen] = useState(false)
   const [comments, setComments] = useState<CommentItem[]>([])
   const [commentsLoading, setCommentsLoading] = useState(false)
-  const [commentsVisible, setCommentsVisible] = useState(false)
   const [commentText, setCommentText] = useState("")
   const [submittingComment, setSubmittingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
@@ -158,7 +157,6 @@ export default function BunnyAulaClient({
     setPaywallVisible(false)
     setStarted(false)
     setComments([])
-    setCommentsVisible(false)
     setCommentText("")
     setCommentError(null)
     setCommentInfo(null)
@@ -219,10 +217,10 @@ export default function BunnyAulaClient({
   }, [lessonId])
 
   useEffect(() => {
-    if (commentsVisible && canViewRestrictedContent && !isGuest) {
+    if (canViewRestrictedContent && !isGuest) {
       void loadComments()
     }
-  }, [canViewRestrictedContent, commentsVisible, isGuest, loadComments])
+  }, [canViewRestrictedContent, isGuest, loadComments])
 
   const submitComment = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -542,22 +540,6 @@ export default function BunnyAulaClient({
                   </div>
                   <Button size="sm" asChild>
                     <Link href="/planos">Ver planos</Link>
-                  </Button>
-                </div>
-              ) : !commentsVisible && !isGuest ? (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-6 text-center backdrop-blur-xl">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40">
-                    <User2 className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Participe da discussão</p>
-                    <p className="text-xs text-muted-foreground">
-                      Carregue os comentários para acompanhar a conversa da aula e deixar sua dúvida.
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => setCommentsVisible(true)}>
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Carregar comentários
                   </Button>
                 </div>
               ) : (

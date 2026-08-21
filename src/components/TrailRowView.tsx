@@ -73,7 +73,7 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                 ) : null}
 
                 {/* Bottom shadow */}
-                <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-[18%] bg-gradient-to-t from-black from-25% to-transparent" />
 
                 {/* Top-left badge */}
                 <div className="absolute left-2.5 top-2.5 z-20 flex gap-1.5">
@@ -103,13 +103,12 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                 </div>
 
                 {/* Bottom content */}
-                <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 pt-1">
-                  <p className="text-[18px] sm:text-[19px] font-bold leading-tight text-white line-clamp-2">
-                    {card.title}
-                  </p>
-                  <div className="mt-1.5 flex items-center">
-                    <span className="text-[11px] text-zinc-400 font-medium">{card.duration}</span>
-                    <svg viewBox="0 0 112 16" className="ml-auto h-[12px] w-28 shrink-0" aria-hidden="true">
+                <div className="absolute inset-x-0 bottom-0 flex h-[18%] items-center px-2.5">
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <p className="text-[18px] sm:text-[19px] font-bold leading-tight text-white line-clamp-2">
+                      {card.title}
+                    </p>
+                    <svg viewBox="0 0 112 16" className="h-4 w-20 shrink-0" aria-hidden="true">
                       <defs>
                         <linearGradient id={`hb-fade-${card.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
                           <stop offset="0%"   stopColor={brandColor} stopOpacity="0" />
