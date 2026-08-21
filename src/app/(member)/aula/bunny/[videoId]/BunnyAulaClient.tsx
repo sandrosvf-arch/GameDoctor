@@ -128,6 +128,7 @@ export default function BunnyAulaClient({
   const isGuest = sessionStatus === "unauthenticated"
   const [mounted, setMounted] = useState(false)
   const [paywallVisible, setPaywallVisible] = useState(false)
+  const [started, setStarted] = useState(false)
   const [autoAdvance, setAutoAdvance] = useState(false)
   const [completingLesson, setCompletingLesson] = useState(false)
   const [listOpen, setListOpen] = useState(false)
@@ -155,6 +156,7 @@ export default function BunnyAulaClient({
   useEffect(() => {
     setMounted(true)
     setPaywallVisible(false)
+    setStarted(false)
     setComments([])
     setCommentsVisible(false)
     setCommentText("")
@@ -413,9 +415,29 @@ export default function BunnyAulaClient({
                     </div>
                   )}
                 </div>
+              ) : !started ? (
+                <div className="absolute inset-0">
+                  {previewImage && (
+                    <img
+                      src={previewImage}
+                      alt={title}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      draggable={false}
+                    />
+                  )}
+                  <button
+                    onClick={() => setStarted(true)}
+                    aria-label="Assistir aula"
+                    className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors hover:bg-black/40"
+                  >
+                    <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
+                      <Play className="h-7 w-7 fill-white" />
+                    </span>
+                  </button>
+                </div>
               ) : mounted ? (
                 <iframe
-                  src={embedUrl}
+                  src={embedUrl.replace("autoplay=false", "autoplay=true")}
                   className="absolute inset-0 h-full w-full"
                   width="100%"
                   height="100%"
@@ -448,7 +470,7 @@ export default function BunnyAulaClient({
             )} */}
 
             {(description || materials.length > 0) && (
-              <div className="space-y-4 rounded-xl border border-white/[0.08] bg-zinc-950/70 px-5 py-4">
+              <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-4 backdrop-blur-xl">
                 {description && (
                   <div className="space-y-1.5">
                     <h2 className="text-lg font-semibold text-white">Descrição</h2>
@@ -508,8 +530,8 @@ export default function BunnyAulaClient({
               </h2>
 
               {!isGuest && !canViewRestrictedContent ? (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/[0.08] bg-zinc-950/70 px-5 py-6 text-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900">
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-6 text-center backdrop-blur-xl">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40">
                     <Lock className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="space-y-1">
@@ -523,8 +545,8 @@ export default function BunnyAulaClient({
                   </Button>
                 </div>
               ) : !commentsVisible && !isGuest ? (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/[0.08] bg-zinc-950/70 px-5 py-6 text-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900">
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-6 text-center backdrop-blur-xl">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40">
                     <User2 className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="space-y-1">
@@ -540,9 +562,9 @@ export default function BunnyAulaClient({
                 </div>
               ) : (
                 <div className="space-y-5">
-                  <form onSubmit={submitComment} className="rounded-xl border border-white/[0.08] bg-zinc-950/70 p-4">
+                  <form onSubmit={submitComment} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-900">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/40">
                         {session?.user?.image ? (
                           <img src={session.user.image} alt={session.user.name ?? "Avatar"} className="h-full w-full object-cover" />
                         ) : (
@@ -555,7 +577,7 @@ export default function BunnyAulaClient({
                         onChange={(event) => setCommentText(event.target.value)}
                         placeholder="Deixe sua dúvida ou comentário sobre esta aula..."
                         rows={4}
-                        className="w-full rounded-lg border border-white/[0.1] bg-zinc-900/80 px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                        className="w-full rounded-lg border border-white/[0.1] bg-black/40 px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                       />
                       {commentError && (
                         <p className="text-xs text-destructive">{commentError}</p>
@@ -586,15 +608,15 @@ export default function BunnyAulaClient({
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
                   ) : comments.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-white/[0.1] bg-zinc-950/50 px-5 py-8 text-center">
+                    <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.03] px-5 py-8 text-center backdrop-blur-xl">
                       <p className="text-sm text-muted-foreground">Seja o primeiro a comentar nesta aula.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {comments.map((comment) => (
-                        <div key={comment.id} className="rounded-xl border border-white/[0.08] bg-zinc-950/70 p-4">
+                        <div key={comment.id} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
                           <div className="flex items-start gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-900">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/40">
                               {comment.user.avatarUrl ? (
                                 <img
                                   src={comment.user.avatarUrl}
@@ -616,7 +638,7 @@ export default function BunnyAulaClient({
                                   })}
                                 </span>
                               </div>
-                              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                              <p className="whitespace-pre-wrap rounded-lg bg-black/40 px-3 py-2.5 text-sm leading-relaxed text-muted-foreground">
                                 {comment.content}
                               </p>
                             </div>
@@ -658,15 +680,15 @@ export default function BunnyAulaClient({
             )}
           </div>
 
-          <aside className="sticky top-20 hidden max-h-[calc(100vh-5rem)] w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-950/80 lg:flex xl:w-80">
-            <div className="border-b border-white/[0.08] bg-zinc-950 px-4 py-3">
+          <aside className="sticky top-20 hidden max-h-[calc(100vh-5rem)] w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-xl lg:flex xl:w-80">
+            <div className="border-b border-white/10 bg-zinc-950 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Trilha de aprendizado
               </p>
               <p className="mt-0.5 text-sm font-semibold">{courseTitle}</p>
             </div>
 
-            <div className="flex items-center justify-between border-b border-white/[0.08] bg-zinc-950/70 px-4 py-2.5">
+            <div className="flex items-center justify-between border-b border-white/10 bg-zinc-950/70 px-4 py-2.5">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <SkipForward className="h-3.5 w-3.5" />
                 Avançar automaticamente
@@ -695,7 +717,7 @@ export default function BunnyAulaClient({
                 groupedLessons.map(({ module, lessons }) => (
                   <div key={module?.id ?? "no-module"}>
                     {module && (
-                      <div className="border-b border-white/[0.06] bg-zinc-950/70 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div className="border-b border-white/[0.06] bg-white/[0.03] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         {module.title}
                       </div>
                     )}
@@ -716,7 +738,7 @@ export default function BunnyAulaClient({
                           className={cn(
                             "flex items-center gap-2.5 border-l-2 px-3 py-2 text-sm transition-colors",
                             isCurrent
-                              ? "border-primary bg-primary/10 text-primary"
+                              ? "border-primary bg-primary/10 text-primary backdrop-blur-xl"
                               : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                           )}
                         >
@@ -725,7 +747,7 @@ export default function BunnyAulaClient({
                               <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
                             )}
                             {isCurrent && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
                                 <Play className="h-3.5 w-3.5 fill-white text-white" />
                               </div>
                             )}

@@ -47,6 +47,11 @@ export function MemberSidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
 
+  // Aula/curso pages have their own dedicated layout and must not show the member sidebar.
+  if (pathname.startsWith("/aula") || pathname.startsWith("/curso")) {
+    return null
+  }
+
   const initials = session?.user?.name
     ? session.user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
     : "U"
