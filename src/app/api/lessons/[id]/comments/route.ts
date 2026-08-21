@@ -39,10 +39,6 @@ export async function GET(
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
   }
 
-  if (!access.allowed) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
-  }
-
   const comments = await db.comment.findMany({
     where: {
       lessonId: id,
@@ -80,7 +76,35 @@ export async function GET(
     },
   })
 
-  return NextResponse.json(comments)
+  if (!access.allowed) {
+    const lockedMessage = session?.user?.id
+      ? "Assine um plano para ver este comentário e participar da discussão."
+      : "Entre para ver este comentário e participar da discussão."
+
+    return NextResponse.json(
+      comments.map((comment) => ({
+        ...comment,
+        content: lockedMessage,
+        contentLocked: true,
+        replies: comment.replies.map((reply) => ({
+          ...reply,
+          content: lockedMessage,
+          contentLocked: true,
+        })),
+      }))
+    )
+  }
+
+  return NextResponse.json(
+    comments.map((comment) => ({
+      ...comment,
+      contentLocked: false,
+      replies: comment.replies.map((reply) => ({
+        ...reply,
+        contentLocked: false,
+      })),
+    }))
+  )
 }
 
 export async function POST(

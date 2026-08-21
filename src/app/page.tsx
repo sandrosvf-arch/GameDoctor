@@ -283,7 +283,7 @@ export default async function HomePage() {
             iconColor: "text-cyan-400",
             Icon: Play,
             free: p.lesson.isFree,
-            href: `/aula/${p.lesson.videoProviderId}`,
+            href: `/aula/bunny/${p.lesson.videoProviderId}`,
             thumbnail: p.lesson.thumbnail ?? "/thumbs/t01.jpg",
           }
         })
