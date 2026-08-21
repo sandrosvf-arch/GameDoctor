@@ -266,7 +266,7 @@ export default async function HomePage() {
         orderBy: { lastWatchedAt: "desc" },
         take: 8,
         include: {
-          lesson: { select: { id: true, title: true, durationSeconds: true, thumbnail: true, isFree: true, courseId: true } },
+          lesson: { select: { id: true, title: true, durationSeconds: true, thumbnail: true, isFree: true, courseId: true, videoProviderId: true } },
           course: { select: { id: true, title: true, slug: true } },
         },
       })
@@ -283,7 +283,7 @@ export default async function HomePage() {
             iconColor: "text-cyan-400",
             Icon: Play,
             free: p.lesson.isFree,
-            href: `/aula/${p.lessonId}`,
+            href: `/aula/${p.lesson.videoProviderId}`,
             thumbnail: p.lesson.thumbnail ?? "/thumbs/t01.jpg",
           }
         })
