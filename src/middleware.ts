@@ -22,7 +22,7 @@ const ADMIN_PREFIXES = ["/admin"]
 // Routes only accessible when NOT authenticated
 const AUTH_ONLY_PREFIXES = ["/login", "/cadastro", "/recuperar-senha"]
 
-const ADMIN_HOME = "/admin/dashboard"
+const ADMIN_HOME = "/"
 const MEMBER_HOME = "/"
 
 export default auth((req: NextAuthRequest) => {

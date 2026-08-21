@@ -57,11 +57,13 @@ export interface CourseLessonInfo {
 interface CommentItem {
   id: string
   content: string
+  contentLocked?: boolean
   createdAt: string
   user: { id: string; name: string; avatarUrl: string | null }
   replies: Array<{
     id: string
     content: string
+    contentLocked?: boolean
     createdAt: string
     user: { id: string; name: string; avatarUrl: string | null }
   }>
@@ -217,10 +219,10 @@ export default function BunnyAulaClient({
   }, [lessonId])
 
   useEffect(() => {
-    if (canViewRestrictedContent && !isGuest) {
+    if (!isReleaseLocked && lessonId) {
       void loadComments()
     }
-  }, [canViewRestrictedContent, isGuest, loadComments])
+  }, [isReleaseLocked, lessonId, loadComments])
 
   const submitComment = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -527,23 +529,7 @@ export default function BunnyAulaClient({
                 )}
               </h2>
 
-              {!isGuest && !canViewRestrictedContent ? (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-6 text-center backdrop-blur-xl">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40">
-                    <Lock className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Participe da discussão</p>
-                    <p className="text-xs text-muted-foreground">
-                      Assine um plano para acessar os comentários e participar das discussões desta aula.
-                    </p>
-                  </div>
-                  <Button size="sm" asChild>
-                    <Link href="/planos">Ver planos</Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-5">
+              <div className="space-y-5">
                   <form onSubmit={submitComment} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
                     <div className="flex items-start gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/40">
@@ -585,7 +571,7 @@ export default function BunnyAulaClient({
                     </div>
                   </form>
 
-                  {!isGuest && (commentsLoading ? (
+                  {commentsLoading ? (
                     <div className="flex justify-center py-6">
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
@@ -620,7 +606,12 @@ export default function BunnyAulaClient({
                                   })}
                                 </span>
                               </div>
-                              <p className="whitespace-pre-wrap rounded-lg bg-black/40 px-3 py-2.5 text-sm leading-relaxed text-muted-foreground">
+                              <p className={cn(
+                                "whitespace-pre-wrap rounded-lg px-3 py-2.5 text-sm leading-relaxed",
+                                comment.contentLocked
+                                  ? "border border-cyan-400/20 bg-cyan-400/10 text-cyan-100"
+                                  : "bg-black/40 text-muted-foreground"
+                              )}>
                                 {comment.content}
                               </p>
                             </div>
@@ -645,7 +636,10 @@ export default function BunnyAulaClient({
                                       })}
                                     </span>
                                   </div>
-                                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
+                                  <p className={cn(
+                                    "mt-2 whitespace-pre-wrap text-sm leading-relaxed",
+                                    reply.contentLocked ? "text-cyan-100" : "text-slate-200"
+                                  )}>
                                     {reply.content}
                                   </p>
                                 </div>
@@ -655,9 +649,8 @@ export default function BunnyAulaClient({
                         </div>
                       ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
             </div>
             )}
           </div>
