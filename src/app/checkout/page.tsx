@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { buildCheckoutQuote, normalizeCheckoutPeriod } from "@/lib/checkout"
+import { areCheckoutCouponsEnabled, buildCheckoutQuote, normalizeCheckoutPeriod } from "@/lib/checkout"
 import { CheckoutPageClient } from "@/components/checkout/CheckoutPageClient"
 import { getMercadoPagoPayerEmail } from "@/lib/payment/providers/mercadopago"
 
@@ -59,7 +59,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-cyan-300">Checkout seguro</p>
             <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] text-white md:text-5xl">
-              Revise seu plano e conclua o pagamento.
+              Finalize sua compra
             </h1>
           </div>
         </div>
@@ -68,6 +68,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
       <section className="mx-auto max-w-7xl px-6 py-10 md:px-8 md:py-12">
         <CheckoutPageClient
           initialQuote={quote}
+          couponsEnabled={areCheckoutCouponsEnabled()}
           profile={{
             name: profile.name ?? "Aluno",
             email: getMercadoPagoPayerEmail(profile.email),

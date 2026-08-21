@@ -201,7 +201,7 @@ export default async function PlanosPage() {
                       </div>
                       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-4">
                         <ShieldCheck className="h-4 w-4 text-cyan-300" />
-                        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Sem juros</p>
+                        {/* <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Sem juros</p> */}
                         <p className="mt-1 text-sm font-semibold text-white">Até {plan.installments.noInterest}x</p>
                       </div>
                     </div>

@@ -60,6 +60,10 @@ function toNumber(value: Prisma.Decimal | number | null | undefined) {
   return Number(value)
 }
 
+export function areCheckoutCouponsEnabled() {
+  return process.env.CHECKOUT_COUPONS_ENABLED?.trim().toLowerCase() !== "false"
+}
+
 export function normalizeCheckoutPeriod(value: string | null | undefined): CheckoutPeriod | null {
   if (value === "annual" || value === "monthly") return value
   return null
@@ -146,6 +150,14 @@ async function validateCouponForQuote(input: {
   code?: string | null
   subtotal: number
 }) {
+  if (!areCheckoutCouponsEnabled()) {
+    return {
+      coupon: null,
+      discountTotal: 0,
+      message: null,
+    }
+  }
+
   const normalizedCode = input.code?.trim().toUpperCase()
 
   if (!normalizedCode) {

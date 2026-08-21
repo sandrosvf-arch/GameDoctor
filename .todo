@@ -1,0 +1,21 @@
+- Ao clicar na categoria, ao invés de jogar a listagem de cursos/categorias, jogar direto pra página de trilha @done
+- Header
+	- Tirar trilhas do menu e botar o Quem somos @done
+	- Na categoria deixar o e descer o ver todas e trocar o texto para simples @done
+	- Deixar (comunidade, faq e quem somos) @done
+- Caso tente ver o preço e não tenha telefone, solicitar antes num popup, atualizar o cadastro e só dps liberar ver  @done
+- Planos:
+	- Alterar inclusos: Materiais baixáveis, Softwares, Diagramas, Garantia de Aprendizado, Conteúdo exclusivo  @done
+	- Jogar para o wpp ao clicar em dúvidas (tela de planos) abaixo do preço  @done
+- Tela da aula:
+	- Validar o tempo de liberação para o cadastro novo e validar o cronometro  @done
+	- Colocar tempo de 5m pras aulas (validar se o prazo tá dinâmico)  @done
+- Checkout:
+	- Alterar as paradas de cima @done
+	- Cartão primeiro @done
+	- Esconder a opção de renovação automática (por enquanto) @done
+	- Colocar um true/false de cupom
+	- Validar parcelamentos (Validar como tá a taxa, pq o parcelamento tem que ser a taxa do cliente) @done
+
+- Colocar uma Pagina de Downloads ( é onde vamos subir os materiais didático, softwares, diagramas etc aqui vai de maneira segura  e organizada) @done
+
