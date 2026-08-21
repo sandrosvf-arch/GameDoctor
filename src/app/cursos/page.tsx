@@ -281,7 +281,7 @@ function CourseCard({ course }: { course: CourseWithFirstLesson }) {
           <img
             src={course.coverImage}
             alt={course.title}
-            className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            className="absolute inset-0 h-full w-full object-cover brightness-110 transition duration-500 group-hover:scale-105"
           />
         ) : (
           <div

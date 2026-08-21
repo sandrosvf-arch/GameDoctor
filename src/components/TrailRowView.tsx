@@ -65,7 +65,7 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                     alt=""
                     fill
                     sizes="(max-width: 640px) 280px, (max-width: 1024px) 320px, (max-width: 1280px) 360px, (max-width: 1536px) 380px, 460px"
-                    className="object-cover"
+                    className="object-cover brightness-[1.19]"
                     draggable={false}
                     loading="lazy"
                     unoptimized={card.thumbnail.includes(".supabase.co/")}

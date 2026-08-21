@@ -102,13 +102,13 @@ export function BunnyPreviewPlayer({
         <img
           src={thumbnail}
           alt={title}
-          className="absolute inset-0 h-full w-full object-cover opacity-70"
+          className="absolute inset-0 h-full w-full object-cover brightness-[1.2]"
           draggable={false}
         />
       )}
 
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/35">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
           <Loader2 className="h-8 w-8 animate-spin text-white" />
         </div>
       )}
@@ -124,7 +124,7 @@ export function BunnyPreviewPlayer({
         <iframe
           ref={iframeRef}
           src={embedUrl}
-          className="absolute inset-0 h-full w-full"
+          className="absolute inset-0 h-full w-full brightness-[1.2]"
           width="100%"
           height="100%"
           allow="accelerometer; gyroscope; encrypted-media; picture-in-picture"

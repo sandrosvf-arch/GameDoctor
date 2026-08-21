@@ -359,14 +359,14 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     <img
                       src={lesson.videoThumbnailUrl}
                       alt={lesson.title}
-                      className="absolute inset-0 h-full w-full object-cover"
+                      className="absolute inset-0 h-full w-full object-cover brightness-[1.2]"
                     />
                   )}
                   <button
                     type="button"
                     onClick={() => setPaywallVisible(true)}
                     aria-label="Ver opções de acesso"
-                    className="absolute inset-0 flex items-center justify-center bg-black/35 transition-colors hover:bg-black/45"
+                    className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors"
                   >
                     <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur">
                       <Play className="h-7 w-7 fill-white" />
@@ -376,7 +376,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
               ) : !paywallVisible && lesson.videoEmbedUrl ? (
                 <iframe
                   src={buildAutoplayUrl(lesson.videoEmbedUrl)}
-                  className="absolute inset-0 h-full w-full"
+                  className="absolute inset-0 h-full w-full brightness-[1.2]"
                   allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
                   allowFullScreen
                   referrerPolicy="strict-origin-when-cross-origin"
