@@ -57,7 +57,7 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                 // boxShadow: `0 4px 20px rgba(0,0,0,0.45)`,
               }}
             >
-              <div className="relative z-10 aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
+              <div className="relative z-10 aspect-[3/2] sm:aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
                 {/* Thumbnail */}
                 {card.thumbnail ? (
                   <Image
@@ -73,7 +73,7 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                 ) : null}
 
                 {/* Bottom shadow */}
-                <div className="absolute inset-x-0 bottom-0 h-[18%] bg-gradient-to-t from-black from-25% to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-[30%] sm:h-[18%] bg-gradient-to-t from-black from-25% to-transparent" />
 
                 {/* Top-left badge */}
                 <div className="absolute left-2.5 top-2.5 z-20 flex gap-1.5">
@@ -95,7 +95,6 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                 </div>
 
                 {/* Hover overlay */}
-                <div className="absolute inset-0 bg-black/15 opacity-0 transition-opacity duration-200 [@media(hover:hover)]:group-hover/card:opacity-100" />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-200 [@media(hover:hover)]:group-hover/card:opacity-100">
                   <div className="flex h-11 w-11 scale-95 items-center justify-center rounded-full border border-white/30 bg-zinc-900/80 transition-transform duration-200 [@media(hover:hover)]:group-hover/card:scale-100">
                     <Play className="ml-0.5 h-5 w-5 fill-white text-white" />
@@ -103,9 +102,9 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                 </div>
 
                 {/* Bottom content */}
-                <div className="absolute inset-x-0 bottom-0 flex h-[18%] items-center px-2.5">
+                <div className="absolute inset-x-0 bottom-0 flex h-[30%] sm:h-[18%] items-center px-2.5">
                   <div className="flex w-full items-center justify-between gap-2">
-                    <p className="text-[18px] sm:text-[19px] font-bold leading-tight text-white line-clamp-2">
+                    <p className="text-[15px] sm:text-[18px] lg:text-[19px] font-bold leading-tight text-white line-clamp-2">
                       {card.title}
                     </p>
                     <svg viewBox="0 0 112 16" className="h-4 w-20 shrink-0" aria-hidden="true">
