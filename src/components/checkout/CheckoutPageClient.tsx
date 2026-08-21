@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { CardPayment, initMercadoPago } from "@mercadopago/sdk-react"
+import { CardPayment, getInstallments, initMercadoPago } from "@mercadopago/sdk-react"
 import {
   ArrowLeft,
   Check,
@@ -28,6 +28,12 @@ interface PixPaymentState {
   copyPaste: string
   expiresAt: string | null
   status: string
+}
+
+interface CardInstallmentOption {
+  installments: number
+  installmentAmount: number
+  totalAmount: number
 }
 
 interface CheckoutQuote {
@@ -68,9 +74,11 @@ function newIdempotencyKey() {
 export function CheckoutPageClient({
   initialQuote,
   profile,
+  couponsEnabled,
 }: {
   initialQuote: CheckoutQuote
   profile: { name: string; email: string; phone: string | null; cpf: string | null }
+  couponsEnabled: boolean
 }) {
   const [quote, setQuote] = useState(initialQuote)
   const [couponCode, setCouponCode] = useState(initialQuote.coupon.code ?? "")
@@ -82,10 +90,15 @@ export function CheckoutPageClient({
   const [message, setMessage] = useState<string | null>(initialQuote.coupon.message)
   const [error, setError] = useState<string | null>(null)
   const [cardSdkReady, setCardSdkReady] = useState(false)
+  const [cardInstallments, setCardInstallments] = useState<CardInstallmentOption[]>([])
+  const [selectedCardInstallments, setSelectedCardInstallments] = useState<number | null>(null)
+  const [loadingCardInstallments, setLoadingCardInstallments] = useState(false)
   const [pixPayment, setPixPayment] = useState<PixPaymentState | null>(null)
   const [pixCopied, setPixCopied] = useState(false)
   const idempotencyKeyRef = useRef(newIdempotencyKey())
   const submittingPaymentRef = useRef(false)
+  const installmentRequestRef = useRef(0)
+  const cardBrickContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!publicKey) return
@@ -121,6 +134,10 @@ export function CheckoutPageClient({
       setQuote(data.quote)
       setCouponCode(data.quote.coupon.code ?? nextCouponCode.trim())
       setMessage(data.quote.coupon.message ?? null)
+      installmentRequestRef.current += 1
+      setCardInstallments([])
+      setSelectedCardInstallments(null)
+      setLoadingCardInstallments(false)
       idempotencyKeyRef.current = newIdempotencyKey()
     } catch {
       setError("Não foi possível recalcular o pedido. Tente novamente.")
@@ -130,13 +147,14 @@ export function CheckoutPageClient({
   }
 
   const maxInstallments = Math.min(12, Math.max(1, quote.installments.max))
-  const noInterestInstallments = Math.min(maxInstallments, Math.max(1, quote.installments.noInterest))
 
   function choosePaymentMethod(method: PaymentMethod) {
     setSelectedPaymentMethod(method)
     setError(null)
     setPixPayment(null)
     setPixCopied(false)
+    setCardInstallments([])
+    setSelectedCardInstallments(null)
     idempotencyKeyRef.current = newIdempotencyKey()
   }
 
@@ -147,6 +165,8 @@ export function CheckoutPageClient({
     setSubmittingPayment(false)
     setPixPayment(null)
     setPixCopied(false)
+    setCardInstallments([])
+    setSelectedCardInstallments(null)
     idempotencyKeyRef.current = newIdempotencyKey()
   }
 
@@ -289,11 +309,81 @@ export function CheckoutPageClient({
     [maxInstallments],
   )
 
+  const handleCardBinChange = useCallback(async (bin: string) => {
+    const normalizedBin = bin.replace(/\D/g, "").slice(0, 8)
+    const requestId = ++installmentRequestRef.current
+
+    if (normalizedBin.length < 6) {
+      setCardInstallments([])
+      setSelectedCardInstallments(null)
+      setLoadingCardInstallments(false)
+      return
+    }
+
+    setLoadingCardInstallments(true)
+
+    try {
+      const result = await getInstallments({
+        amount: quote.finalTotal.toFixed(2),
+        bin: normalizedBin,
+        locale: "pt-BR",
+        processingMode: "aggregator",
+      })
+
+      if (requestId !== installmentRequestRef.current) return
+
+      setSelectedCardInstallments(null)
+      setCardInstallments(
+        (result ?? [])
+          .flatMap((item) => item.payer_costs)
+          .filter((option) => option.installments >= 1 && option.installments <= maxInstallments)
+          .sort((left, right) => left.installments - right.installments)
+          .map((option) => ({
+            installments: option.installments,
+            installmentAmount: option.installment_amount,
+            totalAmount: option.total_amount,
+          })),
+      )
+    } catch {
+      if (requestId === installmentRequestRef.current) setCardInstallments([])
+    } finally {
+      if (requestId === installmentRequestRef.current) setLoadingCardInstallments(false)
+    }
+  }, [maxInstallments, quote.finalTotal])
+
+  useEffect(() => {
+    const container = cardBrickContainerRef.current
+    if (!container || selectedPaymentMethod !== "card") return
+
+    function handleInstallmentChange(event: Event) {
+      if (!(event.target instanceof HTMLSelectElement)) return
+
+      const selectedText = event.target.selectedOptions[0]?.textContent?.trim() ?? ""
+      const match = selectedText.match(/^(\d+)\s*x\b/i) ?? selectedText.match(/^(\d+)\s*parcel/i)
+      if (!match) return
+
+      const installments = Number(match[1])
+      if (cardInstallments.some((option) => option.installments === installments)) {
+        setSelectedCardInstallments(installments)
+      }
+    }
+
+    container.addEventListener("change", handleInstallmentChange, true)
+    return () => container.removeEventListener("change", handleInstallmentChange, true)
+  }, [cardInstallments, selectedPaymentMethod])
+
   const handleCardError = useCallback(() => {
     setError("Não foi possível carregar os dados do cartão. Tente novamente.")
   }, [])
 
   const accessLabel = quote.period === "annual" ? "12 meses de acesso" : "1 mês de acesso"
+  const selectedCardInstallment = selectedPaymentMethod === "card"
+    ? cardInstallments.find((option) => option.installments === selectedCardInstallments) ?? null
+    : null
+  const checkoutTotal = selectedCardInstallment?.totalAmount ?? quote.finalTotal
+  const checkoutSubtotal = selectedCardInstallment
+    ? checkoutTotal + quote.discountTotal
+    : quote.subtotal
   const hasProfileCpf = profile.cpf?.replace(/\D/g, "").length === 11
   const paymentMethodLabel =
     selectedPaymentMethod === "pix"
@@ -345,9 +435,13 @@ export function CheckoutPageClient({
               <div className="sm:text-right">
                 <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Total</p>
                 <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
-                  {formatCurrency(quote.finalTotal)}
+                  {formatCurrency(checkoutTotal)}
                 </p>
-                <p className="mt-0.5 text-xs text-slate-500">até {noInterestInstallments}x sem juros</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {selectedCardInstallment
+                    ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
+                    : `até ${maxInstallments}x`}
+                </p>
               </div>
             </div>
 
@@ -377,7 +471,7 @@ export function CheckoutPageClient({
               <div className="space-y-2.5 p-3 sm:p-4">
                 <PaymentMethodOption
                   title="Cartão de crédito"
-                  description={"Parcele em até " + noInterestInstallments + "x sem juros"}
+                  description={"Parcele em até " + maxInstallments + "x"}
                   icon={<CreditCard className="h-5 w-5" />}
                   badge="Visa, Mastercard e Elo"
                   onClick={() => choosePaymentMethod("card")}
@@ -515,7 +609,7 @@ export function CheckoutPageClient({
                     {!publicKey ? (
                       <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-100">O pagamento com cartão está temporariamente indisponível.</div>
                     ) : (
-                      <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-white p-2 sm:p-3">
+                      <div ref={cardBrickContainerRef} className="overflow-hidden rounded-xl border border-white/[0.08] bg-white p-2 sm:p-3">
                         {!cardSdkReady ? (
                           <div className="flex min-h-28 items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando pagamento...</div>
                         ) : (
@@ -525,10 +619,24 @@ export function CheckoutPageClient({
                             locale="pt-BR"
                             onSubmit={handleSubmitCard}
                             onError={handleCardError}
+                            onBinChange={handleCardBinChange}
                           />
                         )}
                       </div>
                     )}
+                    {loadingCardInstallments ? (
+                      <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Consultando as condições do cartão...
+                      </div>
+                    ) : cardInstallments.length > 0 ? (
+                      <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+                        <p className="text-xs font-semibold text-slate-300">Parcelamento calculado para este cartão</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          As condições disponíveis foram atualizadas conforme o cartão informado.
+                        </p>
+                      </div>
+                    ) : null}
                     {quote.period === "annual" && (
                       <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3" style={{ display: "none" }}>
                         <input type="checkbox" checked={autoRenew} onChange={(event) => setAutoRenew(event.target.checked)} className="mt-0.5 h-4 w-4 accent-cyan-400" />
@@ -574,37 +682,39 @@ export function CheckoutPageClient({
                 <OrderRow label="Pagamento" value={paymentMethodLabel} />
               </div>
 
-              <div className="border-t border-white/[0.07] pt-4">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-200">
-                  <TicketPercent className="h-4 w-4 text-slate-500" />
-                  Cupom de desconto
-                </label>
+              {couponsEnabled && (
+                <div className="border-t border-white/[0.07] pt-4">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-200">
+                    <TicketPercent className="h-4 w-4 text-slate-500" />
+                    Cupom de desconto
+                  </label>
 
-                <div className="mt-2.5 flex gap-2">
-                  <input
-                    value={couponCode}
-                    onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !loadingQuote) void refreshQuote(couponCode)
-                    }}
-                    placeholder="Seu cupom"
-                    className="h-10 min-w-0 flex-1 rounded-lg border border-white/[0.09] bg-[#090d13] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-slate-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void refreshQuote(couponCode)}
-                    disabled={loadingQuote || !couponCode.trim()}
-                    className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.09] bg-white/[0.035] px-3.5 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {loadingQuote ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aplicar"}
-                  </button>
+                  <div className="mt-2.5 flex gap-2">
+                    <input
+                      value={couponCode}
+                      onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !loadingQuote) void refreshQuote(couponCode)
+                      }}
+                      placeholder="Seu cupom"
+                      className="h-10 min-w-0 flex-1 rounded-lg border border-white/[0.09] bg-[#090d13] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-slate-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void refreshQuote(couponCode)}
+                      disabled={loadingQuote || !couponCode.trim()}
+                      className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.09] bg-white/[0.035] px-3.5 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {loadingQuote ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aplicar"}
+                    </button>
+                  </div>
+
+                  {message && <p className="mt-2 text-xs leading-5 text-emerald-300">{message}</p>}
                 </div>
-
-                {message && <p className="mt-2 text-xs leading-5 text-emerald-300">{message}</p>}
-              </div>
+              )}
 
               <div className="border-t border-white/[0.07] pt-4">
-                <PriceRow label="Subtotal" value={formatCurrency(quote.subtotal)} />
+                <PriceRow label="Subtotal" value={formatCurrency(checkoutSubtotal)} />
                 {quote.discountTotal > 0 && (
                   <PriceRow
                     label="Desconto"
@@ -612,14 +722,19 @@ export function CheckoutPageClient({
                     valueClassName="text-emerald-300"
                   />
                 )}
-
+                {selectedCardInstallment && (
+                  <PriceRow
+                    label={`Parcelamento (${selectedCardInstallment.installments}x)`}
+                    value={`${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`}
+                  />
+                )}
                 <div className="mt-3 flex items-end justify-between gap-4 border-t border-white/[0.07] pt-4">
                   <div>
                     <p className="text-sm font-medium text-white">Total</p>
                     <p className="mt-0.5 text-xs text-slate-500">{accessLabel}</p>
                   </div>
                   <span className="text-right text-2xl font-semibold tracking-[-0.04em] text-white">
-                    {formatCurrency(quote.finalTotal)}
+                    {formatCurrency(checkoutTotal)}
                   </span>
                 </div>
               </div>
