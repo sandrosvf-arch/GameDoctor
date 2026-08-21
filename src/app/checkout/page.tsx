@@ -59,7 +59,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-cyan-300">Checkout seguro</p>
             <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] text-white md:text-5xl">
-              Revise seu plano e conclua o pagamento.
+              Finalize sua compra
             </h1>
           </div>
         </div>

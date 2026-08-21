@@ -376,18 +376,18 @@ export function CheckoutPageClient({
             {selectedPaymentMethod === null ? (
               <div className="space-y-2.5 p-3 sm:p-4">
                 <PaymentMethodOption
-                  title="Pix"
-                  description="Aprovação rápida e pagamento à vista"
-                  icon={<QrCode className="h-5 w-5" />}
-                  badge="Instantâneo"
-                  onClick={() => choosePaymentMethod("pix")}
-                />
-                <PaymentMethodOption
                   title="Cartão de crédito"
                   description={"Parcele em até " + noInterestInstallments + "x sem juros"}
                   icon={<CreditCard className="h-5 w-5" />}
                   badge="Visa, Mastercard e Elo"
                   onClick={() => choosePaymentMethod("card")}
+                />
+                <PaymentMethodOption
+                  title="Pix"
+                  description="Aprovação rápida e pagamento à vista"
+                  icon={<QrCode className="h-5 w-5" />}
+                  badge="Instantâneo"
+                  onClick={() => choosePaymentMethod("pix")}
                 />
               </div>
             ) : (
@@ -530,7 +530,7 @@ export function CheckoutPageClient({
                       </div>
                     )}
                     {quote.period === "annual" && (
-                      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+                      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3" style={{ display: "none" }}>
                         <input type="checkbox" checked={autoRenew} onChange={(event) => setAutoRenew(event.target.checked)} className="mt-0.5 h-4 w-4 accent-cyan-400" />
                         <span>
                           <span className="block text-sm font-medium text-white">Renovação anual automática</span>
