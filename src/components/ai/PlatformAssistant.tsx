@@ -6,10 +6,6 @@ import { useSession } from "next-auth/react"
 import { usePathname } from "next/navigation"
 import { MessageCircle, Send, Sparkles, X } from "lucide-react"
 
-const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_URL?.trim()
-  || process.env.NEXT_PUBLIC_SUBSCRIPTION_CANCEL_WHATSAPP_URL?.trim()
-  || "https://wa.me/?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20a%20GameDoctor."
-
 interface AssistantMessage {
   role: "USER" | "ASSISTANT"
   content: string
@@ -42,7 +38,13 @@ function renderMessage(content: string) {
   })
 }
 
-export function PlatformAssistant({ page = false }: { page?: boolean }) {
+export function PlatformAssistant({
+  page = false,
+  whatsappUrl = "/suporte",
+}: {
+  page?: boolean
+  whatsappUrl?: string
+}) {
   const { data: session, status } = useSession()
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -53,10 +55,30 @@ export function PlatformAssistant({ page = false }: { page?: boolean }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(false)
+  const [supportUrl, setSupportUrl] = useState(whatsappUrl)
 
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
 
   if (!page && pathname === "/assistente") return null
+
+  useEffect(() => {
+    if (whatsappUrl !== "/suporte") {
+      setSupportUrl(whatsappUrl)
+      return
+    }
+
+    const controller = new AbortController()
+    void fetch("/api/configuracoes/public", { signal: controller.signal })
+      .then((response) => response.json())
+      .then((payload) => {
+        if (typeof payload?.whatsappUrl === "string" && payload.whatsappUrl) {
+          setSupportUrl(payload.whatsappUrl)
+        }
+      })
+      .catch(() => {})
+
+    return () => controller.abort()
+  }, [whatsappUrl])
 
   useEffect(() => {
     function handleOpenAssistant() {
@@ -193,7 +215,7 @@ export function PlatformAssistant({ page = false }: { page?: boolean }) {
                 <p>{error}</p>
                 {limitReached && (
                   <a
-                    href={whatsappUrl}
+                    href={supportUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-white transition hover:bg-emerald-400"
@@ -237,7 +259,7 @@ export function PlatformAssistant({ page = false }: { page?: boolean }) {
 
       {!page && <div className="flex items-center gap-2">
         <a
-          href={whatsappUrl}
+          href={supportUrl}
           target="_blank"
           rel="noreferrer"
           className="flex h-12 w-12 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-500 text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400"

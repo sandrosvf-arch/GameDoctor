@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getCommunityActiveBanWhere, isCommunityWriterBanned, slugifyCommunity } from "@/lib/community"
+import { getCommunityForumPage } from "@/lib/community-data"
 
 const PAGE_SIZE = 20
 
@@ -36,72 +37,26 @@ export async function GET(
   const query = searchParams.get("q")?.trim() ?? ""
   const page = Math.max(1, Number(searchParams.get("page") ?? "1") || 1)
 
-  const forum = await db.communityForum.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      description: true,
-      topicApprovalRequired: true,
-      replyApprovalRequired: true,
-      status: true,
-    },
-  })
+  const forum = await getCommunityForumPage({ slug, query, page, pageSize: PAGE_SIZE })
 
-  if (!forum || forum.status !== "ACTIVE") {
-    return NextResponse.json({ error: "Forum nao encontrado." }, { status: 404 })
+  if (!forum) {
+    return NextResponse.json({ error: "Fórum não encontrado." }, { status: 404 })
   }
-
-  const where = {
-    forumId: forum.id,
-    status: "APPROVED" as const,
-    ...(query
-      ? {
-          OR: [
-            { title: { contains: query, mode: "insensitive" as const } },
-            { content: { contains: query, mode: "insensitive" as const } },
-            { author: { name: { contains: query, mode: "insensitive" as const } } },
-          ],
-        }
-      : {}),
-  }
-
-  const [total, topics] = await Promise.all([
-    db.communityTopic.count({ where }),
-    db.communityTopic.findMany({
-      where,
-      orderBy: [{ isPinned: "desc" }, { lastReplyAt: "desc" }, { createdAt: "desc" }],
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        repliesCount: true,
-        viewsCount: true,
-        isPinned: true,
-        isLocked: true,
-        createdAt: true,
-        lastReplyAt: true,
-        author: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-          },
-        },
-      },
-    }),
-  ])
 
   return NextResponse.json({
-    forum,
-    items: topics,
-    total,
+    forum: {
+      id: forum.id,
+      name: forum.name,
+      slug: forum.slug,
+      description: forum.description,
+      topicApprovalRequired: forum.topicApprovalRequired,
+      replyApprovalRequired: forum.replyApprovalRequired,
+    },
+    items: forum.topics,
+    total: forum.total,
     page,
     pageSize: PAGE_SIZE,
-    totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    totalPages: Math.max(1, Math.ceil(forum.total / PAGE_SIZE)),
   })
 }
 

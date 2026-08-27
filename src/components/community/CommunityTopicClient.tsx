@@ -309,7 +309,7 @@ export function CommunityTopicClient({
   }
 
   async function deleteTopic() {
-    if (!window.confirm("Apagar esta discussão? Essa ação remove a publicação principal e todas as respostas.")) {
+    if (!window.confirm("Apagar este tópico? Essa ação remove a publicação principal e todas as respostas.")) {
       return
     }
 
@@ -326,7 +326,7 @@ export function CommunityTopicClient({
     const data = await response.json().catch(() => null)
 
     if (!response.ok) {
-      window.alert(data?.error ?? "Não foi possível apagar esta discussão.")
+      window.alert(data?.error ?? "Não foi possível apagar este tópico.")
       return
     }
 
@@ -360,7 +360,7 @@ export function CommunityTopicClient({
     setReplyCount((current) => Math.max(0, current - 1))
   }
 
-  const views = topic.viewsCount + 1
+  const views = topic.viewsCount
   const replies = replyCount
   const shouldShowAccessBanner = requiresPlan && !banMessage && (!canViewReplies || !canReply)
   const shouldShowComposer = !requiresPlan || canReply || Boolean(banMessage)
@@ -384,7 +384,7 @@ export function CommunityTopicClient({
 
         <div className="gd-topic-heading__content">
           <div className="gd-topic-tags">
-            <span className="gd-topic-tag">Discussão da comunidade</span>
+            <span className="gd-topic-tag">Tópico da comunidade</span>
             {topic.isPinned && <span className="gd-topic-tag gd-topic-tag--info">Fixada</span>}
             {topic.isLocked && (
               <span className="gd-topic-tag gd-topic-tag--warning">
@@ -407,7 +407,7 @@ export function CommunityTopicClient({
 
       <CommunityPostCard
         author={topic.author}
-        authorRole="Autor da discussão"
+        authorRole="Autor do tópico"
         createdAt={topic.createdAt}
         content={topic.content}
         attachments={topic.attachments}
@@ -435,7 +435,7 @@ export function CommunityTopicClient({
           {posts.length === 0 ? (
             <div className="gd-empty-state">
               <p>Nenhuma resposta publicada ainda.</p>
-              <span>Seja o primeiro a contribuir com essa discussão.</span>
+              <span>Seja o primeiro a contribuir com este tópico.</span>
             </div>
           ) : (
             <div className="gd-replies-list">
@@ -471,7 +471,7 @@ export function CommunityTopicClient({
         <section className="gd-composer-card">
           <header className="gd-composer-card__header">
             <div>
-              <h2>Participar da discussão</h2>
+              <h2>Participar do tópico</h2>
               <p>Compartilhe seu diagnóstico, teste realizado ou complemento para ajudar a comunidade.</p>
             </div>
           </header>
@@ -480,7 +480,7 @@ export function CommunityTopicClient({
             {!canReply ? (
               <ParticipationBlockedNotice banMessage={banMessage} />
             ) : topic.isLocked ? (
-              <div className="gd-alert gd-alert--warning">Esta discussão está encerrada para novas respostas.</div>
+              <div className="gd-alert gd-alert--warning">Este tópico está encerrado para novas respostas.</div>
             ) : (
               <form id="community-reply-form" onSubmit={sendReply} className="gd-reply-form">
                 {replyTarget && (
@@ -556,8 +556,9 @@ export function CommunityTopicClient({
           --gd-text: #f8fafc;
           --gd-muted: #94a3b8;
           --gd-faint: #64748b;
-          --gd-accent: #22d3ee;
-          --gd-accent-soft: rgba(34, 211, 238, 0.1);
+          --gd-accent: #fb923c;
+          --gd-accent-soft: rgba(249, 115, 22, 0.11);
+          --gd-technical: #22d3ee;
           width: 100%;
           max-width: 1080px;
           margin: 0 auto;
@@ -578,6 +579,8 @@ export function CommunityTopicClient({
         .gd-topic-heading {
           overflow: hidden;
           margin-bottom: 18px;
+          border-color: rgba(249, 115, 22, 0.18);
+          background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(15, 21, 31, 0.97) 42%, rgba(34, 211, 238, 0.05));
         }
 
         .gd-topic-heading__topline {
@@ -648,6 +651,11 @@ export function CommunityTopicClient({
           color: var(--gd-muted);
           font-size: 11px;
           font-weight: 600;
+        }
+
+        .gd-topic-tag:first-child {
+          background: var(--gd-accent-soft);
+          color: #fdba74;
         }
 
         .gd-topic-tag--info {
@@ -1024,14 +1032,14 @@ export function CommunityTopicClient({
 
         .gd-primary-button {
           min-height: 40px;
-          background: #fff;
+          background: linear-gradient(90deg, #f97316, #fbbf24);
           color: #0f172a;
           padding: 0 18px;
           font-size: 13px;
         }
 
         .gd-primary-button:hover {
-          background: #e5e7eb;
+          background: linear-gradient(90deg, #fb923c, #fcd34d);
         }
 
         .gd-primary-button:disabled,
@@ -1054,7 +1062,7 @@ export function CommunityTopicClient({
           gap: 18px;
           padding: 19px 22px;
           border-bottom: 1px solid var(--gd-line-soft);
-          background: rgba(255, 255, 255, 0.012);
+          background: linear-gradient(90deg, rgba(249, 115, 22, 0.045), rgba(34, 211, 238, 0.025));
         }
 
         .gd-thread-section__header h2,
@@ -1618,11 +1626,11 @@ function CommunityAccessBanner({
             Comunidade completa
           </div>
 
-          <h2>Desbloqueie as respostas e participe da discussão</h2>
+          <h2>Desbloqueie as respostas e participe do tópico</h2>
 
           <p>
             {hasRealReplies
-              ? `Esta discussão já tem ${plural(repliesCount, "resposta", "respostas")} da comunidade. Ative seu plano para visualizar os diagnósticos completos e contribuir com sua experiência.`
+              ? `Este tópico já tem ${plural(repliesCount, "resposta", "respostas")} da comunidade. Ative seu plano para visualizar os diagnósticos completos e contribuir com sua experiência.`
               : "Ative seu plano para visualizar respostas técnicas, acompanhar diagnósticos completos e contribuir com a comunidade."}
           </p>
 
@@ -1645,7 +1653,7 @@ function ParticipationBlockedNotice({ banMessage }: { banMessage?: string | null
   return (
     <div className="gd-blocked-notice">
       <p>{banMessage ? "Sua participação está temporariamente bloqueada." : "Entre na sua conta para participar."}</p>
-      <span>{banMessage ? banMessage : "Apenas membros autenticados podem responder discussões."}</span>
+      <span>{banMessage ? banMessage : "Apenas membros autenticados podem responder tópicos."}</span>
       {!banMessage && <Link href="/login">Entrar na conta</Link>}
     </div>
   )

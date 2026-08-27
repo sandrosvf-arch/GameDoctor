@@ -23,6 +23,7 @@ import {
   MessageSquarePlus,
   Tags,
   Download,
+  Settings,
 } from "lucide-react"
 
 type AdminBadgeKey = "tickets" | "comments" | "community" | "suggestions" | "ordersToday"
@@ -76,6 +77,7 @@ const navGroups: AdminNavGroup[] = [
     title: "Sistema",
     items: [
       { href: "/admin/perfil", label: "Administradores", icon: Shield },
+      { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
     ],
   },
 ]

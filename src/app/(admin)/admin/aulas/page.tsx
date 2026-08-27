@@ -7,6 +7,7 @@ import {
   Search, Filter, Paperclip, Plus, Trash2, ChevronLeft, ChevronRight,
   FileText, FileSpreadsheet, Link2, Mic, BrainCircuit, CheckCircle,
   AlertCircle, RefreshCw, ChevronDown, ChevronUp, Check, X,
+  Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -372,6 +373,12 @@ export default function TodasAsAulasPage() {
             {loading ? "Carregando..." : `${total} aula${total !== 1 ? "s" : ""} com vídeo Bunny Stream`}
           </p>
         </div>
+        <Button variant="outline" asChild>
+          <a href="/api/admin/aulas/export-transcripts" download>
+            <Download className="mr-2 h-4 w-4" />
+            Exportar transcrições
+          </a>
+        </Button>
       </div>
 
       {/* Filters */}

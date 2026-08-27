@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { consumeAiCredit, getAiUsageStatus, resolveAiAccess } from "@/lib/ai/access"
 import { buildAiSystemPrompt } from "@/lib/ai/prompt"
+import { getAiSystemPrompt } from "@/lib/ai/settings"
 import { searchAiContext } from "@/lib/ai/search"
 
 const bodySchema = z.object({
@@ -76,10 +77,11 @@ export async function POST(request: Request) {
     : []
 
   const context = await searchAiContext(parsed.data.message)
+  const systemPrompt = await getAiSystemPrompt()
   const completion = await openai.chat.completions.create({
     model,
     messages: [
-      { role: "system", content: buildAiSystemPrompt(access, context) },
+      { role: "system", content: buildAiSystemPrompt(systemPrompt, access, context) },
       ...history.reverse().map((item) => ({
         role: item.role === "USER" ? "user" as const : "assistant" as const,
         content: item.content,

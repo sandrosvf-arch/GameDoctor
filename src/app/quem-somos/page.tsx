@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { QuemSomosScripts } from "@/components/quem-somos/QuemSomosScripts"
+import { getPublicPlatformSettings } from "@/lib/app-settings"
 
 export const metadata: Metadata = {
   title: "Quem somos",
@@ -23,7 +24,14 @@ function splitHtmlAndScripts(html: string) {
 }
 
 export default async function QuemSomosPage() {
-  const html = await readFile(join(process.cwd(), "public", "quem-somos", "content.html"), "utf8")
+  const [{ aboutVideoUrl }, template] = await Promise.all([
+    getPublicPlatformSettings(),
+    readFile(join(process.cwd(), "public", "quem-somos", "content.html"), "utf8"),
+  ])
+  const html = template.replace(
+    /const VIDEO_EMBED_URL = "[^"]*";/,
+    `const VIDEO_EMBED_URL = ${JSON.stringify(aboutVideoUrl)};`
+  )
   const { content, scripts } = splitHtmlAndScripts(html)
 
   return (

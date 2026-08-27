@@ -17,6 +17,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
+const googleAuthEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true"
+
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -68,30 +70,32 @@ function LoginForm() {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Google OAuth */}
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogle}
-          disabled={googleLoading || loading}
-        >
-          {googleLoading ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Chrome className="h-4 w-4 mr-2" />
-          )}
-          Continuar com Google
-        </Button>
+        {googleAuthEnabled && (
+          <>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogle}
+              disabled={googleLoading || loading}
+            >
+              {googleLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Chrome className="h-4 w-4 mr-2" />
+              )}
+              Continuar com Google
+            </Button>
 
-        {/* Divider */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">ou</span>
-          </div>
-        </div>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Credentials form */}
         <form onSubmit={handleCredentials} className="space-y-4">

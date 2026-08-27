@@ -535,9 +535,9 @@ export default function BunnyAulaClient({
                     <Lock className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Participe da discussão</p>
+                    <p className="text-sm font-medium">Participe da conversa</p>
                     <p className="text-xs text-muted-foreground">
-                      Assine um plano para acessar os comentários e participar das discussões desta aula.
+                      Assine um plano para acessar os comentários e participar da conversa desta aula.
                     </p>
                   </div>
                   <Button size="sm" asChild>
@@ -550,7 +550,7 @@ export default function BunnyAulaClient({
                     <User2 className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Participe da discussão</p>
+                    <p className="text-sm font-medium">Participe da conversa</p>
                     <p className="text-xs text-muted-foreground">
                       Carregue os comentários para acompanhar a conversa da aula e deixar sua dúvida.
                     </p>

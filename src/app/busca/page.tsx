@@ -21,6 +21,7 @@ interface CourseResult {
   category: { name: string; slug: string } | null
   courseCategories: { category: { id: string; name: string; slug: string } }[]
   _count: { lessons: number }
+  matchType: "exact" | "related"
 }
 
 interface LessonResult {
@@ -34,6 +35,7 @@ interface LessonResult {
   videoDurationSeconds: number | null
   videoProviderId: string | null
   course: { id: string; title: string; slug: string; trailColorRgb: string | null; badgeLabel: string | null; coverImage: string | null; bannerImage: string | null }
+  matchType: "exact" | "related"
 }
 
 function accentToHex(value: string | null | undefined) {
@@ -105,7 +107,7 @@ function highlight(text: string, query: string) {
   const regex = new RegExp(`(${terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi")
   const parts = text.split(regex)
   return parts.map((part, i) =>
-    regex.test(part) ? (
+    terms.some((term) => part.toLocaleLowerCase("pt-BR") === term.toLocaleLowerCase("pt-BR")) ? (
       <mark key={i} className="bg-primary/25 text-primary rounded-sm px-0.5 not-italic">
         {part}
       </mark>
@@ -113,6 +115,11 @@ function highlight(text: string, query: string) {
       part
     )
   )
+}
+
+function mergeResults<T extends { id: string }>(current: T[], incoming: T[]) {
+  const seen = new Set(current.map((item) => item.id))
+  return [...current, ...incoming.filter((item) => !seen.has(item.id))]
 }
 
 export default function BuscaPage() {
@@ -125,8 +132,13 @@ export default function BuscaPage() {
   const [courses, setCourses] = useState<CourseResult[]>([])
   const [lessons, setLessons] = useState<LessonResult[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [resultPage, setResultPage] = useState(1)
+  const [resultTotal, setResultTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Suggestion form state
@@ -136,22 +148,33 @@ export default function BuscaPage() {
   const [submitted, setSubmitted] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  const doSearch = useCallback(async (q: string) => {
+  const doSearch = useCallback(async (q: string, nextPage = 1, append = false) => {
     if (!q.trim() || q.trim().length < 2) {
       setCourses([])
       setLessons([])
       setSearched(false)
+      setResultPage(1)
+      setResultTotal(0)
+      setHasMore(false)
       return
     }
-    setLoading(true)
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`)
+      const params = new URLSearchParams({ q: q.trim(), page: String(nextPage), pageSize: "18" })
+      const res = await fetch(`/api/search?${params.toString()}`)
       const data = await res.json()
-      setCourses(data.courses ?? [])
-      setLessons(data.lessons ?? [])
+      const nextCourses = data.courses ?? []
+      const nextLessons = data.lessons ?? []
+      setCourses((current) => append ? mergeResults(current, nextCourses) : nextCourses)
+      setLessons((current) => append ? mergeResults(current, nextLessons) : nextLessons)
+      setResultPage(data.pagination?.page ?? nextPage)
+      setResultTotal(data.pagination?.total ?? nextCourses.length + nextLessons.length)
+      setHasMore(Boolean(data.pagination?.hasMore))
       setSearched(true)
     } finally {
-      setLoading(false)
+      if (append) setLoadingMore(false)
+      else setLoading(false)
     }
   }, [])
 
@@ -172,18 +195,28 @@ export default function BuscaPage() {
   }, [query])
 
   useEffect(() => {
-    doSearch(debouncedQ)
+    void doSearch(debouncedQ)
     if (debouncedQ.trim()) {
       const params = new URLSearchParams({ q: debouncedQ.trim() })
       router.replace(`/busca?${params}`, { scroll: false })
     }
   }, [debouncedQ, doSearch, router])
 
+  useEffect(() => {
+    const target = loadMoreRef.current
+    if (!target || !hasMore || loading || loadingMore) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) void doSearch(debouncedQ, resultPage + 1, true)
+    }, { rootMargin: "300px" })
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [debouncedQ, doSearch, hasMore, loading, loadingMore, resultPage])
+
   // Auto-focus on mount
   useEffect(() => {
     inputRef.current?.focus()
-    if (initialQ) doSearch(initialQ)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSuggest(e: React.FormEvent) {
     e.preventDefault()
@@ -213,7 +246,11 @@ export default function BuscaPage() {
     }
   }
 
-  const total = courses.length + lessons.length
+  const total = resultTotal
+  const exactCourses = courses.filter((course) => course.matchType === "exact")
+  const exactLessons = lessons.filter((lesson) => lesson.matchType === "exact")
+  const relatedCourses = courses.filter((course) => course.matchType === "related")
+  const relatedLessons = lessons.filter((lesson) => lesson.matchType === "related")
 
   return (
     <div className="min-h-screen bg-1">
@@ -272,65 +309,32 @@ export default function BuscaPage() {
           </div>
         )}
 
-        {/* Courses */}
-        {!loading && courses.length > 0 && (
-          <section>
-            <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-white">
-              <span className="inline-block h-6 w-1 rounded-full bg-cyan-400" />
-              Trilhas / Aulas ({courses.length})
-            </h2>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {courses.map((course) => {
-                const accent = accentToHex(course.trailColorRgb)
-                const thumb = course.bannerImage ?? course.coverImage
-                return (
-                  <SearchTrailCard
-                    key={course.id}
-                    href={`/trilhas/${course.slug}`}
-                    accent={accent}
-                    thumbnail={thumb}
-                    badge={course.badgeLabel}
-                    title={highlight(course.title, debouncedQ)}
-                    description={course.shortDescription ? highlight(course.shortDescription, debouncedQ) : `${course._count.lessons} aulas`}
-                  />
-                )
-              })}
-            </div>
-          </section>
+        {!loading && (exactCourses.length > 0 || exactLessons.length > 0) && (
+          <SearchResultGroup
+            title="Resultados mais relevantes"
+            description="Correspondências com o termo completo pesquisado."
+            courses={exactCourses}
+            lessons={exactLessons}
+            query={debouncedQ}
+          />
         )}
 
-        {/* Lessons */}
-        {!loading && lessons.length > 0 && (
-          <section>
-            <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-white">
-              <span className="inline-block h-6 w-1 rounded-full bg-cyan-400" />
-              Aulas ({lessons.length})
-            </h2>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {lessons.map((lesson) => {
-                const accent = accentToHex(lesson.course.trailColorRgb)
-                const thumb = lesson.thumbnail
-                  ?? (lesson.videoProviderId ? `https://${BUNNY_CDN_HOST}/${lesson.videoProviderId}/thumbnail.jpg` : null)
-                  ?? lesson.videoThumbnailUrl
-                  ?? lesson.course.bannerImage
-                  ?? lesson.course.coverImage
-                const href = lesson.videoProviderId
-                  ? `/aula/bunny/${lesson.videoProviderId}`
-                  : `/aula/${lesson.id}`
-                return (
-                  <SearchTrailCard
-                    key={lesson.id}
-                    href={href}
-                    accent={accent}
-                    thumbnail={thumb}
-                    badge={lesson.isFree ? "GRÁTIS" : lesson.course.badgeLabel}
-                    title={highlight(lesson.title, debouncedQ)}
-                    description={lesson.course.title}
-                  />
-                )
-              })}
-            </div>
-          </section>
+        {!loading && (relatedCourses.length > 0 || relatedLessons.length > 0) && (
+          <SearchResultGroup
+            title="Resultados relacionados"
+            description="Conteúdos próximos encontrados pelas palavras da busca."
+            courses={relatedCourses}
+            lessons={relatedLessons}
+            query={debouncedQ}
+          />
+        )}
+
+        {searched && hasMore && <div ref={loadMoreRef} className="h-1" aria-hidden="true" />}
+        {loadingMore && (
+          <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Carregando mais resultados...
+          </div>
         )}
 
         {/* CTA — always visible after a search attempt */}
@@ -430,5 +434,82 @@ export default function BuscaPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function SearchResultGroup({
+  title,
+  description,
+  courses,
+  lessons,
+  query,
+}: {
+  title: string
+  description: string
+  courses: CourseResult[]
+  lessons: LessonResult[]
+  query: string
+}) {
+  return (
+    <section className="space-y-6">
+      <div>
+        <h2 className="flex items-center gap-2 text-xl font-bold text-white sm:text-2xl">
+          <span className="inline-block h-6 w-1 rounded-full bg-cyan-400" />
+          {title}
+        </h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+      </div>
+
+      {courses.length > 0 && (
+        <div>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Trilhas ({courses.length})
+          </h3>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {courses.map((course) => (
+              <SearchTrailCard
+                key={course.id}
+                href={`/trilhas/${course.slug}`}
+                accent={accentToHex(course.trailColorRgb)}
+                thumbnail={course.bannerImage ?? course.coverImage}
+                badge={course.badgeLabel}
+                title={highlight(course.title, query)}
+                description={course.shortDescription ? highlight(course.shortDescription, query) : `${course._count.lessons} aulas`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {lessons.length > 0 && (
+        <div>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Aulas ({lessons.length})
+          </h3>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {lessons.map((lesson) => {
+              const thumbnail = lesson.thumbnail
+                ?? (lesson.videoProviderId ? `https://${BUNNY_CDN_HOST}/${lesson.videoProviderId}/thumbnail.jpg` : null)
+                ?? lesson.videoThumbnailUrl
+                ?? lesson.course.bannerImage
+                ?? lesson.course.coverImage
+              const href = lesson.videoProviderId ? `/aula/bunny/${lesson.videoProviderId}` : `/aula/${lesson.id}`
+
+              return (
+                <SearchTrailCard
+                  key={lesson.id}
+                  href={href}
+                  accent={accentToHex(lesson.course.trailColorRgb)}
+                  thumbnail={thumbnail}
+                  badge={lesson.isFree ? "GRÁTIS" : lesson.course.badgeLabel}
+                  title={highlight(lesson.title, query)}
+                  description={lesson.course.title}
+                />
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

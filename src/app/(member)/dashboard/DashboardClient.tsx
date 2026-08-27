@@ -160,8 +160,6 @@ function formatPlanDate(date: string | null) {
   }).format(new Date(date))
 }
 
-const subscriptionCancelUrl =
-  process.env.NEXT_PUBLIC_SUBSCRIPTION_CANCEL_WHATSAPP_URL?.trim() ?? ""
 function MetricCard({
   title,
   value,
@@ -200,7 +198,7 @@ function MetricCard({
   )
 }
 
-export function DashboardClient() {
+export function DashboardClient({ subscriptionCancelUrl }: { subscriptionCancelUrl: string }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)

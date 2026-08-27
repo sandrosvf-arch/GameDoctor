@@ -1,7 +1,10 @@
 import { Header } from "@/components/layout/Header"
 import { PlatformAssistant } from "@/components/ai/PlatformAssistant"
+import { getPublicPlatformSettings } from "@/lib/app-settings"
 
-export default function AssistantPage() {
+export default async function AssistantPage() {
+  const { whatsappUrl } = await getPublicPlatformSettings()
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
@@ -13,7 +16,7 @@ export default function AssistantPage() {
             Tire dúvidas sobre as trilhas, encontre aulas e avance no seu aprendizado com orientação da plataforma.
           </p>
         </div>
-        <PlatformAssistant page />
+        <PlatformAssistant page whatsappUrl={whatsappUrl} />
       </main>
     </div>
   )

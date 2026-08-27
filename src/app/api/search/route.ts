@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import {
+  classifySearchMatch,
+  compareRankedSearchResults,
+  normalizeSearchText,
+  scoreSearchText,
+  type SearchMatchType,
+} from "@/lib/search-ranking"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? ""
+  const page = Math.max(1, Number(req.nextUrl.searchParams.get("page") ?? "1") || 1)
+  const pageSize = Math.min(30, Math.max(6, Number(req.nextUrl.searchParams.get("pageSize") ?? "18") || 18))
 
   if (!q || q.length < 2) {
-    return NextResponse.json({ courses: [], lessons: [] })
+    return NextResponse.json({ courses: [], lessons: [], pagination: { page: 1, pageSize, total: 0, hasMore: false } })
   }
 
-  const terms = q
-    .toLowerCase()
+  const terms = normalizeSearchText(q)
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 6) // max 6 tokens
@@ -46,6 +54,7 @@ export async function GET(req: NextRequest) {
         title: true,
         slug: true,
         shortDescription: true,
+        description: true,
         coverImage: true,
         bannerImage: true,
         trailColorRgb: true,
@@ -59,7 +68,7 @@ export async function GET(req: NextRequest) {
         },
         _count: { select: { lessons: true } },
       },
-      take: 20,
+      take: 200,
     }),
     db.lesson.findMany({
       where: lessonWhere,
@@ -86,49 +95,63 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      take: 50,
+      take: 200,
     }),
   ])
-
-  // Score results: exact title match scores highest, then starts-with, then contains
-  const scoreText = (text: string | null | undefined, q: string, terms: string[]) => {
-    if (!text) return 0
-    const t = text.toLowerCase()
-    const qLow = q.toLowerCase()
-    if (t === qLow) return 100
-    if (t.startsWith(qLow)) return 80
-    if (t.includes(qLow)) return 60
-    // partial: count how many terms match
-    const matched = terms.filter((term) => t.includes(term)).length
-    return (matched / terms.length) * 40
-  }
 
   const scoredCourses = rawCourses
     .map((c) => ({
       ...c,
-      _score:
-        scoreText(c.title, q, terms) * 2 +
-        scoreText(c.shortDescription, q, terms) +
-        scoreText(c.category?.name, q, terms) * 0.5 +
-        Math.max(0, ...c.courseCategories.map((entry) => scoreText(entry.category.name, q, terms) * 0.5)),
+      matchType: classifySearchMatch(q, [c.title, c.shortDescription, c.description]),
+      score:
+        scoreSearchText(c.title, q, terms) * 2 +
+        scoreSearchText(c.shortDescription, q, terms) +
+        scoreSearchText(c.category?.name, q, terms) * 0.5 +
+        Math.max(0, ...c.courseCategories.map((entry) => scoreSearchText(entry.category.name, q, terms) * 0.5)),
     }))
-    .sort((a, b) => b._score - a._score)
 
   const scoredLessons = rawLessons
     .map((l) => ({
       ...l,
-      _score:
-        scoreText(l.title, q, terms) * 2 +
-        scoreText(l.description, q, terms) +
-        scoreText(l.searchKeywords, q, terms) * 1.5 +
-        scoreText(l.course.title, q, terms) * 0.5,
+      matchType: classifySearchMatch(q, [l.title, l.searchKeywords, l.description]),
+      score:
+        scoreSearchText(l.title, q, terms) * 2 +
+        scoreSearchText(l.description, q, terms) +
+        scoreSearchText(l.searchKeywords, q, terms) * 1.5 +
+        scoreSearchText(l.course.title, q, terms) * 0.5,
     }))
-    .sort((a, b) => b._score - a._score)
-    .slice(0, 50)
+
+  type RankedResult =
+    | { kind: "course"; id: string; matchType: SearchMatchType; score: number }
+    | { kind: "lesson"; id: string; matchType: SearchMatchType; score: number }
+
+  const ranked: RankedResult[] = [
+    ...scoredCourses.map((course) => ({ kind: "course" as const, id: course.id, matchType: course.matchType, score: course.score })),
+    ...scoredLessons.map((lesson) => ({ kind: "lesson" as const, id: lesson.id, matchType: lesson.matchType, score: lesson.score })),
+  ].sort(compareRankedSearchResults)
+
+  const pageResults = ranked.slice((page - 1) * pageSize, page * pageSize)
+  const courseIds = new Set(pageResults.filter((result) => result.kind === "course").map((result) => result.id))
+  const lessonIds = new Set(pageResults.filter((result) => result.kind === "lesson").map((result) => result.id))
+  const order = new Map(pageResults.map((result, index) => [`${result.kind}:${result.id}`, index]))
+  const courses = scoredCourses
+    .filter((course) => courseIds.has(course.id))
+    .sort((left, right) => (order.get(`course:${left.id}`) ?? 0) - (order.get(`course:${right.id}`) ?? 0))
+    .map(({ score: _score, ...course }) => course)
+  const lessons = scoredLessons
+    .filter((lesson) => lessonIds.has(lesson.id))
+    .sort((left, right) => (order.get(`lesson:${left.id}`) ?? 0) - (order.get(`lesson:${right.id}`) ?? 0))
+    .map(({ score: _score, ...lesson }) => lesson)
 
   return NextResponse.json({
     query: q,
-    courses: scoredCourses.slice(0, 10),
-    lessons: scoredLessons,
+    courses,
+    lessons,
+    pagination: {
+      page,
+      pageSize,
+      total: ranked.length,
+      hasMore: page * pageSize < ranked.length,
+    },
   })
 }

@@ -5,6 +5,7 @@ import { db } from "@/lib/db"
 import { listPublicPlans } from "@/lib/checkout"
 import { PlanCheckoutButton } from "@/components/checkout/PlanCheckoutButton"
 import { Header } from "@/components/layout/Header"
+import { getPublicPlatformSettings } from "@/lib/app-settings"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -34,11 +35,12 @@ export const dynamic = "force-dynamic"
 export default async function PlanosPage() {
   const session = await auth()
   const isLoggedIn = Boolean(session?.user?.id)
-  const [plans, profile] = await Promise.all([
+  const [plans, profile, { whatsappUrl }] = await Promise.all([
     listPublicPlans(session?.user?.id ?? null),
     session?.user?.id
       ? db.user.findUnique({ where: { id: session.user.id }, select: { phone: true } })
       : Promise.resolve(null),
+    getPublicPlatformSettings(),
   ])
   const canSeePrices = isLoggedIn && Boolean(profile?.phone?.trim())
   return (
@@ -233,7 +235,7 @@ export default async function PlanosPage() {
             <p className="text-sm font-semibold text-white">Ainda está em dúvida?</p>
             <p className="mt-1 text-sm text-slate-500">Confira tudo com calma antes de finalizar.</p>
           </div>
-          <Link href={process.env.NEXT_PUBLIC_SUBSCRIPTION_CANCEL_WHATSAPP_URL?.trim()??"/suporte"} className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200">
+          <Link href={whatsappUrl || "/suporte"} className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200">
             Fale com a gente <ArrowRight className="h-4 w-4" />
           </Link>
         </div>

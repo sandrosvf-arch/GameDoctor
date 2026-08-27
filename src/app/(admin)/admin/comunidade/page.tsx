@@ -170,15 +170,15 @@ const EMPTY_FORUM: ForumDraft = {
 }
 
 const ACTION_LABELS: Record<ModerationActionType, string> = {
-  APPROVE_TOPIC: "Discussão aprovada",
-  REJECT_TOPIC: "Discussão rejeitada",
+  APPROVE_TOPIC: "Tópico aprovado",
+  REJECT_TOPIC: "Tópico rejeitado",
   APPROVE_POST: "Resposta aprovada",
   REJECT_POST: "Resposta rejeitada",
-  PIN_TOPIC: "Discussão fixada",
-  UNPIN_TOPIC: "Discussão desafixada",
-  LOCK_TOPIC: "Discussão encerrada",
-  UNLOCK_TOPIC: "Discussão reaberta",
-  DELETE_TOPIC: "Discussão removida",
+  PIN_TOPIC: "Tópico fixado",
+  UNPIN_TOPIC: "Tópico desafixado",
+  LOCK_TOPIC: "Tópico encerrado",
+  UNLOCK_TOPIC: "Tópico reaberto",
+  DELETE_TOPIC: "Tópico removido",
   DELETE_POST: "Resposta removida",
   BAN_USER: "Usuário banido",
   UNBAN_USER: "Usuário desbanido",
@@ -342,7 +342,7 @@ export default function AdminComunidadePage() {
   }
 
   async function deleteForum(id: string) {
-    if (!window.confirm("Excluir este espaço? Se houver discussões, tudo será removido junto.")) {
+    if (!window.confirm("Excluir este espaço? Se houver tópicos, tudo será removido junto.")) {
       return
     }
 
@@ -379,7 +379,7 @@ export default function AdminComunidadePage() {
 
     if (!response.ok) {
       const data = await response.json().catch(() => null)
-      window.alert(data?.error ?? "Não foi possível processar a discussão.")
+      window.alert(data?.error ?? "Não foi possível processar o tópico.")
       return
     }
 
@@ -516,7 +516,7 @@ export default function AdminComunidadePage() {
             <StatCard label="Pendências" value={pendingTotal} description="Itens aguardando revisão" />
             <StatCard label="Espaços" value={forums.length} description="Áreas criadas na comunidade" />
             <StatCard label="Ativos" value={activeCount} description="Visíveis para os alunos" />
-            <StatCard label="Discussões" value={totalTopics} description="Total registrado nos espaços" />
+            <StatCard label="Tópicos" value={totalTopics} description="Total registrado nos espaços" />
           </div>
         </header>
 
@@ -552,7 +552,7 @@ export default function AdminComunidadePage() {
               <section className="space-y-5">
                 <PanelHeader
                   title="Pendências de moderação"
-                  description="Revise discussões e respostas antes de liberar a exibição para a comunidade."
+                  description="Revise tópicos e respostas antes de liberar a exibição para a comunidade."
                   right={
                     <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-300">
                       {pendingTotal} pendente{pendingTotal !== 1 ? "s" : ""}
@@ -572,7 +572,7 @@ export default function AdminComunidadePage() {
                     active={moderationTab === "topics"}
                     onClick={() => setModerationTab("topics")}
                   >
-                    Discussões {pendingTopics.length}
+                    Tópicos {pendingTopics.length}
                   </ModerationFilterButton>
 
                   <ModerationFilterButton
@@ -585,7 +585,7 @@ export default function AdminComunidadePage() {
 
                 {(moderationTab === "all" || moderationTab === "topics") && (
                   <ModerationPanel
-                    title="Discussões aguardando revisão"
+                    title="Tópicos aguardando revisão"
                     description="Novas publicações enviadas pelos alunos."
                     count={pendingTopics.length}
                   >
@@ -593,8 +593,8 @@ export default function AdminComunidadePage() {
                       <LoadingState />
                     ) : pendingTopics.length === 0 ? (
                       <EmptyState
-                        title="Nenhuma discussão pendente"
-                        description="Quando uma discussão precisar de aprovação, ela aparecerá aqui."
+                        title="Nenhum tópico pendente"
+                        description="Quando um tópico precisar de aprovação, ele aparecerá aqui."
                       />
                     ) : (
                       <div className="divide-y divide-white/[0.08]">
@@ -608,7 +608,7 @@ export default function AdminComunidadePage() {
                               key={topic.id}
                               expanded={expanded}
                               title={topic.title}
-                              badge="Discussão pendente"
+                              badge="Tópico pendente"
                               createdAt={topic.createdAt}
                               authorName={topic.author.name}
                               authorEmail={topic.author.email}
@@ -684,7 +684,7 @@ export default function AdminComunidadePage() {
                 {(moderationTab === "all" || moderationTab === "posts") && (
                   <ModerationPanel
                     title="Respostas aguardando revisão"
-                    description="Comentários enviados dentro das discussões da comunidade."
+                    description="Comentários enviados dentro dos tópicos da comunidade."
                     count={pendingPosts.length}
                   >
                     {loading ? (
@@ -769,7 +769,7 @@ export default function AdminComunidadePage() {
               <section className="space-y-5">
                 <PanelHeader
                   title="Espaços da comunidade"
-                  description="Crie, organize e configure as áreas onde os alunos participam das discussões."
+                  description="Crie, organize e configure as áreas onde os alunos participam dos tópicos."
                   right={
                     <button
                       onClick={() => {
@@ -860,10 +860,10 @@ export default function AdminComunidadePage() {
                           />
                           <div>
                             <p className="text-sm font-medium text-slate-200">
-                              Exigir aprovação de discussões
+                              Exigir aprovação de tópicos
                             </p>
                             <p className="mt-1 text-xs leading-5 text-slate-500">
-                              Novas discussões só aparecem publicamente depois da moderação.
+                              Novos tópicos só aparecem publicamente depois da moderação.
                             </p>
                           </div>
                         </label>
@@ -917,7 +917,7 @@ export default function AdminComunidadePage() {
                   <div className="hidden grid-cols-[minmax(0,1fr)_100px_120px_150px] border-b border-white/[0.08] bg-white/[0.025] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 md:grid">
                     <div>Espaço</div>
                     <div className="text-center">Ordem</div>
-                    <div className="text-center">Discussões</div>
+                    <div className="text-center">Tópicos</div>
                     <div>Ações</div>
                   </div>
 
@@ -951,7 +951,7 @@ export default function AdminComunidadePage() {
 
                             <div className="mt-3 flex flex-wrap gap-2">
                               <SmallBadge>
-                                Discussões {forum.topicApprovalRequired ? "moderadas" : "livres"}
+                                Tópicos {forum.topicApprovalRequired ? "moderados" : "livres"}
                               </SmallBadge>
                               <SmallBadge>
                                 Respostas {forum.replyApprovalRequired ? "moderadas" : "livres"}
@@ -968,7 +968,7 @@ export default function AdminComunidadePage() {
                               {forum._count.topics}
                             </div>
                             <div className="text-[11px] text-slate-600">
-                              discussão{forum._count.topics !== 1 ? "ões" : ""}
+                              tópico{forum._count.topics !== 1 ? "s" : ""}
                             </div>
                           </div>
 
@@ -1128,7 +1128,7 @@ export default function AdminComunidadePage() {
 
                               <div className="shrink-0 rounded-md border border-white/[0.08] bg-white/[0.025] px-3 py-2 text-xs text-slate-500">
                                 {item.topic
-                                  ? "Discussão"
+                                  ? "Tópico"
                                   : item.post
                                     ? "Resposta"
                                     : item.forum

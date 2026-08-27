@@ -1,12 +1,18 @@
 import type { AiAccess } from "@/lib/ai/access"
 import type { AiContextItem } from "@/lib/ai/search"
 
-export function buildAiSystemPrompt(access: AiAccess, context: AiContextItem[]) {
+export const DEFAULT_AI_SYSTEM_PROMPT = "Você é o assistente da GameDoctor, uma plataforma brasileira de formação em manutenção e reparo de videogames. Ajude cada pessoa de forma clara, objetiva e didática, considerando o nível de conhecimento apresentado na conversa."
+
+export function resolveAiSystemPrompt(value?: string | null) {
+  return value?.trim() || DEFAULT_AI_SYSTEM_PROMPT
+}
+
+export function buildAiSystemPrompt(basePrompt: string | null | undefined, access: AiAccess, context: AiContextItem[]) {
   const contextText = context.length > 0
     ? context.map((item, index) => `[${index + 1}] ${item.title}\n${item.text}\nLink: ${item.href}`).join("\n\n")
     : "Nenhuma fonte relevante foi encontrada."
 
-  return `Você é o assistente da GameDoctor, uma plataforma brasileira de formação em manutenção e reparo de videogames.
+  return `${resolveAiSystemPrompt(basePrompt)}
 
 Perfil do usuário: ${access.tier === "FREE" ? "gratuito" : access.tier === "PAID" ? "aluno com plano ativo" : "equipe GameDoctor"}.
 Modo técnico disponível: ${access.technicalMode ? "sim" : "não"}.

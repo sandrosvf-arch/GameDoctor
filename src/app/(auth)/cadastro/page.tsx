@@ -16,6 +16,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { isValidBrazilianPhone } from "@/lib/phone"
+
+const googleAuthEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true"
 
 function CadastroContent() {
   const router = useRouter()
@@ -23,6 +26,7 @@ function CadastroContent() {
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [showPass, setShowPass] = useState(false)
@@ -52,12 +56,16 @@ function CadastroContent() {
       setError("A senha deve ter pelo menos 8 caracteres.")
       return
     }
+    if (!isValidBrazilianPhone(phone)) {
+      setError("Informe um celular válido com DDD.")
+      return
+    }
 
     setLoading(true)
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, phone, password }),
     })
     const data = await res.json()
     setLoading(false)
@@ -90,7 +98,7 @@ function CadastroContent() {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {!isAdminInvite && (
+        {!isAdminInvite && googleAuthEnabled && (
           <>
             <Button
               variant="outline"
@@ -149,6 +157,21 @@ function CadastroContent() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading || googleLoading || Boolean(invitedEmail)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">Celular</Label>
+            <Input
+              id="phone"
+              type="tel"
+              inputMode="tel"
+              placeholder="(41) 99999-9999"
+              autoComplete="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+              disabled={loading || googleLoading}
             />
           </div>
 

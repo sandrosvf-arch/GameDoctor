@@ -78,8 +78,8 @@ export async function GET(
 
   if (!access.allowed) {
     const lockedMessage = session?.user?.id
-      ? "Assine um plano para ver este comentário e participar da discussão."
-      : "Entre para ver este comentário e participar da discussão."
+      ? "Assine um plano para ver este comentário e participar da conversa."
+      : "Entre para ver este comentário e participar da conversa."
 
     return NextResponse.json(
       comments.map((comment) => ({

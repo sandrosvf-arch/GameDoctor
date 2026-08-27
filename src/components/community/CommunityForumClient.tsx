@@ -58,24 +58,31 @@ interface ForumResponse {
 
 export function CommunityForumClient({
   initialForum,
+  initialTopics,
+  initialTotal,
+  initialTotalPages,
   canCreate,
   requiresPlan,
   banMessage,
   isAdminUser,
 }: {
   initialForum: CommunityForumMeta
+  initialTopics: CommunityTopicListItem[]
+  initialTotal: number
+  initialTotalPages: number
   canCreate: boolean
   requiresPlan: boolean
   banMessage?: string | null
   isAdminUser: boolean
 }) {
   const [query, setQuery] = useState("")
-  const [loading, setLoading] = useState(true)
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
-  const [items, setItems] = useState<CommunityTopicListItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(true)
+  const [items, setItems] = useState<CommunityTopicListItem[]>(initialTopics)
   const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(initialTotalPages)
+  const [total, setTotal] = useState(initialTotal)
+  const [loadedRequest, setLoadedRequest] = useState("::1")
   const [showComposer, setShowComposer] = useState(false)
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
@@ -86,46 +93,55 @@ export function CommunityForumClient({
   const [info, setInfo] = useState<string | null>(null)
 
   useEffect(() => {
+    const requestKey = `${query}::${page}`
+    if (requestKey === loadedRequest) return
+
     setLoading(true)
+    const controller = new AbortController()
 
     const timer = window.setTimeout(async () => {
-      const params = new URLSearchParams({
-        q: query,
-        page: String(page),
-      })
+      try {
+        const params = new URLSearchParams({ q: query, page: String(page) })
+        const response = await fetch(`/api/comunidade/forums/${initialForum.slug}/topics?${params.toString()}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        })
+        const data: ForumResponse | null = await response.json().catch(() => null)
 
-      const response = await fetch(`/api/comunidade/forums/${initialForum.slug}/topics?${params.toString()}`, {
-        cache: "no-store",
-      })
-
-      const data: ForumResponse | null = await response.json().catch(() => null)
-
-      if (response.ok && data) {
-        setItems(data.items)
-        setTotal(data.total)
-        setTotalPages(data.totalPages)
-      } else {
-        setItems([])
-        setTotal(0)
-        setTotalPages(1)
+        if (response.ok && data) {
+          setItems(data.items)
+          setTotal(data.total)
+          setTotalPages(data.totalPages)
+        } else {
+          setItems([])
+          setTotal(0)
+          setTotalPages(1)
+        }
+        setHasLoadedOnce(true)
+        setLoadedRequest(requestKey)
+      } catch (requestError) {
+        if (!(requestError instanceof DOMException && requestError.name === "AbortError")) {
+          setItems([])
+          setTotal(0)
+          setTotalPages(1)
+          setLoadedRequest(requestKey)
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
       }
-
-      setHasLoadedOnce(true)
-      setLoading(false)
     }, 220)
 
-    return () => window.clearTimeout(timer)
-  }, [initialForum.slug, page, query])
-
-  useEffect(() => {
-    setPage(1)
-  }, [query])
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [initialForum.slug, loadedRequest, page, query])
 
   const statsText = useMemo(() => {
-    if (!hasLoadedOnce || loading) return "Carregando discussões..."
-    if (total === 0) return "Nenhuma discussão publicada."
-    if (total === 1) return "1 discussão publicada."
-    return `${total} discussões publicadas.`
+    if (!hasLoadedOnce || loading) return "Carregando tópicos..."
+    if (total === 0) return "Nenhum tópico publicado."
+    if (total === 1) return "1 tópico publicado."
+    return `${total} tópicos publicados.`
   }, [hasLoadedOnce, loading, total])
 
   async function submitTopic(event: FormEvent) {
@@ -148,7 +164,7 @@ export function CommunityForumClient({
     const data = await response.json().catch(() => null)
 
     if (!response.ok) {
-      setError(data?.error ?? "Não foi possível criar a discussão.")
+      setError(data?.error ?? "Não foi possível criar o tópico.")
       return
     }
 
@@ -158,11 +174,11 @@ export function CommunityForumClient({
     setShowComposer(false)
 
     if (data?.pending) {
-      setInfo(data.message ?? "Discussão enviada para aprovação.")
+      setInfo(data.message ?? "Tópico enviado para aprovação.")
       return
     }
 
-    setInfo("Discussão publicada com sucesso.")
+    setInfo("Tópico publicado com sucesso.")
     setPage(1)
     setQuery("")
     setLoading(true)
@@ -178,6 +194,7 @@ export function CommunityForumClient({
       setItems(reloadData.items)
       setTotal(reloadData.total)
       setTotalPages(reloadData.totalPages)
+      setLoadedRequest("::1")
     }
 
     setHasLoadedOnce(true)
@@ -214,9 +231,9 @@ export function CommunityForumClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#080b10] text-slate-100">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,rgba(249,115,22,0.08),transparent_28%),radial-gradient(circle_at_92%_8%,rgba(14,165,233,0.07),transparent_26%),#080b10] text-slate-100">
       <main className="mx-auto max-w-7xl px-5 py-7 md:px-8 md:py-8">
-        <section className="mb-6 overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0c1017] shadow-[0_18px_60px_rgba(0,0,0,0.22)]">
+        <section className="mb-6 overflow-hidden rounded-2xl border border-orange-400/15 bg-[linear-gradient(135deg,rgba(249,115,22,0.065),rgba(12,16,23,0.98)_40%,rgba(14,165,233,0.045))] shadow-[0_18px_60px_rgba(0,0,0,0.3)]">
           <div className="px-5 py-6 md:px-6 md:py-7">
             <div className="mb-5 flex flex-wrap items-center gap-2 text-sm">
               <Link href="/comunidade" className="font-medium text-slate-500 transition hover:text-slate-200">
@@ -229,13 +246,13 @@ export function CommunityForumClient({
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs font-medium text-slate-400">
+                  <span className="rounded-full border border-orange-400/25 bg-orange-400/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-orange-300">
                     Espaço da comunidade
                   </span>
 
                   {initialForum.topicApprovalRequired && (
                     <StatusPill tone="warning" icon={<ShieldCheck className="h-3.5 w-3.5" />}>
-                      Discussões moderadas
+                      Tópicos moderados
                     </StatusPill>
                   )}
 
@@ -274,10 +291,10 @@ export function CommunityForumClient({
                 {canCreate ? (
                   <button
                     onClick={openComposer}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-gradient-to-r from-orange-500 to-amber-400 px-4 text-sm font-bold text-slate-950 shadow-lg shadow-orange-950/25 transition hover:brightness-110"
                   >
                     <Plus className="h-4 w-4" />
-                    Nova discussão
+                    Novo tópico
                   </button>
                 ) : (
                   <DisabledActionLabel banMessage={banMessage} requiresPlan={requiresPlan} />
@@ -292,7 +309,7 @@ export function CommunityForumClient({
                 {requiresPlan && !banMessage && (
                   <AccessNotice
                     title="Participe com acesso ativo"
-                    description="Você pode navegar pela comunidade. Para publicar discussões, responder e acompanhar todo o histórico técnico, ative um plano."
+                    description="Você pode navegar pela comunidade. Para publicar tópicos, responder e acompanhar todo o histórico técnico, ative um plano."
                     ctaLabel="Ver planos"
                     href="/planos"
                   />
@@ -322,7 +339,7 @@ export function CommunityForumClient({
 
         <section className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-base font-semibold text-white">Discussões</h2>
+            <h2 className="text-base font-semibold text-white">Tópicos</h2>
             <p className="mt-1 text-sm text-slate-500">
               Acompanhe os assuntos recentes e encontre respostas da comunidade.
             </p>
@@ -332,16 +349,19 @@ export function CommunityForumClient({
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar discussões"
-              className="h-10 w-full rounded-md border border-white/[0.1] bg-[#0c1017] pl-9 pr-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-slate-500"
+              onChange={(event) => {
+                setQuery(event.target.value)
+                setPage(1)
+              }}
+              placeholder="Buscar tópicos"
+              className="h-10 w-full rounded-md border border-white/[0.1] bg-[#0c1017] pl-9 pr-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-orange-400/50 focus:ring-2 focus:ring-orange-400/10"
             />
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-white/[0.07] bg-[#0c1017]">
-          <div className="hidden grid-cols-[minmax(0,1fr)_110px_120px_180px_36px] border-b border-white/[0.07] bg-white/[0.018] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 md:grid">
-            <div>Discussão</div>
+        <section className="overflow-hidden rounded-xl border border-orange-400/15 bg-[#0c1017]/95 shadow-[0_22px_70px_rgba(0,0,0,0.25)]">
+          <div className="hidden grid-cols-[minmax(0,1fr)_110px_120px_180px_36px] border-b border-orange-400/10 bg-gradient-to-r from-orange-400/[0.055] to-cyan-400/[0.035] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400 md:grid">
+            <div>Tópico</div>
             <div className="text-center">Respostas</div>
             <div className="text-center">Visualizações</div>
             <div>Última atividade</div>
@@ -352,7 +372,7 @@ export function CommunityForumClient({
             <LoadingState />
           ) : items.length === 0 ? (
             <EmptyState
-              title="Nenhuma discussão encontrada"
+              title="Nenhum tópico encontrado"
               description={query ? "Tente buscar por outro termo." : "Quando houver publicações, elas aparecerão aqui."}
             />
           ) : (
@@ -419,11 +439,11 @@ function TopicRow({ topic }: { topic: CommunityTopicListItem }) {
   return (
     <Link
       href={`/comunidade/topico/${topic.slug}`}
-      className="group grid gap-4 px-5 py-4 transition hover:bg-white/[0.025] md:grid-cols-[minmax(0,1fr)_110px_120px_180px_36px] md:items-center"
+      className="group grid gap-4 border-l-2 border-l-transparent px-5 py-4 transition hover:border-l-orange-400 hover:bg-gradient-to-r hover:from-orange-400/[0.055] hover:to-cyan-400/[0.02] md:grid-cols-[minmax(0,1fr)_110px_120px_180px_36px] md:items-center"
     >
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-[15px] font-semibold text-slate-100 transition group-hover:text-white">
+          <h3 className="truncate text-[15px] font-semibold text-slate-100 transition group-hover:text-orange-200">
             {topic.title}
           </h3>
 
@@ -526,7 +546,7 @@ function ComposerModal({
               Comunidade
             </p>
             <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-white">
-              Nova discussão
+              Novo tópico
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-400">
               Descreva o caso com clareza para receber respostas mais úteis da comunidade.
@@ -544,7 +564,7 @@ function ComposerModal({
         <form onSubmit={onSubmit} className="min-h-0 flex-1 overflow-y-auto">
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="space-y-5 px-5 py-5 md:px-6 md:py-6">
-              <Field label="Título da discussão">
+              <Field label="Título do tópico">
                 <input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
@@ -601,7 +621,7 @@ function ComposerModal({
 
               {topicApprovalRequired && (
                 <AlertMessage tone="warning">
-                  Esta comunidade revisa novas discussões antes da publicação.
+                  Esta comunidade revisa novos tópicos antes da publicação.
                 </AlertMessage>
               )}
 
@@ -646,7 +666,7 @@ function ComposerModal({
               className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {saving ? "Publicando..." : "Publicar discussão"}
+              {saving ? "Publicando..." : "Publicar tópico"}
             </button>
           </div>
         </form>

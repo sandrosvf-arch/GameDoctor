@@ -6,6 +6,10 @@ import { db } from "@/lib/db"
 import type { UserRole } from "@prisma/client"
 import { authConfig } from "./config"
 
+const googleAuthEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true"
+  && Boolean(process.env.GOOGLE_CLIENT_ID?.trim())
+  && Boolean(process.env.GOOGLE_CLIENT_SECRET?.trim())
+
 async function syncGoogleUser(input: {
   googleId: string
   email: string
@@ -57,7 +61,7 @@ async function syncGoogleUser(input: {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
-    Google({
+    ...(googleAuthEnabled ? [Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       profile(profile) {
@@ -69,7 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: "STUDENT" as UserRole,
         }
       },
-    }),
+    })] : []),
     Credentials({
       name: "credentials",
       credentials: {

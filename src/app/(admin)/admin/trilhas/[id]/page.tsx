@@ -321,6 +321,7 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
   const [lessonEdits, setLessonEdits] = useState<Record<string, Partial<Lesson & { bunnyVideoId: string; thumbnail: string }>>>({})
   const [savingLesson, setSavingLesson] = useState<string | null>(null)
   const [deletingLesson, setDeletingLesson] = useState<string | null>(null)
+  const [lessonError, setLessonError] = useState<string | null>(null)
 
   // Drag-to-reorder
   const dragIndex = useRef<number | null>(null)
@@ -448,10 +449,24 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
 
   async function deleteLesson(lessonId: string) {
     if (!confirm("Excluir esta aula?")) return
+    setLessonError(null)
     setDeletingLesson(lessonId)
-    await fetch(`/api/admin/trilhas/${trilhaId}/aulas/${lessonId}`, { method: "DELETE" })
-    setDeletingLesson(null)
-    load(trilhaId)
+
+    try {
+      const response = await fetch(`/api/admin/trilhas/${trilhaId}/aulas/${lessonId}`, { method: "DELETE" })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Não foi possível excluir a aula.")
+      }
+
+      setLocalLessons((current) => current.filter((lesson) => lesson.id !== lessonId))
+      setEditingLesson((current) => current === lessonId ? null : current)
+    } catch (error) {
+      setLessonError(error instanceof Error ? error.message : "Não foi possível excluir a aula.")
+    } finally {
+      setDeletingLesson(null)
+    }
   }
 
   function startEdit(lesson: Lesson) {
@@ -656,6 +671,12 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
           </Button>
         </div>
 
+        {lessonError && (
+          <p className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {lessonError}
+          </p>
+        )}
+
         {/* New lesson form */}
         {showLessonForm && (
           <form onSubmit={createLesson} className="mb-4 rounded-xl border border-border bg-muted/30 p-5 space-y-3">
@@ -798,10 +819,10 @@ export default function EditarTrilhaPage({ params }: { params: Promise<{ id: str
                         </Link>
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost" onClick={() => isEditing ? setEditingLesson(null) : startEdit(lesson)} title="Editar">
+                    <Button type="button" size="sm" variant="ghost" onClick={() => isEditing ? setEditingLesson(null) : startEdit(lesson)} title="Editar">
                       {isEditing ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+                    <Button type="button" size="sm" variant="ghost" className="text-destructive hover:text-destructive"
                       onClick={() => deleteLesson(lesson.id)} disabled={deletingLesson === lesson.id}>
                       {deletingLesson === lesson.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                     </Button>

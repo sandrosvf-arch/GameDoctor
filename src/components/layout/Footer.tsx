@@ -1,6 +1,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Youtube, Instagram, MessageCircle } from "lucide-react"
+import { getPublicPlatformSettings } from "@/lib/app-settings"
 
 const footerLinks = {
   plataforma: [
@@ -17,13 +18,14 @@ const footerLinks = {
   ],
 }
 
-const socialLinks = [
-  { label: "YouTube", href: "https://youtube.com", Icon: Youtube },
-  { label: "Instagram", href: "https://instagram.com", Icon: Instagram },
-  { label: "WhatsApp", href: "https://wa.me", Icon: MessageCircle },
-]
+export async function Footer() {
+  const { whatsappUrl } = await getPublicPlatformSettings()
+  const socialLinks = [
+    { label: "YouTube", href: "https://youtube.com", Icon: Youtube },
+    { label: "Instagram", href: "https://instagram.com", Icon: Instagram },
+    { label: "WhatsApp", href: whatsappUrl, Icon: MessageCircle },
+  ]
 
-export function Footer() {
   return (
     <footer className="border-t border-border/50 bg-card/30 mt-20">
       <div className="container py-12">

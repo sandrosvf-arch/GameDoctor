@@ -6,6 +6,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { bunnyVideoFields, isBunnyVideoId } from "@/lib/bunny"
+import { deleteCourseLesson } from "@/lib/admin/delete-course-lesson"
 
 async function requireAdmin() {
   const session = await auth()
@@ -79,7 +80,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; lessonId: string }> }
 ) {
   if (!await requireAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { lessonId } = await params
-  await db.lesson.delete({ where: { id: lessonId } })
+  const { id, lessonId } = await params
+  const deleted = await deleteCourseLesson(id, lessonId)
+
+  if (!deleted) {
+    return NextResponse.json({ error: "Aula não encontrada nesta trilha." }, { status: 404 })
+  }
+
   return NextResponse.json({ ok: true })
 }

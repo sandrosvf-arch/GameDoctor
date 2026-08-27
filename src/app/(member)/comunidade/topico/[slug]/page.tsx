@@ -2,12 +2,10 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { unstable_noStore as noStore } from "next/cache"
 import { auth } from "@/lib/auth"
-import { db } from "@/lib/db"
-import { hasActivePlanAccess } from "@/lib/access"
 import { CalendarDays, Eye, MessageSquareText, UserRound } from "lucide-react"
-import { formatCommunityDate, getCommunityActiveBanWhere, getCommunityFirstName, isCommunityWriterBanned } from "@/lib/community"
+import { formatCommunityDate, getCommunityFirstName } from "@/lib/community"
 import { CommunityTopicClient } from "@/components/community/CommunityTopicClient"
-import { emptyCommunityAuthorStats, getCommunityStatsByUserIds } from "@/lib/community-stats"
+import { getCommunityTopicPage } from "@/lib/community-topic-data"
 
 export const dynamic = "force-dynamic"
 
@@ -21,155 +19,19 @@ export default async function CommunityTopicPage({
   params: Promise<{ slug: string }>
 }) {
   noStore()
-  const session = await auth()
-  const { slug } = await params
+  const [session, { slug }] = await Promise.all([auth(), params])
   const isAdminUser = isAdminRole(session?.user?.role)
-  const hasRepliesAccess = isAdminUser || (session?.user?.id ? await hasActivePlanAccess(session.user.id) : false)
-
-  const topic = await db.communityTopic.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      content: true,
-      status: true,
-      isPinned: true,
-      isLocked: true,
-      viewsCount: true,
-      repliesCount: true,
-      createdAt: true,
-      forum: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          replyApprovalRequired: true,
-        },
-      },
-      author: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          avatarUrl: true,
-          communityBans: {
-            where: getCommunityActiveBanWhere(),
-            orderBy: [{ createdAt: "desc" }],
-            take: 1,
-            select: {
-              id: true,
-              reason: true,
-              endsAt: true,
-              status: true,
-            },
-          },
-        },
-      },
-      attachments: {
-        select: {
-          id: true,
-          fileName: true,
-          fileUrl: true,
-          mimeType: true,
-          sizeBytes: true,
-        },
-      },
-      posts: {
-        where: {
-          ...(isAdminUser ? {} : { status: "APPROVED" as const }),
-        },
-        orderBy: [{ createdAt: "asc" }],
-        select: {
-          id: true,
-          content: true,
-          createdAt: true,
-          status: true,
-          likesCount: true,
-          likes: {
-            where: { userId: session?.user?.id ?? "" },
-            select: { id: true },
-            take: 1,
-          },
-          parentPost: {
-            select: {
-              id: true,
-              author: { select: { name: true } },
-            },
-          },
-          attachments: {
-            select: {
-              id: true,
-              fileName: true,
-              fileUrl: true,
-              mimeType: true,
-              sizeBytes: true,
-            },
-          },
-          author: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              avatarUrl: true,
-              communityBans: {
-                where: getCommunityActiveBanWhere(),
-                orderBy: [{ createdAt: "desc" }],
-                take: 1,
-                select: {
-                  id: true,
-                  reason: true,
-                  endsAt: true,
-                  status: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+  const topic = await getCommunityTopicPage({
+    slug,
+    viewerId: session?.user?.id ?? null,
+    isAdmin: isAdminUser,
   })
 
   if (!topic) notFound()
-  if (topic.status !== "APPROVED" && !isAdminUser) notFound()
-
-  let activeBanMessage: string | null = null
-
-  if (session?.user?.id) {
-    const activeBan = await db.communityBan.findFirst({
-      where: getCommunityActiveBanWhere(session.user.id),
-      orderBy: [{ createdAt: "desc" }],
-      select: {
-        status: true,
-        endsAt: true,
-        reason: true,
-      },
-    })
-
-    if (
-      activeBan &&
-      isCommunityWriterBanned({
-        status: activeBan.status,
-        endsAt: activeBan.endsAt,
-      })
-    ) {
-      activeBanMessage = activeBan.reason || "Sua conta esta bloqueada para publicar na comunidade."
-    }
-  }
-
-  const communityStatsMap = await getCommunityStatsByUserIds([
-    topic.author.id,
-    ...topic.posts.map((post) => post.author.id),
-  ])
-
-  await db.communityTopic.update({
-    where: { id: topic.id },
-    data: {
-      viewsCount: {
-        increment: 1,
-      },
-    },
-  }).catch(() => {})
+  const hasRepliesAccess = topic.hasRepliesAccess
+  const activeBanMessage = topic.viewerBan
+    ? topic.viewerBan.reason || "Sua conta está bloqueada para publicar na comunidade."
+    : null
 
   return (
     <div className="min-h-screen bg-background">
@@ -215,7 +77,7 @@ export default async function CommunityTopicPage({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Eye className="h-4 w-4 text-slate-500" />
-                {topic.viewsCount + 1} visualizacao{topic.viewsCount + 1 !== 1 ? "es" : ""}
+                {topic.viewsCount} visualização{topic.viewsCount !== 1 ? "ões" : ""}
               </span>
             </div>
           </div>
@@ -228,7 +90,7 @@ export default async function CommunityTopicPage({
             id: topic.id,
             title: topic.title,
             content: topic.content,
-            createdAt: topic.createdAt.toISOString(),
+            createdAt: topic.createdAt,
             isPinned: topic.isPinned,
             isLocked: topic.isLocked,
             viewsCount: topic.viewsCount,
@@ -240,14 +102,8 @@ export default async function CommunityTopicPage({
               name: topic.author.name,
               email: topic.author.email,
               avatarUrl: topic.author.avatarUrl,
-              communityStats: communityStatsMap.get(topic.author.id) ?? emptyCommunityAuthorStats(),
-              activeBan: topic.author.communityBans[0]
-                ? {
-                    id: topic.author.communityBans[0].id,
-                    reason: topic.author.communityBans[0].reason,
-                    endsAt: topic.author.communityBans[0].endsAt?.toISOString() ?? null,
-                  }
-                : null,
+              communityStats: topic.author.communityStats,
+              activeBan: topic.author.activeBan,
             },
             replyApprovalRequired: topic.forum.replyApprovalRequired,
             attachments: topic.attachments.map((attachment) => ({
@@ -262,16 +118,11 @@ export default async function CommunityTopicPage({
             ? topic.posts.map((post) => ({
                 id: post.id,
                 content: post.content,
-                createdAt: post.createdAt.toISOString(),
+                createdAt: post.createdAt,
                 status: post.status,
                 likesCount: post.likesCount,
-                viewerLiked: post.likes.length > 0,
-                parentPost: post.parentPost
-                  ? {
-                      id: post.parentPost.id,
-                      authorName: post.parentPost.author.name,
-                    }
-                  : null,
+                viewerLiked: post.viewerLiked,
+                parentPost: post.parentPost,
                 attachments: post.attachments.map((attachment) => ({
                   id: attachment.id,
                   fileName: attachment.fileName,
@@ -284,14 +135,8 @@ export default async function CommunityTopicPage({
                   name: post.author.name,
                   email: post.author.email,
                   avatarUrl: post.author.avatarUrl,
-                  communityStats: communityStatsMap.get(post.author.id) ?? emptyCommunityAuthorStats(),
-                  activeBan: post.author.communityBans[0]
-                    ? {
-                        id: post.author.communityBans[0].id,
-                        reason: post.author.communityBans[0].reason,
-                        endsAt: post.author.communityBans[0].endsAt?.toISOString() ?? null,
-                      }
-                    : null,
+                  communityStats: post.author.communityStats,
+                  activeBan: post.author.activeBan,
                 },
               }))
             : []}
