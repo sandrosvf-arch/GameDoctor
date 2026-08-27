@@ -11,16 +11,28 @@ import {
   Copy,
   Loader2,
   LockKeyhole,
+  MapPin,
   Pencil,
   QrCode,
   ShieldCheck,
   TicketPercent,
+  Wallet,
 } from "lucide-react"
 
 const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() ?? ""
 
 type CheckoutPeriod = "annual" | "monthly"
-type PaymentMethod = "pix" | "card"
+type PaymentMethod = "pix" | "card" | "pagaleve"
+
+interface BillingAddress {
+  postalCode: string
+  street: string
+  number: string
+  complement: string
+  neighborhood: string
+  city: string
+  state: string
+}
 
 interface PixPaymentState {
   orderId: string
@@ -77,12 +89,28 @@ export function CheckoutPageClient({
   couponsEnabled,
 }: {
   initialQuote: CheckoutQuote
-  profile: { name: string; email: string; phone: string | null; cpf: string | null }
+  profile: {
+    name: string
+    email: string
+    phone: string | null
+    cpf: string | null
+    billingAddress: BillingAddress | null
+  }
   couponsEnabled: boolean
 }) {
   const [quote, setQuote] = useState(initialQuote)
   const [couponCode, setCouponCode] = useState(initialQuote.coupon.code ?? "")
   const [cpf, setCpf] = useState(profile.cpf ?? "")
+  const [phone, setPhone] = useState(profile.phone ?? "")
+  const [billingAddress, setBillingAddress] = useState<BillingAddress>(profile.billingAddress ?? {
+    postalCode: "",
+    street: "",
+    number: "",
+    complement: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+  })
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null)
   const [loadingQuote, setLoadingQuote] = useState(false)
   const [submittingPayment, setSubmittingPayment] = useState(false)
@@ -265,6 +293,73 @@ export function CheckoutPageClient({
     }
   }, [cpf, couponCode, quote.period, quote.plan.slug])
 
+  const handleSubmitPagaleve = useCallback(async () => {
+    if (submittingPaymentRef.current) return
+
+    const cpfDigits = cpf.replace(/\D/g, "")
+    const phoneDigits = phone.replace(/\D/g, "")
+    const postalCodeDigits = billingAddress.postalCode.replace(/\D/g, "")
+
+    if (cpfDigits.length !== 11) {
+      setError("Informe um CPF válido.")
+      return
+    }
+
+    if (phoneDigits.length < 10) {
+      setError("Informe um telefone válido.")
+      return
+    }
+
+    if (
+      postalCodeDigits.length !== 8
+      || !billingAddress.street.trim()
+      || !billingAddress.number.trim()
+      || !billingAddress.neighborhood.trim()
+      || !billingAddress.city.trim()
+      || billingAddress.state.trim().length !== 2
+    ) {
+      setError("Preencha o endereço de cobrança completo.")
+      return
+    }
+
+    submittingPaymentRef.current = true
+    setSubmittingPayment(true)
+    setError(null)
+
+    try {
+      const response = await fetch("/api/checkout/pagaleve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planSlug: quote.plan.slug,
+          period: quote.period,
+          couponCode,
+          cpf: cpfDigits,
+          phone: phoneDigits,
+          billingAddress: {
+            ...billingAddress,
+            postalCode: postalCodeDigits,
+            state: billingAddress.state.trim().toUpperCase(),
+          },
+          idempotencyKey: idempotencyKeyRef.current,
+        }),
+      })
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok || !data?.checkoutUrl) {
+        setError(data?.error ?? "Não foi possível iniciar o pagamento parcelado.")
+        return
+      }
+
+      window.location.assign(data.checkoutUrl)
+    } catch {
+      setError("Não foi possível iniciar o pagamento parcelado. Tente novamente.")
+    } finally {
+      submittingPaymentRef.current = false
+      setSubmittingPayment(false)
+    }
+  }, [billingAddress, couponCode, cpf, phone, quote.period, quote.plan.slug])
+
   useEffect(() => {
     const pixOrderId = pixPayment?.orderId
     if (!pixOrderId || pixPayment?.status !== "PENDING") return
@@ -388,6 +483,8 @@ export function CheckoutPageClient({
   const paymentMethodLabel =
     selectedPaymentMethod === "pix"
       ? "PIX"
+      : selectedPaymentMethod === "pagaleve"
+        ? "PIX parcelado"
       : selectedPaymentMethod === "card"
         ? "Cartão de crédito"
         : "Não selecionada"
@@ -483,13 +580,26 @@ export function CheckoutPageClient({
                   badge="Instantâneo"
                   onClick={() => choosePaymentMethod("pix")}
                 />
+                {quote.period === "annual" && (
+                  <PaymentMethodOption
+                    title="PIX parcelado"
+                    description="Parcele no Pix, sem cartão"
+                    icon={<Wallet className="h-5 w-5" />}
+                    badge="Compra anual"
+                    onClick={() => choosePaymentMethod("pagaleve")}
+                  />
+                )}
               </div>
             ) : (
               <div>
                 <div className="flex items-center justify-between gap-4 border-b border-white/[0.07] px-5 py-3.5">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-300/15 bg-cyan-300/[0.07] text-cyan-200">
-                      {selectedPaymentMethod === "pix" ? <QrCode className="h-[18px] w-[18px]" /> : <CreditCard className="h-[18px] w-[18px]" />}
+                      {selectedPaymentMethod === "pix"
+                        ? <QrCode className="h-[18px] w-[18px]" />
+                        : selectedPaymentMethod === "pagaleve"
+                          ? <Wallet className="h-[18px] w-[18px]" />
+                          : <CreditCard className="h-[18px] w-[18px]" />}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-white">{paymentMethodLabel}</p>
@@ -507,7 +617,109 @@ export function CheckoutPageClient({
                   </button>
                 </div>
 
-                {selectedPaymentMethod === "pix" ? (
+                {selectedPaymentMethod === "pagaleve" ? (
+                  <div className="space-y-5 p-4 sm:p-5">
+                    <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.06] p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-200">
+                          <Wallet className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-white">Parcele no Pix, sem cartão</p>
+                          <p className="mt-1 text-sm leading-5 text-slate-400">
+                            Preencha seus dados e confira as condições disponíveis na próxima etapa.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-3 flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-cyan-200" />
+                        <h3 className="text-sm font-semibold text-white">Dados de cobrança</h3>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <CheckoutField
+                          label="CPF"
+                          value={cpf}
+                          onChange={(value) => setCpf(value.replace(/\D/g, "").slice(0, 11))}
+                          inputMode="numeric"
+                          placeholder="00000000000"
+                        />
+                        <CheckoutField
+                          label="Telefone"
+                          value={phone}
+                          onChange={(value) => setPhone(value.replace(/\D/g, "").slice(0, 11))}
+                          inputMode="tel"
+                          placeholder="11999999999"
+                        />
+                        <CheckoutField
+                          label="CEP"
+                          value={billingAddress.postalCode}
+                          onChange={(value) => setBillingAddress((current) => ({
+                            ...current,
+                            postalCode: value.replace(/\D/g, "").slice(0, 8),
+                          }))}
+                          inputMode="numeric"
+                          placeholder="00000000"
+                        />
+                        <CheckoutField
+                          label="Rua"
+                          value={billingAddress.street}
+                          onChange={(value) => setBillingAddress((current) => ({ ...current, street: value }))}
+                          placeholder="Nome da rua"
+                        />
+                        <CheckoutField
+                          label="Número"
+                          value={billingAddress.number}
+                          onChange={(value) => setBillingAddress((current) => ({ ...current, number: value }))}
+                          placeholder="123"
+                        />
+                        <CheckoutField
+                          label="Complemento"
+                          value={billingAddress.complement}
+                          onChange={(value) => setBillingAddress((current) => ({ ...current, complement: value }))}
+                          placeholder="Opcional"
+                        />
+                        <CheckoutField
+                          label="Bairro"
+                          value={billingAddress.neighborhood}
+                          onChange={(value) => setBillingAddress((current) => ({ ...current, neighborhood: value }))}
+                          placeholder="Seu bairro"
+                        />
+                        <CheckoutField
+                          label="Cidade"
+                          value={billingAddress.city}
+                          onChange={(value) => setBillingAddress((current) => ({ ...current, city: value }))}
+                          placeholder="Sua cidade"
+                        />
+                        <CheckoutField
+                          label="Estado"
+                          value={billingAddress.state}
+                          onChange={(value) => setBillingAddress((current) => ({
+                            ...current,
+                            state: value.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase(),
+                          }))}
+                          placeholder="SP"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleSubmitPagaleve()}
+                      disabled={submittingPayment}
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {submittingPayment
+                        ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando pagamento...</>
+                        : <><Wallet className="h-4 w-4" />Continuar para o PIX parcelado</>}
+                    </button>
+                    <p className="text-center text-xs leading-5 text-slate-500">
+                      A análise e as condições de parcelamento serão apresentadas antes da confirmação.
+                    </p>
+                  </div>
+                ) : selectedPaymentMethod === "pix" ? (
                   <div className="p-5">
                     {!pixPayment ? (
                       <>
@@ -794,6 +1006,34 @@ function PaymentMethodOption({
       </span>
       <ChevronRight className="h-4 w-4 shrink-0 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-slate-300" />
     </button>
+  )
+}
+
+function CheckoutField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  inputMode,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  inputMode?: "text" | "numeric" | "tel"
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="text-xs font-medium text-slate-300">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        inputMode={inputMode}
+        autoComplete="off"
+        placeholder={placeholder}
+        className="mt-1.5 h-11 w-full rounded-lg border border-white/[0.09] bg-[#090d13] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400/60"
+      />
+    </label>
   )
 }
 

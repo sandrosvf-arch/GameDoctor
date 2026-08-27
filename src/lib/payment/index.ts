@@ -4,11 +4,12 @@
  * Architecture: register adapters for each gateway at startup.
  * Switch gateways without changing application code.
  *
- * Supported: MERCADOPAGO | PAGARME | ASAAS | STRIPE | IUGU | PAGSEGURO
+ * Supported: MERCADOPAGO | PAGALEVE | PAGARME | ASAAS | STRIPE | IUGU | PAGSEGURO
  */
 
 export type PaymentGatewayName =
   | "MERCADOPAGO"
+  | "PAGALEVE"
   | "PAGARME"
   | "ASAAS"
   | "STRIPE"

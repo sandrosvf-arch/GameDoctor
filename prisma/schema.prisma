@@ -102,6 +102,7 @@ enum PlanStatus {
 
 enum PaymentMethod {
   PIX
+  PIX_INSTALLMENTS
   CREDIT_CARD
   BOLETO
 }
@@ -132,6 +133,7 @@ enum SubscriptionStatus {
 
 enum PaymentGateway {
   MERCADOPAGO
+  PAGALEVE
   PAGARME
   ASAAS
   STRIPE
@@ -295,8 +297,27 @@ model User {
   aiConversations   AiConversation[]
   aiMessages        AiMessage[]
   aiUsageMonths     AiUsageMonth[]
+  billingAddress    UserBillingAddress?
 
   @@map("users")
+}
+
+model UserBillingAddress {
+  id           String   @id @default(cuid())
+  userId       String   @unique @map("user_id")
+  postalCode   String   @map("postal_code")
+  street       String
+  number       String
+  complement   String?
+  neighborhood String
+  city         String
+  state        String
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_billing_addresses")
 }
 
 model Category {
@@ -672,6 +693,7 @@ model Order {
   paymentStatus    PaymentStatus  @default(PENDING) @map("payment_status")
   gateway          PaymentGateway?
   gatewayReference String?        @map("gateway_reference")
+  gatewayCheckoutUrl String?      @map("gateway_checkout_url")
   couponId         String?        @map("coupon_id")
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
@@ -778,6 +800,7 @@ model Comment {
 model PaymentWebhook {
   id          String         @id @default(cuid())
   gateway     PaymentGateway
+  externalEventId String?     @unique @map("external_event_id")
   eventType   String         @map("event_type")
   payload     Json
   processed   Boolean        @default(false)

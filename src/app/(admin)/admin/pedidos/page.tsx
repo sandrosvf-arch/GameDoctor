@@ -15,8 +15,8 @@ import {
   Wallet,
 } from "lucide-react"
 
-type PaymentMethod = "PIX" | "CREDIT_CARD" | "BOLETO" | null
-type PaymentGateway = "MERCADOPAGO" | "PAGARME" | "ASAAS" | "STRIPE" | "IUGU" | "PAGSEGURO" | "MANUAL" | null
+type PaymentMethod = "PIX" | "PIX_INSTALLMENTS" | "CREDIT_CARD" | "BOLETO" | null
+type PaymentGateway = "MERCADOPAGO" | "PAGALEVE" | "PAGARME" | "ASAAS" | "STRIPE" | "IUGU" | "PAGSEGURO" | "MANUAL" | null
 type PaymentStatus =
   | "PENDING"
   | "APPROVED"
@@ -126,6 +126,7 @@ function paymentStatusTone(status: PaymentStatus) {
 
 function paymentMethodLabel(method: PaymentMethod) {
   if (method === "PIX") return "Pix"
+  if (method === "PIX_INSTALLMENTS") return "PIX parcelado"
   if (method === "CREDIT_CARD") return "Cartão"
   if (method === "BOLETO") return "Boleto"
   return "-"
@@ -134,6 +135,7 @@ function paymentMethodLabel(method: PaymentMethod) {
 function gatewayLabel(gateway: PaymentGateway) {
   if (!gateway) return "-"
   if (gateway === "MERCADOPAGO") return "Mercado Pago"
+  if (gateway === "PAGALEVE") return "Pagaleve"
   if (gateway === "PAGARME") return "Pagar.me"
   if (gateway === "PAGSEGURO") return "PagSeguro"
   return gateway
@@ -519,7 +521,11 @@ function OrderItemRow({
                     <DetailItem label="Método" value={paymentMethodLabel(order.latestPayment.paymentMethod)} />
                     <DetailItem
                       label="Parcelamento"
-                      value={order.latestPayment.installments > 1 ? `${order.latestPayment.installments}x` : "À vista"}
+                      value={order.latestPayment.paymentMethod === "PIX_INSTALLMENTS"
+                        ? "Parcelado pela Pagaleve"
+                        : order.latestPayment.installments > 1
+                          ? `${order.latestPayment.installments}x`
+                          : "À vista"}
                     />
                     <DetailItem label="Valor" value={formatCurrency(order.latestPayment.amount)} />
                     <DetailItem label="Criado em" value={formatDate(order.latestPayment.createdAt)} />

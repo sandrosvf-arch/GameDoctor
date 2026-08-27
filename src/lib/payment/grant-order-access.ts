@@ -1,9 +1,12 @@
 import { db } from "@/lib/db"
-import { grantAccess, resolvePlanAccessWindow } from "@/lib/access"
+import { resolvePlanAccessWindow } from "@/lib/access"
+import type { Prisma } from "@prisma/client"
 
-export async function grantOrderAccess(orderId: string) {
+type DatabaseClient = typeof db | Prisma.TransactionClient
+
+export async function grantOrderAccess(orderId: string, client: DatabaseClient = db) {
   const approvedAt = new Date()
-  const order = await db.order.findUnique({
+  const order = await client.order.findUnique({
     where: { id: orderId },
     include: {
       orderItems: { include: { plan: true, course: true } },
@@ -19,7 +22,7 @@ export async function grantOrderAccess(orderId: string) {
         ? item.plan.monthlyAccessDurationDays ?? 30
         : item.plan.annualAccessDurationDays
 
-      const existingAccess = await db.accessPermission.findFirst({
+      const existingAccess = await client.accessPermission.findFirst({
         where: { userId: order.userId, planId: item.planId, status: "ACTIVE" },
         orderBy: [{ expiresAt: "desc" }, { createdAt: "desc" }],
         select: { id: true, expiresAt: true },
@@ -39,7 +42,7 @@ export async function grantOrderAccess(orderId: string) {
       })
 
       if (existingAccess) {
-        await db.accessPermission.update({
+        await client.accessPermission.update({
           where: { id: existingAccess.id },
           data: {
             accessType: accessWindow.accessType,
@@ -49,25 +52,29 @@ export async function grantOrderAccess(orderId: string) {
           },
         })
       } else {
-        await grantAccess({
-          userId: order.userId,
-          planId: item.planId,
-          accessType: accessWindow.accessType,
-          origin: "PURCHASE",
-          expiresAt: accessWindow.expiresAt,
-          notes: "Acesso liberado pelo pagamento do pedido " + order.id,
+        await client.accessPermission.create({
+          data: {
+            userId: order.userId,
+            planId: item.planId,
+            accessType: accessWindow.accessType,
+            origin: "PURCHASE",
+            expiresAt: accessWindow.expiresAt,
+            notes: "Acesso liberado pelo pagamento do pedido " + order.id,
+          },
         })
       }
       continue
     }
 
     if (item.courseId) {
-      await grantAccess({
-        userId: order.userId,
-        courseId: item.courseId,
-        accessType: "LIFETIME",
-        origin: "PURCHASE",
-        notes: "Acesso liberado pelo pagamento do pedido " + order.id,
+      await client.accessPermission.create({
+        data: {
+          userId: order.userId,
+          courseId: item.courseId,
+          accessType: "LIFETIME",
+          origin: "PURCHASE",
+          notes: "Acesso liberado pelo pagamento do pedido " + order.id,
+        },
       })
     }
   }

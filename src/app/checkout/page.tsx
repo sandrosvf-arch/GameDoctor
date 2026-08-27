@@ -39,6 +39,17 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
         email: true,
         phone: true,
         cpf: true,
+        billingAddress: {
+          select: {
+            postalCode: true,
+            street: true,
+            number: true,
+            complement: true,
+            neighborhood: true,
+            city: true,
+            state: true,
+          },
+        },
       },
     }),
     buildCheckoutQuote({
@@ -74,6 +85,12 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
             email: getMercadoPagoPayerEmail(profile.email),
             phone: profile.phone,
             cpf: profile.cpf,
+            billingAddress: profile.billingAddress
+              ? {
+                  ...profile.billingAddress,
+                  complement: profile.billingAddress.complement ?? "",
+                }
+              : null,
           }}
         />
       </section>

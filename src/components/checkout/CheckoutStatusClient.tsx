@@ -79,6 +79,7 @@ function formatPaymentMethod(value: string | null | undefined) {
 
   if (!normalized) return "Definido no checkout"
   if (normalized === "PIX") return "Pix"
+  if (normalized === "PIX_INSTALLMENTS") return "PIX parcelado"
   if (normalized === "CREDIT_CARD") return "Cartão de crédito"
   if (normalized === "DEBIT_CARD") return "Cartão de débito"
   if (normalized === "BOLETO") return "Boleto"
@@ -448,7 +449,12 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Detalhes do pagamento</p>
               <div className="mt-3 space-y-2.5">
                 <DetailRow label="Valor pago" value={formatCurrency(data.order.payment.amount)} />
-                <DetailRow label="Parcelamento" value={`${data.order.payment.installments ?? 1}x`} />
+                <DetailRow
+                  label="Parcelamento"
+                  value={data.order.payment.method === "PIX_INSTALLMENTS"
+                    ? "Parcelado pela Pagaleve"
+                    : `${data.order.payment.installments ?? 1}x`}
+                />
                 {data.order.payment.paidAt ? <DetailRow label="Confirmação" value={formatDate(data.order.payment.paidAt) ?? "-"} /> : null}
                 {data.order.payment.gatewayPaymentId ? (
                   <DetailRow label="Código de referência" value={data.order.payment.gatewayPaymentId} />

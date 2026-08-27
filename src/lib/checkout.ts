@@ -311,10 +311,16 @@ export async function createPendingPlanCheckout(input: {
   period: CheckoutPeriod
   couponCode?: string | null
   idempotencyKey?: string | null
+  gateway?: "MERCADOPAGO" | "PAGALEVE"
+  paymentMethod?: "PIX" | "PIX_INSTALLMENTS" | "CREDIT_CARD"
 }) {
   const existingOrder = input.idempotencyKey
-    ? await db.order.findUnique({
-        where: { idempotencyKey: input.idempotencyKey },
+    ? await db.order.findFirst({
+        where: {
+          idempotencyKey: input.idempotencyKey,
+          userId: input.userId,
+          gateway: input.gateway ?? "MERCADOPAGO",
+        },
         select: { id: true, finalTotal: true, payments: { take: 1, select: { id: true } } },
       })
     : null
@@ -344,7 +350,7 @@ export async function createPendingPlanCheckout(input: {
       discountTotal: quote.discountTotal,
       finalTotal: quote.finalTotal,
       paymentStatus: "PENDING",
-      gateway: "MERCADOPAGO",
+      gateway: input.gateway ?? "MERCADOPAGO",
       idempotencyKey: input.idempotencyKey || undefined,
       couponId,
       orderItems: {
@@ -357,8 +363,8 @@ export async function createPendingPlanCheckout(input: {
       payments: {
         create: {
           userId: input.userId,
-          gateway: "MERCADOPAGO",
-          paymentMethod: "CREDIT_CARD",
+          gateway: input.gateway ?? "MERCADOPAGO",
+          paymentMethod: input.paymentMethod ?? "CREDIT_CARD",
           paymentStatus: "PENDING",
           amount: quote.finalTotal,
           installments: 1,
