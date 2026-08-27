@@ -70,7 +70,7 @@ function SearchTrailCard({
         <div className="relative aspect-video shrink-0 overflow-hidden bg-zinc-900">
           {thumbnail ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+            <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover brightness-110 transition duration-500 group-hover:scale-105" />
           ) : (
             <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}08)` }} />
           )}

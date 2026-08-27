@@ -344,7 +344,7 @@ export default function BunnyAulaClient({
               {isReleaseLocked ? (
                 <div className="absolute inset-0">
                   {previewImage && (
-                    <img src={previewImage} alt={title} className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+                    <img src={previewImage} alt={title} className="absolute inset-0 h-full w-full object-cover brightness-[1.2]" draggable={false} />
                   )}
                   {releaseAt && (
                     <LessonReleaseLock releaseAt={releaseAt} onReleased={() => router.refresh()} />
@@ -365,7 +365,7 @@ export default function BunnyAulaClient({
                         <img
                           src={previewImage}
                           alt={title}
-                          className="absolute inset-0 h-full w-full object-cover"
+                          className="absolute inset-0 h-full w-full object-cover brightness-[1.2]"
                           draggable={false}
                         />
                       )}
@@ -373,7 +373,7 @@ export default function BunnyAulaClient({
                         <button
                           onClick={() => setPaywallVisible(true)}
                           aria-label="Ver opções de acesso"
-                          className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors hover:bg-black/40"
+                          className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors"
                         >
                           <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
                             <Play className="h-7 w-7 fill-white" />
@@ -421,14 +421,14 @@ export default function BunnyAulaClient({
                     <img
                       src={previewImage}
                       alt={title}
-                      className="absolute inset-0 h-full w-full object-cover"
+                      className="absolute inset-0 h-full w-full object-cover brightness-[1.2]"
                       draggable={false}
                     />
                   )}
                   <button
                     onClick={() => setStarted(true)}
                     aria-label="Assistir aula"
-                    className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors hover:bg-black/40"
+                    className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors"
                   >
                     <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
                       <Play className="h-7 w-7 fill-white" />
@@ -438,7 +438,7 @@ export default function BunnyAulaClient({
               ) : mounted ? (
                 <iframe
                   src={embedUrl.replace("autoplay=false", "autoplay=true")}
-                  className="absolute inset-0 h-full w-full"
+                  className="absolute inset-0 h-full w-full brightness-[1.2]"
                   width="100%"
                   height="100%"
                   allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
@@ -529,39 +529,7 @@ export default function BunnyAulaClient({
                 )}
               </h2>
 
-              {false ? (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-6 text-center backdrop-blur-xl">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40">
-                    <Lock className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Participe da conversa</p>
-                    <p className="text-xs text-muted-foreground">
-                      Assine um plano para acessar os comentários e participar da conversa desta aula.
-                    </p>
-                  </div>
-                  <Button size="sm" asChild>
-                    <Link href="/planos">Ver planos</Link>
-                  </Button>
-                </div>
-              ) : false ? (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-6 text-center backdrop-blur-xl">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40">
-                    <User2 className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Participe da conversa</p>
-                    <p className="text-xs text-muted-foreground">
-                      Carregue os comentários para acompanhar a conversa da aula e deixar sua dúvida.
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => undefined}>
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Carregar comentários
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-5">
+              <div className="space-y-5">
                   <form onSubmit={submitComment} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
                     <div className="flex items-start gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/40">
@@ -683,7 +651,6 @@ export default function BunnyAulaClient({
                     </div>
                   )}
                 </div>
-              )}
             </div>
             )}
           </div>
@@ -752,7 +719,7 @@ export default function BunnyAulaClient({
                         >
                           <div className="relative aspect-video w-[76px] shrink-0 overflow-hidden rounded bg-zinc-800">
                             {thumb && (
-                              <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                              <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover brightness-[1.2]" />
                             )}
                             {isCurrent && (
                               <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
@@ -900,7 +867,7 @@ export default function BunnyAulaClient({
                         >
                           <div className="relative aspect-video w-[72px] shrink-0 overflow-hidden rounded bg-zinc-800">
                             {thumb && (
-                              <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                              <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover brightness-[1.2]" />
                             )}
                             {isCurrent && (
                               <div className="absolute inset-0 flex items-center justify-center bg-black/40">

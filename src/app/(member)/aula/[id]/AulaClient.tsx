@@ -181,7 +181,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
   const isGuest = sessionStatus === "unauthenticated"
   const [comments, setComments] = useState<CommentItem[]>([])
   const [commentsLoading, setCommentsLoading] = useState(false)
-  const [commentsVisible, setCommentsVisible] = useState(false)
   const [commentText, setCommentText] = useState("")
   const [submittingComment, setSubmittingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
@@ -235,7 +234,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     }
   }, [lessonId])
 
-  useEffect(() => { if (commentsVisible && !isGuest) loadComments() }, [commentsVisible, isGuest, loadComments])
+  useEffect(() => { if (!isGuest && data?.lesson.isAccessible) loadComments() }, [isGuest, data?.lesson.isAccessible, loadComments])
 
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -360,14 +359,14 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     <img
                       src={lesson.videoThumbnailUrl}
                       alt={lesson.title}
-                      className="absolute inset-0 h-full w-full object-cover"
+                      className="absolute inset-0 h-full w-full object-cover brightness-[1.2]"
                     />
                   )}
                   <button
                     type="button"
                     onClick={() => setPaywallVisible(true)}
                     aria-label="Ver opções de acesso"
-                    className="absolute inset-0 flex items-center justify-center bg-black/35 transition-colors hover:bg-black/45"
+                    className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors"
                   >
                     <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur">
                       <Play className="h-7 w-7 fill-white" />
@@ -377,7 +376,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
               ) : !paywallVisible && lesson.videoEmbedUrl ? (
                 <iframe
                   src={buildAutoplayUrl(lesson.videoEmbedUrl)}
-                  className="absolute inset-0 h-full w-full"
+                  className="absolute inset-0 h-full w-full brightness-[1.2]"
                   allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
                   allowFullScreen
                   referrerPolicy="strict-origin-when-cross-origin"
@@ -525,13 +524,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                   </p>
                   <Button size="sm" asChild>
                     <Link href="/planos">Ver planos</Link>
-                  </Button>
-                </div>
-              ) : !commentsVisible && !isGuest ? (
-                <div className="flex justify-center py-6">
-                  <Button variant="outline" size="sm" onClick={() => setCommentsVisible(true)}>
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Carregar comentários
                   </Button>
                 </div>
               ) : (

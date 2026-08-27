@@ -157,7 +157,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-zinc-950">
       <aside className="hidden w-56 shrink-0 flex-col border-r border-border p-4 lg:flex">
         <Link href="/" className="mb-6 block cursor-pointer rounded-xl px-1 py-1 transition hover:bg-accent/40">
           <Image
