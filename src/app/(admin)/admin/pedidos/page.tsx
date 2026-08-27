@@ -126,7 +126,7 @@ function paymentStatusTone(status: PaymentStatus) {
 
 function paymentMethodLabel(method: PaymentMethod) {
   if (method === "PIX") return "Pix"
-  if (method === "PIX_INSTALLMENTS") return "PIX parcelado"
+  if (method === "PIX_INSTALLMENTS") return "Parcelamento via Pix - Pagaleve"
   if (method === "CREDIT_CARD") return "Cartão"
   if (method === "BOLETO") return "Boleto"
   return "-"
@@ -522,7 +522,7 @@ function OrderItemRow({
                     <DetailItem
                       label="Parcelamento"
                       value={order.latestPayment.paymentMethod === "PIX_INSTALLMENTS"
-                        ? "Parcelado pela Pagaleve"
+                        ? "Parcelamento via Pix - Pagaleve"
                         : order.latestPayment.installments > 1
                           ? `${order.latestPayment.installments}x`
                           : "À vista"}

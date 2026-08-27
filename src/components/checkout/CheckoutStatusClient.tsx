@@ -79,7 +79,7 @@ function formatPaymentMethod(value: string | null | undefined) {
 
   if (!normalized) return "Definido no checkout"
   if (normalized === "PIX") return "Pix"
-  if (normalized === "PIX_INSTALLMENTS") return "PIX parcelado"
+  if (normalized === "PIX_INSTALLMENTS") return "Parcelamento via Pix - Pagaleve"
   if (normalized === "CREDIT_CARD") return "Cartão de crédito"
   if (normalized === "DEBIT_CARD") return "Cartão de débito"
   if (normalized === "BOLETO") return "Boleto"
@@ -452,7 +452,7 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
                 <DetailRow
                   label="Parcelamento"
                   value={data.order.payment.method === "PIX_INSTALLMENTS"
-                    ? "Parcelado pela Pagaleve"
+                    ? "Parcelamento via Pix - Pagaleve"
                     : `${data.order.payment.installments ?? 1}x`}
                 />
                 {data.order.payment.paidAt ? <DetailRow label="Confirmação" value={formatDate(data.order.payment.paidAt) ?? "-"} /> : null}

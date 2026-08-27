@@ -1,6 +1,10 @@
 type PagaleveAuthResponse = {
   access_token?: string
+  accessToken?: string
+  token?: string
   expires_in?: number
+  expiresIn?: number
+  data?: PagaleveAuthResponse
 }
 
 export type PagaleveAddress = {
@@ -77,14 +81,21 @@ async function readResponse(response: Response) {
 }
 
 function getErrorMessage(payload: unknown, status: number) {
-  if (typeof payload === "string" && payload.trim()) return payload.trim()
-  if (payload && typeof payload === "object") {
-    const body = payload as Record<string, unknown>
-    const message = body.message ?? body.error ?? body.detail
-    if (typeof message === "string" && message.trim()) return message.trim()
+  function collectMessages(value: unknown, depth = 0): string[] {
+    if (depth > 3 || value === null || value === undefined) return []
+    if (typeof value === "string") return value.trim() ? [value.trim()] : []
+    if (Array.isArray(value)) return value.flatMap((item) => collectMessages(item, depth + 1))
+    if (typeof value !== "object") return []
+
+    const body = value as Record<string, unknown>
+    return ["message", "error", "detail", "details", "errors", "validationErrors"]
+      .flatMap((key) => collectMessages(body[key], depth + 1))
   }
 
-  return `Pagaleve (${status}): não foi possível concluir a solicitação.`
+  const messages = [...new Set(collectMessages(payload))]
+  return messages.length > 0
+    ? `Pagaleve (${status}): ${messages.join(" | ")}`
+    : `Pagaleve (${status}): não foi possível concluir a solicitação.`
 }
 
 async function authenticatePagaleve() {
@@ -101,11 +112,32 @@ async function authenticatePagaleve() {
   if (!response.ok) throw new Error(getErrorMessage(payload, response.status))
 
   const auth = payload as PagaleveAuthResponse
-  if (!auth?.access_token) throw new Error("A Pagaleve não retornou um token de acesso.")
+  const directToken = typeof payload === "string" ? payload.trim() : ""
+  const token = directToken.length >= 20 && !/[\s<>]/.test(directToken)
+    ? directToken
+    : auth?.access_token
+      ?? auth?.accessToken
+      ?? auth?.token
+      ?? auth?.data?.access_token
+      ?? auth?.data?.accessToken
+      ?? auth?.data?.token
 
-  const expiresIn = Math.max(60, Number(auth.expires_in ?? 3600))
+  if (!token) {
+    const responseShape = payload && typeof payload === "object"
+      ? Object.keys(payload as Record<string, unknown>).join(", ") || "objeto vazio"
+      : typeof payload
+    throw new Error(`A Pagaleve não retornou um token de acesso. Formato recebido: ${responseShape}.`)
+  }
+
+  const expiresIn = Math.max(60, Number(
+    auth.expires_in
+    ?? auth.expiresIn
+    ?? auth.data?.expires_in
+    ?? auth.data?.expiresIn
+    ?? 3600
+  ))
   tokenCache = {
-    value: auth.access_token,
+    value: token,
     expiresAt: Date.now() + Math.max(60, expiresIn - 300) * 1000,
   }
 

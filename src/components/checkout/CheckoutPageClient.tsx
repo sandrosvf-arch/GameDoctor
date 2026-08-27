@@ -114,6 +114,7 @@ export function CheckoutPageClient({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null)
   const [loadingQuote, setLoadingQuote] = useState(false)
   const [submittingPayment, setSubmittingPayment] = useState(false)
+  const [redirectingPayment, setRedirectingPayment] = useState(false)
   const [autoRenew, setAutoRenew] = useState(initialQuote.period === "annual")
   const [message, setMessage] = useState<string | null>(initialQuote.coupon.message)
   const [error, setError] = useState<string | null>(null)
@@ -123,6 +124,8 @@ export function CheckoutPageClient({
   const [loadingCardInstallments, setLoadingCardInstallments] = useState(false)
   const [pixPayment, setPixPayment] = useState<PixPaymentState | null>(null)
   const [pixCopied, setPixCopied] = useState(false)
+  const [loadingPostalCode, setLoadingPostalCode] = useState(false)
+  const [postalCodeError, setPostalCodeError] = useState<string | null>(null)
   const idempotencyKeyRef = useRef(newIdempotencyKey())
   const submittingPaymentRef = useRef(false)
   const installmentRequestRef = useRef(0)
@@ -295,6 +298,7 @@ export function CheckoutPageClient({
 
   const handleSubmitPagaleve = useCallback(async () => {
     if (submittingPaymentRef.current) return
+    let redirectStarted = false
 
     const cpfDigits = cpf.replace(/\D/g, "")
     const phoneDigits = phone.replace(/\D/g, "")
@@ -324,6 +328,7 @@ export function CheckoutPageClient({
 
     submittingPaymentRef.current = true
     setSubmittingPayment(true)
+    setRedirectingPayment(false)
     setError(null)
 
     try {
@@ -351,14 +356,67 @@ export function CheckoutPageClient({
         return
       }
 
+      redirectStarted = true
+      setRedirectingPayment(true)
       window.location.assign(data.checkoutUrl)
     } catch {
+      redirectStarted = false
+      setRedirectingPayment(false)
       setError("Não foi possível iniciar o pagamento parcelado. Tente novamente.")
     } finally {
-      submittingPaymentRef.current = false
-      setSubmittingPayment(false)
+      if (!redirectStarted) {
+        submittingPaymentRef.current = false
+        setSubmittingPayment(false)
+      }
     }
   }, [billingAddress, couponCode, cpf, phone, quote.period, quote.plan.slug])
+
+  useEffect(() => {
+    if (selectedPaymentMethod !== "pagaleve") return
+
+    const postalCode = billingAddress.postalCode.replace(/\D/g, "")
+    if (postalCode.length !== 8) {
+      setLoadingPostalCode(false)
+      setPostalCodeError(null)
+      return
+    }
+
+    const controller = new AbortController()
+    const timeout = window.setTimeout(async () => {
+      setLoadingPostalCode(true)
+      setPostalCodeError(null)
+
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${postalCode}/json/`, {
+          signal: controller.signal,
+        })
+        const data = await response.json().catch(() => null)
+
+        if (!response.ok || !data || data.erro) {
+          setPostalCodeError("CEP não encontrado.")
+          return
+        }
+
+        setBillingAddress((current) => ({
+          ...current,
+          street: String(data.logradouro ?? current.street),
+          neighborhood: String(data.bairro ?? current.neighborhood),
+          city: String(data.localidade ?? current.city),
+          state: String(data.uf ?? current.state).slice(0, 2).toUpperCase(),
+        }))
+      } catch (requestError) {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") return
+        setPostalCodeError("Não foi possível consultar o CEP agora.")
+      } finally {
+        if (!controller.signal.aborted) setLoadingPostalCode(false)
+      }
+    }, 350)
+
+    return () => {
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [billingAddress.postalCode, selectedPaymentMethod])
 
   useEffect(() => {
     const pixOrderId = pixPayment?.orderId
@@ -484,7 +542,7 @@ export function CheckoutPageClient({
     selectedPaymentMethod === "pix"
       ? "PIX"
       : selectedPaymentMethod === "pagaleve"
-        ? "PIX parcelado"
+        ? "Parcelamento via Pix - Pagaleve"
       : selectedPaymentMethod === "card"
         ? "Cartão de crédito"
         : "Não selecionada"
@@ -582,10 +640,10 @@ export function CheckoutPageClient({
                 />
                 {quote.period === "annual" && (
                   <PaymentMethodOption
-                    title="PIX parcelado"
-                    description="Parcele no Pix, sem cartão"
+                    title="Parcelamento via Pix - Pagaleve"
+                    description="Confira as parcelas disponíveis e pague sem cartão"
                     icon={<Wallet className="h-5 w-5" />}
-                    badge="Compra anual"
+                    badge="Pagaleve"
                     onClick={() => choosePaymentMethod("pagaleve")}
                   />
                 )}
@@ -619,15 +677,39 @@ export function CheckoutPageClient({
 
                 {selectedPaymentMethod === "pagaleve" ? (
                   <div className="space-y-5 p-4 sm:p-5">
-                    <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.06] p-4">
+                    <div className="rounded-xl border border-white/[0.09] bg-white/[0.025] p-4">
                       <div className="flex items-start gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-200">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-slate-200">
                           <Wallet className="h-5 w-5" />
                         </span>
-                        <div>
-                          <p className="text-sm font-semibold text-white">Parcele no Pix, sem cartão</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-white">Parcelamento via Pix - Pagaleve</p>
                           <p className="mt-1 text-sm leading-5 text-slate-400">
-                            Preencha seus dados e confira as condições disponíveis na próxima etapa.
+                            Parcele sua compra sem cartão e confira todas as condições antes de confirmar.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#090d13]">
+                      <div className="grid gap-px bg-white/[0.07] sm:grid-cols-3">
+                        <PagaleveSummaryItem label="Valor da compra" value={formatCurrency(quote.finalTotal)} />
+                        <PagaleveSummaryItem label="Primeira parcela" value="Pode ser ajustada" />
+                        <PagaleveSummaryItem label="Valor total" value="Não será alterado" />
+                      </div>
+                      <div className="border-t border-white/[0.07] px-4 py-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          Simule suas parcelas
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Consulte no calculador oficial a quantidade e os valores disponíveis para esta compra.
+                        </p>
+                        <PagaleveInstallmentCalculator amount={quote.finalTotal} />
+                        <div className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-3">
+                          <p className="text-xs font-semibold text-amber-100">Simulação sujeita à análise</p>
+                          <p className="mt-1 text-xs leading-5 text-amber-100/70">
+                            A Pagaleve pode ajustar o valor da primeira parcela e redistribuir as próximas.
+                            O valor total da compra permanece o mesmo.
                           </p>
                         </div>
                       </div>
@@ -703,6 +785,15 @@ export function CheckoutPageClient({
                           placeholder="SP"
                         />
                       </div>
+                      {loadingPostalCode && (
+                        <p className="mt-2 flex items-center gap-2 text-xs text-cyan-200">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Consultando CEP...
+                        </p>
+                      )}
+                      {postalCodeError && (
+                        <p className="mt-2 text-xs text-amber-200">{postalCodeError}</p>
+                      )}
                     </div>
 
                     <button
@@ -711,12 +802,14 @@ export function CheckoutPageClient({
                       disabled={submittingPayment}
                       className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {submittingPayment
-                        ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando pagamento...</>
-                        : <><Wallet className="h-4 w-4" />Continuar para o PIX parcelado</>}
+                      {redirectingPayment
+                        ? <><Loader2 className="h-4 w-4 animate-spin" />Abrindo ambiente de pagamento...</>
+                        : submittingPayment
+                          ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando pagamento...</>
+                        : <><Wallet className="h-4 w-4" />Ver condições de parcelamento</>}
                     </button>
                     <p className="text-center text-xs leading-5 text-slate-500">
-                      A análise e as condições de parcelamento serão apresentadas antes da confirmação.
+                      A quantidade, o valor da primeira parcela e as datas das próximas serão confirmados antes do pagamento.
                     </p>
                   </div>
                 ) : selectedPaymentMethod === "pix" ? (
@@ -967,6 +1060,43 @@ export function CheckoutPageClient({
         </aside>
       </div>
     </main>
+  )
+}
+
+function PagaleveInstallmentCalculator({ amount }: { amount: number }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || amount <= 0) return
+
+    container.replaceChildren()
+    const root = document.createElement("div")
+    root.id = "pagaleve-widget-calculator-root"
+    root.dataset.price = String(Math.round(amount * 100))
+    container.appendChild(root)
+
+    const script = document.createElement("script")
+    script.async = true
+    script.src = "https://widget.pagaleve.com.br/pagaleve-widget-installer.js"
+    script.dataset.gameDoctorPagaleveWidget = "true"
+    document.body.appendChild(script)
+
+    return () => {
+      script.remove()
+      container.replaceChildren()
+    }
+  }, [amount])
+
+  return <div ref={containerRef} className="mt-3 min-h-10" />
+}
+
+function PagaleveSummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-[#090d13] px-4 py-3.5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-600">{label}</p>
+      <p className="mt-1.5 text-sm font-semibold text-slate-200">{value}</p>
+    </div>
   )
 }
 

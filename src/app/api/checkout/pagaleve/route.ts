@@ -30,6 +30,21 @@ function normalizeAddress(value: unknown) {
   }
 }
 
+function getPagaleveCallbackBaseUrl() {
+  const baseUrl = getAppBaseUrl()
+
+  try {
+    const url = new URL(baseUrl)
+    const isLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1"
+    if (url.protocol !== "https:" || isLocal) throw new Error()
+    return baseUrl
+  } catch {
+    throw new Error(
+      "Para usar a Pagaleve, configure NEXT_PUBLIC_APP_URL com uma URL HTTPS pública. Em desenvolvimento, use um túnel como ngrok ou Cloudflare Tunnel."
+    )
+  }
+}
+
 export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user?.id) {
@@ -46,7 +61,7 @@ export async function POST(request: Request) {
   const address = normalizeAddress(body?.billingAddress)
 
   if (!planSlug || period !== "annual") {
-    return NextResponse.json({ error: "O PIX parcelado está disponível apenas no plano anual." }, { status: 400 })
+    return NextResponse.json({ error: "O Parcelamento via Pix está disponível apenas no plano anual." }, { status: 400 })
   }
   if (cpf.length !== 11) {
     return NextResponse.json({ error: "Informe um CPF válido." }, { status: 400 })
@@ -68,6 +83,7 @@ export async function POST(request: Request) {
   try {
     const webhookSecret = process.env.PAGALEVE_WEBHOOK_SECRET?.trim()
     if (!webhookSecret) throw new Error("O webhook da Pagaleve não está configurado.")
+    const baseUrl = getPagaleveCallbackBaseUrl()
 
     const user = await db.user.findUnique({
       where: { id: session.user.id },
@@ -109,7 +125,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ orderId: checkout.orderId, checkoutUrl: existingOrder.gatewayCheckoutUrl })
     }
 
-    const baseUrl = getAppBaseUrl()
     const returnBase = `${baseUrl}/api/checkout/pagaleve/return?orderId=${encodeURIComponent(checkout.orderId)}`
     const pagaleveCheckout = await createPagaleveCheckout({
       orderId: checkout.orderId,
@@ -158,7 +173,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[checkout/pagaleve]", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Não foi possível iniciar o PIX parcelado." },
+      { error: error instanceof Error ? error.message : "Não foi possível iniciar o Parcelamento via Pix." },
       { status: 400 },
     )
   }
