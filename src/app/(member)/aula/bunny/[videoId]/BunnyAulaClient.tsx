@@ -315,7 +315,7 @@ export default function BunnyAulaClient({
         </div>
       </div>
 
-      <div className="container py-6 pb-24 md:pb-6">
+      <div className="container px-4 py-5 pb-36 sm:px-6 md:py-6 md:pb-6 lg:px-8">
         <div className="flex items-start gap-6">
           <div className="min-w-0 flex-1 space-y-6">
             <button
@@ -341,7 +341,7 @@ export default function BunnyAulaClient({
             </div>
 
             <div
-              className="relative -mx-8 w-[calc(100%+4rem)] overflow-hidden rounded-none bg-black shadow-xl md:mx-0 md:w-full md:rounded-xl"
+              className="relative -mx-4 w-[calc(100%+2rem)] overflow-hidden rounded-none bg-black shadow-xl sm:-mx-6 sm:w-[calc(100%+3rem)] md:mx-0 md:w-full md:rounded-xl"
               style={{ aspectRatio: "16/9" }}
             >
               {isReleaseLocked ? (
@@ -472,7 +472,7 @@ export default function BunnyAulaClient({
                 {description && (
                   <div className="space-y-1.5">
                     <h2 className="text-lg font-semibold text-white">Descrição</h2>
-                    <p className="whitespace-pre-line text-base leading-relaxed text-white">
+                    <p className="whitespace-pre-line text-sm leading-7 text-white md:text-base md:leading-relaxed">
                       {description}
                     </p>
                   </div>

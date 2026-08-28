@@ -58,6 +58,7 @@ export function PlatformAssistant({
   const [supportUrl, setSupportUrl] = useState(whatsappUrl)
 
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
+  const isLessonPage = pathname.startsWith("/aula/")
 
   if (!page && pathname === "/assistente") return null
 
@@ -160,9 +161,19 @@ export function PlatformAssistant({
   }
 
   return (
-    <div className={page ? "mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-4xl flex-col px-4 py-6 md:px-8 md:py-10" : "fixed bottom-5 right-5 z-[70] flex flex-col items-end gap-3"}>
+    <div className={page
+      ? "mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-4xl flex-col px-4 py-6 md:px-8 md:py-10"
+      : isLessonPage
+        ? "fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] right-3 z-[70] flex flex-col items-end gap-3 md:bottom-5 md:right-5"
+        : "fixed bottom-5 right-5 z-[70] flex flex-col items-end gap-3"
+    }>
       {(page || open) && (
-        <section className={page ? "flex min-h-[calc(100vh-9rem)] w-full flex-col overflow-hidden rounded-2xl border border-white/[0.12] bg-[#15151d] shadow-2xl shadow-black/30" : "flex h-[min(620px,calc(100vh-7rem))] w-[min(390px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-white/[0.12] bg-[#15151d] shadow-2xl shadow-black/40"}>
+        <section className={page
+          ? "flex min-h-[calc(100vh-9rem)] w-full flex-col overflow-hidden rounded-2xl border border-white/[0.12] bg-[#15151d] shadow-2xl shadow-black/30"
+          : isLessonPage
+            ? "flex h-[min(560px,calc(100vh-11rem))] w-[min(390px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-white/[0.12] bg-[#15151d] shadow-2xl shadow-black/40 md:h-[min(620px,calc(100vh-7rem))] md:w-[min(390px,calc(100vw-2rem))]"
+            : "flex h-[min(620px,calc(100vh-7rem))] w-[min(390px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-white/[0.12] bg-[#15151d] shadow-2xl shadow-black/40"
+        }>
           <header className="flex items-center justify-between border-b border-white/[0.08] bg-zinc-950/80 px-4 py-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-400/15 text-cyan-300">
@@ -262,15 +273,15 @@ export function PlatformAssistant({
           href={supportUrl}
           target="_blank"
           rel="noreferrer"
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-500 text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400"
+          className={`flex items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-500 text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400 ${isLessonPage ? "h-11 w-11 md:h-12 md:w-12" : "h-12 w-12"}`}
           title="Falar com um humano no WhatsApp"
           aria-label="Falar com um humano no WhatsApp"
         >
           <WhatsAppIcon className="h-5 w-5" />
         </a>
-        <button type="button" onClick={() => setOpen((value) => !value)} className="flex h-12 items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400 px-4 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-950/30 transition hover:bg-cyan-300" title="Abrir assistente">
+        <button type="button" onClick={() => setOpen((value) => !value)} className={`flex items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-950/30 transition hover:bg-cyan-300 ${isLessonPage ? "h-11 w-11 px-0 md:h-12 md:w-auto md:px-4" : "h-12 px-4"}`} title="Abrir assistente">
           {open ? <X className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-          <span>Fale com nossa IA</span>
+          <span className={isLessonPage ? "sr-only md:not-sr-only" : undefined}>Fale com nossa IA</span>
         </button>
       </div>}
     </div>
