@@ -43,5 +43,6 @@ venv/
 *.so
 *.dylib
 .vercel
+.local/
 
 .env.vercel*
