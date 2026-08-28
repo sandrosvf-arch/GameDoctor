@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button"
 import { BUNNY_CDN_HOST } from "@/lib/constants"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
-import { BunnyPreviewPlayer } from "@/components/lessons/BunnyPreviewPlayer"
+import { BunnyEmbedPlayer, BunnyPreviewPlayer } from "@/components/lessons/BunnyPreviewPlayer"
 
 export interface LessonMaterial {
   id: string
@@ -140,6 +140,7 @@ export default function BunnyAulaClient({
   const [submittingComment, setSubmittingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
   const [commentInfo, setCommentInfo] = useState<string | null>(null)
+  const advancingRef = useRef(false)
   const {
     completed,
     handlePlaybackProgress,
@@ -162,6 +163,7 @@ export default function BunnyAulaClient({
     setCommentText("")
     setCommentError(null)
     setCommentInfo(null)
+    advancingRef.current = false
 
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
     const saved = localStorage.getItem("gamedoctor_autoadvance")
@@ -189,14 +191,15 @@ export default function BunnyAulaClient({
   }, [])
 
   const handleEnded = useCallback(() => {
-    if (!autoAdvance || !nextLesson) return
+    if (!isAccessible || !autoAdvance || !nextLesson || advancingRef.current) return
+    advancingRef.current = true
 
     const href = nextLesson.videoProviderId
       ? `/aula/bunny/${nextLesson.videoProviderId}`
       : `/aula/${nextLesson.id}`
 
-    router.push(href)
-  }, [autoAdvance, nextLesson, router])
+    window.location.assign(href)
+  }, [autoAdvance, isAccessible, nextLesson])
 
   const loadComments = useCallback(async () => {
     if (!lessonId) return
@@ -436,15 +439,10 @@ export default function BunnyAulaClient({
                   </button>
                 </div>
               ) : mounted ? (
-                <iframe
-                  src={embedUrl.replace("autoplay=false", "autoplay=true")}
-                  className="absolute inset-0 h-full w-full brightness-[1.2]"
-                  width="100%"
-                  height="100%"
-                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
+                <BunnyEmbedPlayer
+                  embedUrl={embedUrl.replace("autoplay=false", "autoplay=true")}
                   title={title}
+                  onEnded={handleEnded}
                 />
               ) : null}
             </div>

@@ -13,6 +13,75 @@ interface PlayerJsNamespace {
   Player: new (element: HTMLIFrameElement) => PlayerJsInstance
 }
 
+export function BunnyEmbedPlayer({
+  embedUrl,
+  title,
+  onEnded,
+}: {
+  embedUrl: string
+  title: string
+  onEnded: () => void
+}) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const onEndedRef = useRef(onEnded)
+  const [scriptReady, setScriptReady] = useState(false)
+
+  useEffect(() => {
+    onEndedRef.current = onEnded
+  }, [onEnded])
+
+  useEffect(() => {
+    if (!scriptReady || !iframeRef.current) return
+
+    const playerJs = (
+      window as typeof window & { playerjs?: PlayerJsNamespace }
+    ).playerjs
+
+    if (!playerJs) return
+
+    const player = new playerJs.Player(iframeRef.current)
+    const handleEnded = () => onEndedRef.current()
+
+    player.on("ended", handleEnded)
+    return () => {
+      if (!iframeRef.current?.contentWindow) return
+
+      try {
+        player.off?.("ended", handleEnded)
+      } catch {
+        // O iframe pode ser desmontado durante uma navegação.
+      }
+    }
+  }, [embedUrl, scriptReady])
+
+  const handleScriptReady = useCallback(() => {
+    setScriptReady(true)
+  }, [])
+
+  return (
+    <>
+      <Script
+        id="bunny-playerjs"
+        src="https://assets.mediadelivery.net/playerjs/playerjs-latest.min.js"
+        strategy="afterInteractive"
+        onLoad={handleScriptReady}
+        onReady={handleScriptReady}
+      />
+      <iframe
+        ref={iframeRef}
+        src={embedUrl}
+        className="absolute inset-0 h-full w-full brightness-[1.2]"
+        width="100%"
+        height="100%"
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+        allowFullScreen
+        title={title}
+        referrerPolicy="strict-origin-when-cross-origin"
+      />
+    </>
+  )
+}
+
 export function BunnyPreviewPlayer({
   lessonId,
   title,
@@ -24,16 +93,9 @@ export function BunnyPreviewPlayer({
   thumbnail: string | null
   onEnded: () => void
 }) {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const onEndedRef = useRef(onEnded)
   const [embedUrl, setEmbedUrl] = useState<string | null>(null)
-  const [scriptReady, setScriptReady] = useState(false)
   const [loading, setLoading] = useState(true)
   const [unavailable, setUnavailable] = useState(false)
-
-  useEffect(() => {
-    onEndedRef.current = onEnded
-  }, [onEnded])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -68,36 +130,8 @@ export function BunnyPreviewPlayer({
     return () => controller.abort()
   }, [lessonId])
 
-  const handleScriptReady = useCallback(() => {
-    setScriptReady(true)
-  }, [])
-
-  useEffect(() => {
-    if (!scriptReady || !embedUrl || !iframeRef.current) return
-
-    const playerJs = (
-      window as typeof window & { playerjs?: PlayerJsNamespace }
-    ).playerjs
-
-    if (!playerJs) return
-
-    const player = new playerJs.Player(iframeRef.current)
-    const handleEnded = () => onEndedRef.current()
-
-    player.on("ended", handleEnded)
-    return () => player.off?.("ended", handleEnded)
-  }, [embedUrl, scriptReady])
-
   return (
     <div className="absolute inset-0 bg-black">
-      <Script
-        id="bunny-playerjs"
-        src="https://assets.mediadelivery.net/playerjs/playerjs-latest.min.js"
-        strategy="afterInteractive"
-        onLoad={handleScriptReady}
-        onReady={handleScriptReady}
-      />
-
       {thumbnail && !embedUrl && (
         <img
           src={thumbnail}
@@ -121,16 +155,10 @@ export function BunnyPreviewPlayer({
       )}
 
       {embedUrl && (
-        <iframe
-          ref={iframeRef}
-          src={embedUrl}
-          className="absolute inset-0 h-full w-full brightness-[1.2]"
-          width="100%"
-          height="100%"
-          allow="accelerometer; gyroscope; encrypted-media; picture-in-picture"
-          allowFullScreen
+        <BunnyEmbedPlayer
+          embedUrl={embedUrl}
           title={`Prévia: ${title}`}
-          referrerPolicy="strict-origin-when-cross-origin"
+          onEnded={onEnded}
         />
       )}
     </div>

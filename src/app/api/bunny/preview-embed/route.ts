@@ -24,6 +24,7 @@ export async function GET(request: Request) {
       id: true,
       status: true,
       previewEnabled: true,
+      videoProviderId: true,
       previewVideoProviderId: true,
     },
   })
@@ -57,7 +58,8 @@ export async function GET(request: Request) {
   if (
     !lesson.previewEnabled ||
     !access.isPreview ||
-    !lesson.previewVideoProviderId
+    !lesson.previewVideoProviderId ||
+    lesson.previewVideoProviderId === lesson.videoProviderId
   ) {
     return NextResponse.json({ error: "PREVIEW_UNAVAILABLE" }, { status: 404 })
   }

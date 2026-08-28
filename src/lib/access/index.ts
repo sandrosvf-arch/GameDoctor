@@ -92,6 +92,7 @@ export async function hasAccessToLesson(
       courseId: true,
       isFree: true,
       previewEnabled: true,
+      videoProviderId: true,
       previewVideoProviderId: true,
       releaseAfterDays: true,
       status: true,
@@ -108,6 +109,12 @@ export async function hasAccessToLesson(
 
   if (!lesson || lesson.status !== "PUBLISHED") return noAccess
 
+  const hasSeparatePreview = Boolean(
+    lesson.previewEnabled
+    && lesson.previewVideoProviderId
+    && lesson.previewVideoProviderId !== lesson.videoProviderId
+  )
+
   if (lesson.isFree || options?.isStaff) {
     return {
       hasAccess: true,
@@ -119,7 +126,7 @@ export async function hasAccessToLesson(
   }
 
   if (!userId) {
-    if (lesson.previewEnabled && lesson.previewVideoProviderId) {
+    if (hasSeparatePreview) {
       return {
         hasAccess: true,
         isPreview: true,
@@ -189,7 +196,7 @@ export async function hasAccessToLesson(
     }
   }
 
-  if (lesson.previewEnabled && lesson.previewVideoProviderId) {
+  if (hasSeparatePreview) {
     return {
       hasAccess: true,
       isPreview: true,

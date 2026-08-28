@@ -44,11 +44,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
     db.lesson.findFirst({
       where: {
         status: "PUBLISHED",
-        OR: [
-          { videoProviderId: videoId },
-          { videoPlaybackUrl: { contains: videoId } },
-          { videoEmbedUrl: { contains: videoId } },
-        ],
+        videoProviderId: videoId,
       },
       select: {
         id: true,
