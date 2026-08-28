@@ -207,8 +207,8 @@
   width: 2.375rem;
   height: 2.375rem;
   border-radius: 0.5rem;
-  background: rgba(2, 188, 225, 0.12);
-  color: #02bce1;
+  background: #ff0000;
+  color: #ffffff;
 }
 
 .home-lesson-counter-icon svg {
