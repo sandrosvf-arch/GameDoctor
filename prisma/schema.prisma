@@ -270,36 +270,51 @@ model User {
   updatedAt    DateTime     @updatedAt @map("updated_at")
   lastLoginAt  DateTime?    @map("last_login_at")
 
-  orders            Order[]
-  payments          Payment[]
-  subscriptions     Subscription[]
-  accessPermissions AccessPermission[]
-  lessonProgress    LessonProgress[]
-  certificates      Certificate[]
-  adminLogs         AdminLog[]
-  comments          Comment[]
-  communityTopics   CommunityTopic[]            @relation("CommunityTopicAuthor")
-  approvedCommunityTopics CommunityTopic[]      @relation("CommunityTopicApprovedBy")
-  communityPosts    CommunityPost[]             @relation("CommunityPostAuthor")
-  approvedCommunityPosts CommunityPost[]        @relation("CommunityPostApprovedBy")
-  communityAttachments CommunityAttachment[]    @relation("CommunityAttachmentUploadedBy")
-  communityBans     CommunityBan[]              @relation("CommunityBanUser")
-  issuedCommunityBans CommunityBan[]            @relation("CommunityBanCreatedBy")
-  revokedCommunityBans CommunityBan[]           @relation("CommunityBanRevokedBy")
+  orders                     Order[]
+  payments                   Payment[]
+  subscriptions              Subscription[]
+  accessPermissions          AccessPermission[]
+  lessonProgress             LessonProgress[]
+  certificates               Certificate[]
+  adminLogs                  AdminLog[]
+  comments                   Comment[]
+  communityTopics            CommunityTopic[]            @relation("CommunityTopicAuthor")
+  approvedCommunityTopics    CommunityTopic[]            @relation("CommunityTopicApprovedBy")
+  communityPosts             CommunityPost[]             @relation("CommunityPostAuthor")
+  approvedCommunityPosts     CommunityPost[]             @relation("CommunityPostApprovedBy")
+  communityAttachments       CommunityAttachment[]       @relation("CommunityAttachmentUploadedBy")
+  communityBans              CommunityBan[]              @relation("CommunityBanUser")
+  issuedCommunityBans        CommunityBan[]              @relation("CommunityBanCreatedBy")
+  revokedCommunityBans       CommunityBan[]              @relation("CommunityBanRevokedBy")
   communityModerationActions CommunityModerationAction[] @relation("CommunityModerator")
-  communityTargetActions CommunityModerationAction[]     @relation("CommunityTargetUser")
-  communityPostLikes CommunityPostLike[]        @relation("CommunityPostLikeUser")
-  supportTickets    Ticket[]                    @relation("TicketStudent")
-  closedTickets     Ticket[]                    @relation("TicketClosedBy")
-  ticketMessages    TicketMessage[]             @relation("TicketMessageAuthor")
-  ticketAttachments TicketAttachment[]          @relation("TicketAttachmentUploadedBy")
-  downloadMaterials DownloadMaterial[]          @relation("DownloadMaterialCreatedBy")
-  aiConversations   AiConversation[]
-  aiMessages        AiMessage[]
-  aiUsageMonths     AiUsageMonth[]
-  billingAddress    UserBillingAddress?
+  communityTargetActions     CommunityModerationAction[] @relation("CommunityTargetUser")
+  communityPostLikes         CommunityPostLike[]         @relation("CommunityPostLikeUser")
+  supportTickets             Ticket[]                    @relation("TicketStudent")
+  closedTickets              Ticket[]                    @relation("TicketClosedBy")
+  ticketMessages             TicketMessage[]             @relation("TicketMessageAuthor")
+  ticketAttachments          TicketAttachment[]          @relation("TicketAttachmentUploadedBy")
+  downloadMaterials          DownloadMaterial[]          @relation("DownloadMaterialCreatedBy")
+  aiConversations            AiConversation[]
+  aiMessages                 AiMessage[]
+  aiUsageMonths              AiUsageMonth[]
+  billingAddress             UserBillingAddress?
+  passwordResetTokens        PasswordResetToken[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 model UserBillingAddress {
@@ -359,8 +374,8 @@ model AiConversation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages  AiMessage[]
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AiMessage[]
 
   @@index([userId, updatedAt])
   @@map("ai_conversations")
@@ -387,15 +402,15 @@ model AiMessage {
 }
 
 model AiUsageMonth {
-  id            String   @id @default(cuid())
-  userId        String   @map("user_id")
-  periodStart   DateTime @map("period_start") @db.Date
-  creditsUsed   Int      @default(0) @map("credits_used")
-  requestCount  Int      @default(0) @map("request_count")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  periodStart  DateTime @map("period_start") @db.Date
+  creditsUsed  Int      @default(0) @map("credits_used")
+  requestCount Int      @default(0) @map("request_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, periodStart])
   @@index([periodStart])
@@ -403,26 +418,26 @@ model AiUsageMonth {
 }
 
 model Course {
-  id               String       @id @default(cuid())
-  title            String
-  slug             String       @unique
-  shortDescription String?      @map("short_description")
-  description      String?
-  coverImage       String?      @map("cover_image")
-  bannerImage      String?      @map("banner_image")
-  price            Decimal?     @db.Decimal(10, 2)
-  status           CourseStatus @default(DRAFT)
-  categoryId       String?      @map("category_id")
-  platformId       String?      @map("platform_id")
-  workloadHours    Int?         @map("workload_hours")
-  instructorId     String?      @map("instructor_id")
-  certificateEnabled Boolean    @default(false) @map("certificate_enabled")
-  displayOrder     Int          @default(0) @map("display_order")
-  trailColorRgb    String?      @map("trail_color_rgb")
-  badgeTextColorRgb String?     @map("badge_text_color_rgb")
-  badgeLabel        String?      @map("badge_label")
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime     @updatedAt @map("updated_at")
+  id                 String       @id @default(cuid())
+  title              String
+  slug               String       @unique
+  shortDescription   String?      @map("short_description")
+  description        String?
+  coverImage         String?      @map("cover_image")
+  bannerImage        String?      @map("banner_image")
+  price              Decimal?     @db.Decimal(10, 2)
+  status             CourseStatus @default(DRAFT)
+  categoryId         String?      @map("category_id")
+  platformId         String?      @map("platform_id")
+  workloadHours      Int?         @map("workload_hours")
+  instructorId       String?      @map("instructor_id")
+  certificateEnabled Boolean      @default(false) @map("certificate_enabled")
+  displayOrder       Int          @default(0) @map("display_order")
+  trailColorRgb      String?      @map("trail_color_rgb")
+  badgeTextColorRgb  String?      @map("badge_text_color_rgb")
+  badgeLabel         String?      @map("badge_label")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
   category          Category?          @relation(fields: [categoryId], references: [id])
   platform          Platform?          @relation(fields: [platformId], references: [id])
@@ -440,16 +455,16 @@ model Course {
 }
 
 model CatalogCategory {
-  id          String            @id @default(cuid())
+  id          String       @id @default(cuid())
   name        String
-  slug        String            @unique
+  slug        String       @unique
   description String?
-  parentId    String?           @map("parent_id")
-  order       Int               @default(0)
-  status      EntityStatus      @default(ACTIVE)
-  showInMenu  Boolean           @default(true) @map("show_in_menu")
-  createdAt   DateTime          @default(now()) @map("created_at")
-  updatedAt   DateTime          @updatedAt @map("updated_at")
+  parentId    String?      @map("parent_id")
+  order       Int          @default(0)
+  status      EntityStatus @default(ACTIVE)
+  showInMenu  Boolean      @default(true) @map("show_in_menu")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
 
   parent           CatalogCategory?  @relation("CatalogCategoryTree", fields: [parentId], references: [id])
   children         CatalogCategory[] @relation("CatalogCategoryTree")
@@ -460,12 +475,12 @@ model CatalogCategory {
 }
 
 model CourseCategory {
-  courseId    String   @map("course_id")
-  categoryId  String   @map("category_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  courseId   String   @map("course_id")
+  categoryId String   @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  category  CatalogCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  course   Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  category CatalogCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([courseId, categoryId])
   @@index([categoryId])
@@ -533,7 +548,7 @@ model Lesson {
   isFree                 Boolean             @default(false) @map("is_free")
   searchKeywords         String?             @map("search_keywords")
   previewEnabled         Boolean             @default(false) @map("preview_enabled")
-  previewVideoProviderId String?              @map("preview_video_provider_id")
+  previewVideoProviderId String?             @map("preview_video_provider_id")
   previewDurationSeconds Int?                @map("preview_duration_seconds")
   previewPercentage      Int?                @map("preview_percentage")
   releaseAfterDays       Int                 @default(7) @map("release_after_days")
@@ -546,10 +561,10 @@ model Lesson {
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
 
-  course         Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  module         Module?         @relation(fields: [moduleId], references: [id])
-  videoAsset     VideoAsset?     @relation(fields: [videoAssetId], references: [id])
-  requiredPlan   Plan?           @relation("RequiredPlan", fields: [requiredPlanId], references: [id])
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module         Module?          @relation(fields: [moduleId], references: [id])
+  videoAsset     VideoAsset?      @relation(fields: [videoAssetId], references: [id])
+  requiredPlan   Plan?            @relation("RequiredPlan", fields: [requiredPlanId], references: [id])
   materials      Material[]
   planLessons    PlanLesson[]
   lessonProgress LessonProgress[]
@@ -573,9 +588,9 @@ model Material {
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
-  course Course?  @relation(fields: [courseId], references: [id])
-  module Module?  @relation(fields: [moduleId], references: [id])
-  lesson Lesson?  @relation(fields: [lessonId], references: [id])
+  course Course? @relation(fields: [courseId], references: [id])
+  module Module? @relation(fields: [moduleId], references: [id])
+  lesson Lesson? @relation(fields: [lessonId], references: [id])
 
   @@map("materials")
 }
@@ -602,28 +617,29 @@ model DownloadMaterial {
   @@index([createdAt])
   @@map("download_materials")
 }
+
 model Plan {
-  id                 String      @id @default(cuid())
-  name               String
-  slug               String      @unique
-  description        String?
-  price              Decimal?    @db.Decimal(10, 2)
-  annualPrice        Decimal?    @db.Decimal(10, 2) @map("annual_price")
-  monthlyPrice       Decimal?    @db.Decimal(10, 2) @map("monthly_price")
-  billingType        BillingType @default(ONE_TIME) @map("billing_type")
-  accessDurationDays Int?        @map("access_duration_days")
-  annualAccessDurationDays Int   @default(365) @map("annual_access_duration_days")
-  monthlyAccessDurationDays Int? @map("monthly_access_duration_days")
-  monthlyEnabled     Boolean     @default(false) @map("monthly_enabled")
-  benefits           String[]    @default([])
-  maxInstallments    Int         @default(12) @map("max_installments")
-  maxInstallmentsNoInterest Int  @default(1) @map("max_installments_no_interest")
-  status             PlanStatus  @default(ACTIVE)
-  highlighted        Boolean     @default(false)
-  certificateIncluded Boolean    @default(false) @map("certificate_included")
-  supportIncluded    Boolean     @default(false) @map("support_included")
-  createdAt          DateTime    @default(now()) @map("created_at")
-  updatedAt          DateTime    @updatedAt @map("updated_at")
+  id                        String      @id @default(cuid())
+  name                      String
+  slug                      String      @unique
+  description               String?
+  price                     Decimal?    @db.Decimal(10, 2)
+  annualPrice               Decimal?    @map("annual_price") @db.Decimal(10, 2)
+  monthlyPrice              Decimal?    @map("monthly_price") @db.Decimal(10, 2)
+  billingType               BillingType @default(ONE_TIME) @map("billing_type")
+  accessDurationDays        Int?        @map("access_duration_days")
+  annualAccessDurationDays  Int         @default(365) @map("annual_access_duration_days")
+  monthlyAccessDurationDays Int?        @map("monthly_access_duration_days")
+  monthlyEnabled            Boolean     @default(false) @map("monthly_enabled")
+  benefits                  String[]    @default([])
+  maxInstallments           Int         @default(12) @map("max_installments")
+  maxInstallmentsNoInterest Int         @default(1) @map("max_installments_no_interest")
+  status                    PlanStatus  @default(ACTIVE)
+  highlighted               Boolean     @default(false)
+  certificateIncluded       Boolean     @default(false) @map("certificate_included")
+  supportIncluded           Boolean     @default(false) @map("support_included")
+  createdAt                 DateTime    @default(now()) @map("created_at")
+  updatedAt                 DateTime    @updatedAt @map("updated_at")
 
   planCourses       PlanCourse[]
   planLessons       PlanLesson[]
@@ -631,7 +647,7 @@ model Plan {
   subscriptions     Subscription[]
   accessPermissions AccessPermission[]
   coupons           Coupon[]
-  requiredByLessons Lesson[]     @relation("RequiredPlan")
+  requiredByLessons Lesson[]           @relation("RequiredPlan")
 
   @@map("plans")
 }
@@ -666,7 +682,7 @@ model Coupon {
   id             String       @id @default(cuid())
   code           String       @unique
   discountType   DiscountType @map("discount_type")
-  discountValue  Decimal      @db.Decimal(10, 2) @map("discount_value")
+  discountValue  Decimal      @map("discount_value") @db.Decimal(10, 2)
   planId         String?      @map("plan_id")
   startsAt       DateTime?    @map("starts_at")
   expiresAt      DateTime?    @map("expires_at")
@@ -684,28 +700,28 @@ model Coupon {
 }
 
 model Order {
-  id               String         @id @default(cuid())
-  userId           String         @map("user_id")
-  total            Decimal        @db.Decimal(10, 2)
-  discountTotal    Decimal        @default(0) @db.Decimal(10, 2) @map("discount_total")
-  finalTotal       Decimal        @db.Decimal(10, 2) @map("final_total")
-  paymentMethod    PaymentMethod? @map("payment_method")
-  paymentStatus    PaymentStatus  @default(PENDING) @map("payment_status")
-  gateway          PaymentGateway?
-  gatewayReference String?        @map("gateway_reference")
-  gatewayCheckoutUrl String?      @map("gateway_checkout_url")
-  couponId         String?        @map("coupon_id")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  id                 String          @id @default(cuid())
+  userId             String          @map("user_id")
+  total              Decimal         @db.Decimal(10, 2)
+  discountTotal      Decimal         @default(0) @map("discount_total") @db.Decimal(10, 2)
+  finalTotal         Decimal         @map("final_total") @db.Decimal(10, 2)
+  paymentMethod      PaymentMethod?  @map("payment_method")
+  paymentStatus      PaymentStatus   @default(PENDING) @map("payment_status")
+  gateway            PaymentGateway?
+  gatewayReference   String?         @map("gateway_reference")
+  gatewayCheckoutUrl String?         @map("gateway_checkout_url")
+  couponId           String?         @map("coupon_id")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
 
-  user       User        @relation(fields: [userId], references: [id])
-  coupon     Coupon?     @relation(fields: [couponId], references: [id])
-  orderItems           OrderItem[]
-  payments             Payment[]
-  subscriptionId       String?        @map("subscription_id")
-  subscription         Subscription?  @relation("SubscriptionOrders", fields: [subscriptionId], references: [id])
-  initialSubscription  Subscription?  @relation("SubscriptionInitialOrder")
-  idempotencyKey       String?        @unique @map("idempotency_key")
+  user                User          @relation(fields: [userId], references: [id])
+  coupon              Coupon?       @relation(fields: [couponId], references: [id])
+  orderItems          OrderItem[]
+  payments            Payment[]
+  subscriptionId      String?       @map("subscription_id")
+  subscription        Subscription? @relation("SubscriptionOrders", fields: [subscriptionId], references: [id])
+  initialSubscription Subscription? @relation("SubscriptionInitialOrder")
+  idempotencyKey      String?       @unique @map("idempotency_key")
 
   @@map("orders")
 }
@@ -727,23 +743,24 @@ model Subscription {
   createdAt             DateTime           @default(now()) @map("created_at")
   updatedAt             DateTime           @updatedAt @map("updated_at")
 
-  user         User  @relation(fields: [userId], references: [id])
-  plan         Plan  @relation(fields: [planId], references: [id])
-  initialOrder Order @relation("SubscriptionInitialOrder", fields: [initialOrderId], references: [id])
+  user         User    @relation(fields: [userId], references: [id])
+  plan         Plan    @relation(fields: [planId], references: [id])
+  initialOrder Order   @relation("SubscriptionInitialOrder", fields: [initialOrderId], references: [id])
   orders       Order[] @relation("SubscriptionOrders")
 
   @@index([userId, status])
   @@index([nextBillingAt, status])
   @@map("subscriptions")
 }
+
 model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String   @map("order_id")
-  courseId  String?  @map("course_id")
-  planId    String?  @map("plan_id")
+  id         String              @id @default(cuid())
+  orderId    String              @map("order_id")
+  courseId   String?             @map("course_id")
+  planId     String?             @map("plan_id")
   planPeriod PlanCheckoutPeriod? @map("plan_period")
-  price     Decimal  @db.Decimal(10, 2)
-  createdAt DateTime @default(now()) @map("created_at")
+  price      Decimal             @db.Decimal(10, 2)
+  createdAt  DateTime            @default(now()) @map("created_at")
 
   order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   course Course? @relation(fields: [courseId], references: [id])
@@ -776,21 +793,21 @@ model Payment {
 }
 
 model Comment {
-  id          String    @id @default(cuid())
-  lessonId    String    @map("lesson_id")
-  userId      String    @map("user_id")
-  parentId    String?   @map("parent_id")
-  content     String
-  status      String    @default("APPROVED")
-  approvedAt  DateTime? @map("approved_at")
-  approvedBy  String?   @map("approved_by")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id         String    @id @default(cuid())
+  lessonId   String    @map("lesson_id")
+  userId     String    @map("user_id")
+  parentId   String?   @map("parent_id")
+  content    String
+  status     String    @default("APPROVED")
+  approvedAt DateTime? @map("approved_at")
+  approvedBy String?   @map("approved_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
-  lesson   Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies  Comment[] @relation("CommentReplies")
+  lesson  Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
 
   @@index([lessonId, status, createdAt])
   @@index([parentId])
@@ -798,14 +815,14 @@ model Comment {
 }
 
 model PaymentWebhook {
-  id          String         @id @default(cuid())
-  gateway     PaymentGateway
-  externalEventId String?     @unique @map("external_event_id")
-  eventType   String         @map("event_type")
-  payload     Json
-  processed   Boolean        @default(false)
-  createdAt   DateTime       @default(now()) @map("created_at")
-  processedAt DateTime?      @map("processed_at")
+  id              String         @id @default(cuid())
+  gateway         PaymentGateway
+  externalEventId String?        @unique @map("external_event_id")
+  eventType       String         @map("event_type")
+  payload         Json
+  processed       Boolean        @default(false)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  processedAt     DateTime?      @map("processed_at")
 
   @@map("payment_webhooks")
 }
@@ -832,16 +849,16 @@ model AccessPermission {
 }
 
 model LessonProgress {
-  id            String    @id @default(cuid())
-  userId        String    @map("user_id")
-  courseId      String    @map("course_id")
-  lessonId      String    @map("lesson_id")
-  watchedSeconds Int      @default(0) @map("watched_seconds")
-  completed     Boolean   @default(false)
-  completedAt   DateTime? @map("completed_at")
-  lastWatchedAt DateTime? @map("last_watched_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  courseId       String    @map("course_id")
+  lessonId       String    @map("lesson_id")
+  watchedSeconds Int       @default(0) @map("watched_seconds")
+  completed      Boolean   @default(false)
+  completedAt    DateTime? @map("completed_at")
+  lastWatchedAt  DateTime? @map("last_watched_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   user   User   @relation(fields: [userId], references: [id])
   course Course @relation(fields: [courseId], references: [id])
@@ -924,14 +941,14 @@ model LessonSuggestion {
 }
 
 model HelpCategory {
-  id          String       @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  slug        String       @unique
+  slug        String   @unique
   description String?
-  order       Int          @default(0)
-  status      String       @default("ACTIVE")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  order       Int      @default(0)
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   articles HelpArticle[]
 
@@ -939,16 +956,16 @@ model HelpCategory {
 }
 
 model HelpArticle {
-  id          String       @id @default(cuid())
-  categoryId  String       @map("category_id")
-  title       String
-  slug        String       @unique
-  excerpt     String?
-  content     String       @db.Text
-  order       Int          @default(0)
-  status      String       @default("ACTIVE")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  id         String   @id @default(cuid())
+  categoryId String   @map("category_id")
+  title      String
+  slug       String   @unique
+  excerpt    String?
+  content    String   @db.Text
+  order      Int      @default(0)
+  status     String   @default("ACTIVE")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   category HelpCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
@@ -966,29 +983,29 @@ model TicketDepartment {
   createdAt   DateTime               @default(now()) @map("created_at")
   updatedAt   DateTime               @updatedAt @map("updated_at")
 
-  tickets     Ticket[]
+  tickets Ticket[]
 
   @@index([status, order])
   @@map("ticket_departments")
 }
 
 model Ticket {
-  id            String         @id @default(cuid())
-  ticketNumber  String         @unique @map("ticket_number")
-  studentId     String         @map("student_id")
-  departmentId  String         @map("department_id")
+  id            String       @id @default(cuid())
+  ticketNumber  String       @unique @map("ticket_number")
+  studentId     String       @map("student_id")
+  departmentId  String       @map("department_id")
   subject       String
-  status        TicketStatus   @default(ABERTO)
-  lastMessageAt DateTime       @map("last_message_at")
-  closedAt      DateTime?      @map("closed_at")
-  closedById    String?        @map("closed_by_id")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
+  status        TicketStatus @default(ABERTO)
+  lastMessageAt DateTime     @map("last_message_at")
+  closedAt      DateTime?    @map("closed_at")
+  closedById    String?      @map("closed_by_id")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
 
-  student       User           @relation("TicketStudent", fields: [studentId], references: [id], onDelete: Cascade)
-  department    TicketDepartment @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  closedBy      User?          @relation("TicketClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
-  messages      TicketMessage[]
+  student    User             @relation("TicketStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  department TicketDepartment @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  closedBy   User?            @relation("TicketClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  messages   TicketMessage[]
 
   @@index([status, departmentId, lastMessageAt])
   @@index([studentId, lastMessageAt])
@@ -996,16 +1013,16 @@ model Ticket {
 }
 
 model TicketMessage {
-  id          String           @id @default(cuid())
-  ticketId     String           @map("ticket_id")
-  authorId     String           @map("author_id")
-  authorType   TicketAuthorType @map("author_type")
-  content      String           @db.Text
-  createdAt    DateTime         @default(now()) @map("created_at")
+  id         String           @id @default(cuid())
+  ticketId   String           @map("ticket_id")
+  authorId   String           @map("author_id")
+  authorType TicketAuthorType @map("author_type")
+  content    String           @db.Text
+  createdAt  DateTime         @default(now()) @map("created_at")
 
-  ticket       Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  author       User             @relation("TicketMessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  attachments  TicketAttachment[]
+  ticket      Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User               @relation("TicketMessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  attachments TicketAttachment[]
 
   @@index([ticketId, createdAt])
   @@index([authorId, createdAt])
@@ -1013,17 +1030,17 @@ model TicketMessage {
 }
 
 model TicketAttachment {
-  id           String        @id @default(cuid())
-  messageId     String        @map("message_id")
-  uploadedById  String        @map("uploaded_by_id")
-  fileName      String        @map("file_name")
-  fileUrl       String        @map("file_url")
-  mimeType      String?       @map("mime_type")
-  sizeBytes     Int?          @map("size_bytes")
-  createdAt     DateTime      @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  messageId    String   @map("message_id")
+  uploadedById String   @map("uploaded_by_id")
+  fileName     String   @map("file_name")
+  fileUrl      String   @map("file_url")
+  mimeType     String?  @map("mime_type")
+  sizeBytes    Int?     @map("size_bytes")
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  message       TicketMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  uploadedBy    User          @relation("TicketAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+  message    TicketMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  uploadedBy User          @relation("TicketAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
 
   @@index([messageId])
   @@index([uploadedById, createdAt])
@@ -1042,36 +1059,36 @@ model CommunityForum {
   createdAt             DateTime             @default(now()) @map("created_at")
   updatedAt             DateTime             @updatedAt @map("updated_at")
 
-  topics                CommunityTopic[]
-  moderationActions     CommunityModerationAction[]
+  topics            CommunityTopic[]
+  moderationActions CommunityModerationAction[]
 
   @@index([status, order])
   @@map("community_forums")
 }
 
 model CommunityTopic {
-  id            String               @id @default(cuid())
-  forumId        String               @map("forum_id")
-  authorId       String               @map("author_id")
-  approvedById   String?              @map("approved_by_id")
-  title          String
-  slug           String               @unique
-  content        String               @db.Text
-  status         CommunityTopicStatus @default(PENDING)
-  isPinned       Boolean              @default(false) @map("is_pinned")
-  isLocked       Boolean              @default(false) @map("is_locked")
-  viewsCount     Int                  @default(0) @map("views_count")
-  repliesCount   Int                  @default(0) @map("replies_count")
-  lastReplyAt    DateTime?            @map("last_reply_at")
-  approvedAt     DateTime?            @map("approved_at")
-  createdAt      DateTime             @default(now()) @map("created_at")
-  updatedAt      DateTime             @updatedAt @map("updated_at")
+  id           String               @id @default(cuid())
+  forumId      String               @map("forum_id")
+  authorId     String               @map("author_id")
+  approvedById String?              @map("approved_by_id")
+  title        String
+  slug         String               @unique
+  content      String               @db.Text
+  status       CommunityTopicStatus @default(PENDING)
+  isPinned     Boolean              @default(false) @map("is_pinned")
+  isLocked     Boolean              @default(false) @map("is_locked")
+  viewsCount   Int                  @default(0) @map("views_count")
+  repliesCount Int                  @default(0) @map("replies_count")
+  lastReplyAt  DateTime?            @map("last_reply_at")
+  approvedAt   DateTime?            @map("approved_at")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
 
-  forum          CommunityForum       @relation(fields: [forumId], references: [id], onDelete: Cascade)
-  author         User                 @relation("CommunityTopicAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  approvedBy     User?                @relation("CommunityTopicApprovedBy", fields: [approvedById], references: [id])
-  posts          CommunityPost[]
-  attachments    CommunityAttachment[]
+  forum             CommunityForum              @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  author            User                        @relation("CommunityTopicAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  approvedBy        User?                       @relation("CommunityTopicApprovedBy", fields: [approvedById], references: [id])
+  posts             CommunityPost[]
+  attachments       CommunityAttachment[]
   moderationActions CommunityModerationAction[]
 
   @@index([forumId, status, isPinned, lastReplyAt])
@@ -1080,26 +1097,26 @@ model CommunityTopic {
 }
 
 model CommunityPost {
-  id            String              @id @default(cuid())
-  topicId        String              @map("topic_id")
-  authorId       String              @map("author_id")
-  approvedById   String?             @map("approved_by_id")
-  parentPostId   String?             @map("parent_post_id")
-  content        String              @db.Text
-  likesCount     Int                 @default(0) @map("likes_count")
-  status         CommunityPostStatus @default(PENDING)
-  approvedAt     DateTime?           @map("approved_at")
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
+  id           String              @id @default(cuid())
+  topicId      String              @map("topic_id")
+  authorId     String              @map("author_id")
+  approvedById String?             @map("approved_by_id")
+  parentPostId String?             @map("parent_post_id")
+  content      String              @db.Text
+  likesCount   Int                 @default(0) @map("likes_count")
+  status       CommunityPostStatus @default(PENDING)
+  approvedAt   DateTime?           @map("approved_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
 
-  topic          CommunityTopic      @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  author         User                @relation("CommunityPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  approvedBy     User?               @relation("CommunityPostApprovedBy", fields: [approvedById], references: [id])
-  parentPost     CommunityPost?      @relation("CommunityPostReplies", fields: [parentPostId], references: [id], onDelete: Cascade)
-  replies        CommunityPost[]     @relation("CommunityPostReplies")
-  attachments    CommunityAttachment[]
+  topic             CommunityTopic              @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  author            User                        @relation("CommunityPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  approvedBy        User?                       @relation("CommunityPostApprovedBy", fields: [approvedById], references: [id])
+  parentPost        CommunityPost?              @relation("CommunityPostReplies", fields: [parentPostId], references: [id], onDelete: Cascade)
+  replies           CommunityPost[]             @relation("CommunityPostReplies")
+  attachments       CommunityAttachment[]
   moderationActions CommunityModerationAction[]
-  likes          CommunityPostLike[]
+  likes             CommunityPostLike[]
 
   @@index([topicId, status, createdAt])
   @@index([parentPostId])
@@ -1108,13 +1125,13 @@ model CommunityPost {
 }
 
 model CommunityPostLike {
-  id        String        @id @default(cuid())
-  postId    String        @map("post_id")
-  userId    String        @map("user_id")
-  createdAt DateTime      @default(now()) @map("created_at")
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User          @relation("CommunityPostLikeUser", fields: [userId], references: [id], onDelete: Cascade)
+  post CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User          @relation("CommunityPostLikeUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
   @@index([postId])
@@ -1123,19 +1140,19 @@ model CommunityPostLike {
 }
 
 model CommunityAttachment {
-  id           String           @id @default(cuid())
-  topicId       String?          @map("topic_id")
-  postId        String?          @map("post_id")
-  uploadedById  String           @map("uploaded_by_id")
-  fileName      String           @map("file_name")
-  fileUrl       String           @map("file_url")
-  mimeType      String?          @map("mime_type")
-  sizeBytes     Int?             @map("size_bytes")
-  createdAt     DateTime         @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  topicId      String?  @map("topic_id")
+  postId       String?  @map("post_id")
+  uploadedById String   @map("uploaded_by_id")
+  fileName     String   @map("file_name")
+  fileUrl      String   @map("file_url")
+  mimeType     String?  @map("mime_type")
+  sizeBytes    Int?     @map("size_bytes")
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  topic         CommunityTopic?  @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  post          CommunityPost?   @relation(fields: [postId], references: [id], onDelete: Cascade)
-  uploadedBy    User             @relation("CommunityAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+  topic      CommunityTopic? @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  post       CommunityPost?  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  uploadedBy User            @relation("CommunityAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
 
   @@index([topicId])
   @@index([postId])
@@ -1144,20 +1161,20 @@ model CommunityAttachment {
 }
 
 model CommunityBan {
-  id           String             @id @default(cuid())
-  userId        String             @map("user_id")
-  createdById   String             @map("created_by_id")
-  revokedById   String?            @map("revoked_by_id")
-  reason        String?            @db.Text
-  status        CommunityBanStatus @default(ACTIVE)
-  startsAt      DateTime           @default(now()) @map("starts_at")
-  endsAt        DateTime?          @map("ends_at")
-  createdAt     DateTime           @default(now()) @map("created_at")
-  updatedAt     DateTime           @updatedAt @map("updated_at")
+  id          String             @id @default(cuid())
+  userId      String             @map("user_id")
+  createdById String             @map("created_by_id")
+  revokedById String?            @map("revoked_by_id")
+  reason      String?            @db.Text
+  status      CommunityBanStatus @default(ACTIVE)
+  startsAt    DateTime           @default(now()) @map("starts_at")
+  endsAt      DateTime?          @map("ends_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
 
-  user          User               @relation("CommunityBanUser", fields: [userId], references: [id], onDelete: Cascade)
-  createdBy     User               @relation("CommunityBanCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  revokedBy     User?              @relation("CommunityBanRevokedBy", fields: [revokedById], references: [id])
+  user      User  @relation("CommunityBanUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("CommunityBanCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  revokedBy User? @relation("CommunityBanRevokedBy", fields: [revokedById], references: [id])
 
   @@index([userId, status, endsAt])
   @@map("community_bans")
@@ -1165,20 +1182,20 @@ model CommunityBan {
 
 model CommunityModerationAction {
   id           String                        @id @default(cuid())
-  moderatorId   String                        @map("moderator_id")
-  targetUserId  String?                       @map("target_user_id")
-  forumId       String?                       @map("forum_id")
-  topicId       String?                       @map("topic_id")
-  postId        String?                       @map("post_id")
-  actionType    CommunityModerationActionType @map("action_type")
-  reason        String?                       @db.Text
-  createdAt     DateTime                      @default(now()) @map("created_at")
+  moderatorId  String                        @map("moderator_id")
+  targetUserId String?                       @map("target_user_id")
+  forumId      String?                       @map("forum_id")
+  topicId      String?                       @map("topic_id")
+  postId       String?                       @map("post_id")
+  actionType   CommunityModerationActionType @map("action_type")
+  reason       String?                       @db.Text
+  createdAt    DateTime                      @default(now()) @map("created_at")
 
-  moderator     User                          @relation("CommunityModerator", fields: [moderatorId], references: [id], onDelete: Cascade)
-  targetUser    User?                         @relation("CommunityTargetUser", fields: [targetUserId], references: [id])
-  forum         CommunityForum?               @relation(fields: [forumId], references: [id], onDelete: Cascade)
-  topic         CommunityTopic?               @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  post          CommunityPost?                @relation(fields: [postId], references: [id], onDelete: Cascade)
+  moderator  User            @relation("CommunityModerator", fields: [moderatorId], references: [id], onDelete: Cascade)
+  targetUser User?           @relation("CommunityTargetUser", fields: [targetUserId], references: [id])
+  forum      CommunityForum? @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  topic      CommunityTopic? @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  post       CommunityPost?  @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([moderatorId, createdAt])
   @@index([topicId])

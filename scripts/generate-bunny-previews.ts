@@ -1,6 +1,6 @@
 import crypto from "node:crypto"
 import { spawn } from "node:child_process"
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
+import { access as accessFile, mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { PrismaClient } from "@prisma/client"
 import ffmpegPath from "ffmpeg-static"
@@ -62,11 +62,19 @@ const db = new PrismaClient()
 function parseArguments() {
   const args = process.argv.slice(2)
   const lessonIdArgument = args.find((argument) => argument.startsWith("--lesson-id="))
+  const dateArgument = args.find((argument) => argument.startsWith("--date="))
+  const date = dateArgument?.slice("--date=".length).trim() || undefined
+
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error("A data deve usar o formato YYYY-MM-DD.")
+  }
 
   return {
     apply: args.includes("--apply"),
     help: args.includes("--help") || args.includes("-h"),
     lessonId: lessonIdArgument?.slice("--lesson-id=".length).trim() || undefined,
+    date,
+    missingOnly: args.includes("--missing-only"),
   }
 }
 
@@ -75,8 +83,11 @@ function showHelp() {
   npm run bunny:previews
   npm run bunny:previews -- --apply
   npm run bunny:previews -- --apply --lesson-id=<id>
+  npm run bunny:previews -- --apply --date=YYYY-MM-DD --missing-only
 
-Sem --apply, o comando apenas lista as aulas que seriam processadas.`)
+Sem --apply, o comando apenas lista as aulas que seriam processadas.
+--date retoma o manifesto e a coleção do dia informado.
+--missing-only seleciona somente aulas ainda sem ID de prévia no banco.`)
 }
 
 function requireEnvironment(name: string): string {
@@ -380,6 +391,40 @@ async function saveReport(filePath: string, manifest: Manifest) {
   await writeFile(filePath, `${csv}\n`, "utf8")
 }
 
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await accessFile(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function linkProcessedPreview(
+  lessonId: string,
+  previewVideoId: string,
+  processedVideo: BunnyVideo,
+) {
+  if (processedVideo.length <= 0 || processedVideo.length > PREVIEW_SECONDS + 5) {
+    throw new Error(`A prévia processada possui duração inesperada: ${processedVideo.length}s.`)
+  }
+
+  try {
+    await db.lesson.update({
+      where: { id: lessonId },
+      data: {
+        previewVideoProviderId: previewVideoId,
+        previewEnabled: true,
+        previewDurationSeconds: Math.ceil(processedVideo.length),
+      },
+    })
+  } catch (error) {
+    throw new Error(
+      `Prévia ${previewVideoId} enviada, mas não vinculada no banco: ${errorMessage(error)}`,
+    )
+  }
+}
+
 async function main() {
   const options = parseArguments()
   if (options.help) {
@@ -395,6 +440,7 @@ async function main() {
   const bunnyReferer = process.env.NEXTAUTH_URL?.trim()
     || process.env.NEXT_PUBLIC_APP_URL?.trim()
     || "http://localhost:3000"
+  const date = options.date ?? getSaoPauloDate()
 
   const lessons = await db.lesson.findMany({
     where: {
@@ -402,6 +448,9 @@ async function main() {
       videoProvider: "BUNNY",
       videoProviderId: { not: null },
       ...(options.lessonId ? { id: options.lessonId } : {}),
+      ...(options.missingOnly
+        ? { OR: [{ previewVideoProviderId: null }, { previewVideoProviderId: "" }] }
+        : {}),
     },
     orderBy: [{ course: { title: "asc" } }, { order: "asc" }, { title: "asc" }],
     select: {
@@ -414,17 +463,18 @@ async function main() {
   })
 
   if (options.lessonId && lessons.length === 0) {
-    throw new Error(`Aula publicada com vídeo Bunny não encontrada: ${options.lessonId}`)
+    throw new Error(`Aula publicada com vídeo Bunny não encontrada nos filtros: ${options.lessonId}`)
   }
 
-  console.log(`${options.apply ? "Execução" : "Simulação"}: ${lessons.length} aula(s) encontrada(s).`)
+  console.log(
+    `${options.apply ? "Execução" : "Simulação"} (${date}${options.missingOnly ? ", somente sem prévia" : ""}): ${lessons.length} aula(s) encontrada(s).`,
+  )
   for (const lesson of lessons) {
     console.log(`- ${lesson.course.title} / ${lesson.title} (${lesson.id})`)
   }
 
   if (!options.apply || lessons.length === 0) return
 
-  const date = getSaoPauloDate()
   const outputDirectory = path.resolve(process.cwd(), ".local", "bunny-previews", date)
   const manifestPath = path.join(outputDirectory, "manifest.json")
   const reportPath = path.join(outputDirectory, "report.csv")
@@ -462,7 +512,7 @@ async function main() {
       originalVideoId,
       previousPreviewVideoId: lesson.previewVideoProviderId,
       newPreviewVideoId: previousItem?.newPreviewVideoId ?? null,
-      durationSeconds: null,
+      durationSeconds: previousItem?.durationSeconds ?? null,
       outputFile: outputPath,
       status: "pending",
       error: null,
@@ -471,71 +521,84 @@ async function main() {
     manifest.items[lesson.id] = item
 
     try {
-      const sourceVideo = await getVideo(libraryId, apiKey, originalVideoId)
-      if (sourceVideo.status !== 4) {
-        throw new Error(`O vídeo original ainda não está pronto no Bunny (status ${sourceVideo.status}).`)
-      }
-      if (!sourceVideo.hasMP4Fallback) {
-        throw new Error("O vídeo original não possui MP4 fallback habilitado no Bunny.")
-      }
-
-      const durationSeconds = Math.max(1, Math.min(PREVIEW_SECONDS, Math.ceil(sourceVideo.length)))
-      const resolution = chooseSourceResolution(sourceVideo.availableResolutions)
-      item.durationSeconds = durationSeconds
-      item.status = "generating"
-      item.updatedAt = new Date().toISOString()
-      await saveManifest(manifestPath, manifest)
-
-      await generatePreview(
-        signedMp4Url(cdnHostname, tokenKey, originalVideoId, resolution),
-        outputPath,
-        durationSeconds,
-        bunnyReferer,
+      let previewVideoId: string
+      let processedVideo: BunnyVideo
+      const canResumeProcessing = Boolean(
+        previousItem?.newPreviewVideoId && previousItem.status === "processing",
+      )
+      const canResumeUpload = Boolean(
+        previousItem?.newPreviewVideoId
+        && previousItem.status === "uploading"
+        && await fileExists(outputPath),
       )
 
-      item.status = "uploading"
-      item.updatedAt = new Date().toISOString()
-      await saveManifest(manifestPath, manifest)
+      if (canResumeProcessing && previousItem?.newPreviewVideoId) {
+        previewVideoId = previousItem.newPreviewVideoId
+        item.status = "processing"
+        console.log(`[retomando processamento] ${lesson.title}: ${previewVideoId}`)
+        await saveManifest(manifestPath, manifest)
+        processedVideo = await waitUntilProcessed(libraryId, apiKey, previewVideoId)
+      } else if (canResumeUpload && previousItem?.newPreviewVideoId) {
+        previewVideoId = previousItem.newPreviewVideoId
+        item.status = "uploading"
+        console.log(`[retomando upload] ${lesson.title}: ${previewVideoId}`)
+        await saveManifest(manifestPath, manifest)
+        await uploadVideo(libraryId, apiKey, previewVideoId, outputPath)
+        item.status = "processing"
+        await saveManifest(manifestPath, manifest)
+        processedVideo = await waitUntilProcessed(libraryId, apiKey, previewVideoId)
+      } else {
+        const sourceVideo = await getVideo(libraryId, apiKey, originalVideoId)
+        if (sourceVideo.status !== 4) {
+          throw new Error(`O vídeo original ainda não está pronto no Bunny (status ${sourceVideo.status}).`)
+        }
+        if (!sourceVideo.hasMP4Fallback) {
+          throw new Error("O vídeo original não possui MP4 fallback habilitado no Bunny.")
+        }
 
-      const previewVideo = await createVideo(
-        libraryId,
-        apiKey,
-        `Prévia | ${lesson.course.title} | ${lesson.title} | ${date}`,
-        manifest.collectionId,
-      )
-      item.newPreviewVideoId = previewVideo.guid
-      await saveManifest(manifestPath, manifest)
+        const durationSeconds = Math.max(1, Math.min(PREVIEW_SECONDS, Math.ceil(sourceVideo.length)))
+        const resolution = chooseSourceResolution(sourceVideo.availableResolutions)
+        item.durationSeconds = durationSeconds
+        item.status = "generating"
+        item.updatedAt = new Date().toISOString()
+        await saveManifest(manifestPath, manifest)
 
-      await uploadVideo(libraryId, apiKey, previewVideo.guid, outputPath)
-      item.status = "processing"
-      item.updatedAt = new Date().toISOString()
-      await saveManifest(manifestPath, manifest)
-
-      const processedVideo = await waitUntilProcessed(libraryId, apiKey, previewVideo.guid)
-      if (processedVideo.length <= 0 || processedVideo.length > PREVIEW_SECONDS + 5) {
-        throw new Error(`A prévia processada possui duração inesperada: ${processedVideo.length}s.`)
-      }
-
-      try {
-        await db.lesson.update({
-          where: { id: lesson.id },
-          data: {
-            previewVideoProviderId: previewVideo.guid,
-            previewEnabled: true,
-            previewDurationSeconds: Math.ceil(processedVideo.length),
-          },
-        })
-      } catch (error) {
-        throw new Error(
-          `Prévia ${previewVideo.guid} enviada, mas não vinculada no banco: ${errorMessage(error)}`,
+        await generatePreview(
+          signedMp4Url(cdnHostname, tokenKey, originalVideoId, resolution),
+          outputPath,
+          durationSeconds,
+          bunnyReferer,
         )
+
+        item.status = "uploading"
+        item.updatedAt = new Date().toISOString()
+        await saveManifest(manifestPath, manifest)
+
+        const previewVideo = await createVideo(
+          libraryId,
+          apiKey,
+          `Prévia | ${lesson.course.title} | ${lesson.title} | ${date}`,
+          manifest.collectionId,
+        )
+        previewVideoId = previewVideo.guid
+        item.newPreviewVideoId = previewVideoId
+        await saveManifest(manifestPath, manifest)
+
+        await uploadVideo(libraryId, apiKey, previewVideoId, outputPath)
+        item.status = "processing"
+        item.updatedAt = new Date().toISOString()
+        await saveManifest(manifestPath, manifest)
+        processedVideo = await waitUntilProcessed(libraryId, apiKey, previewVideoId)
       }
+
+      await linkProcessedPreview(lesson.id, previewVideoId, processedVideo)
 
       item.durationSeconds = Math.ceil(processedVideo.length)
+      item.newPreviewVideoId = previewVideoId
       item.status = "completed"
       item.updatedAt = new Date().toISOString()
       completed += 1
-      console.log(`[concluída] ${lesson.title}: ${previewVideo.guid}`)
+      console.log(`[concluída] ${lesson.title}: ${previewVideoId}`)
     } catch (error) {
       item.status = "failed"
       item.error = errorMessage(error)
