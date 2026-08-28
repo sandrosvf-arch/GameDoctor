@@ -171,3 +171,76 @@
 .bg-1{
   background-color: #2a2a31;
 }
+
+.home-hero-shell {
+  position: relative;
+}
+
+.home-lesson-counter-wrap {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background: #2a2a31;
+  pointer-events: none;
+}
+
+.home-lesson-counter {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: fit-content;
+  padding: 0.75rem 1.125rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.625rem;
+  background: rgba(24, 24, 27, 0.72);
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+.home-lesson-counter-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 0.5rem;
+  background: rgba(2, 188, 225, 0.12);
+  color: #02bce1;
+}
+
+.home-lesson-counter-icon svg {
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+}
+
+.home-lesson-counter-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.home-lesson-counter-info strong {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.home-lesson-counter-info span {
+  color: #a1a1aa;
+  font-size: 0.8125rem;
+}
+
+@media (min-width: 768px) {
+  .home-lesson-counter-wrap {
+    position: absolute;
+    right: 0;
+    bottom: 3.55rem;
+    left: 0;
+    padding: 0;
+    background: transparent;
+  }
+}

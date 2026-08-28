@@ -38,6 +38,12 @@ const getCachedHomeRows = unstable_cache(
   { revalidate: 60 }
 )
 
+const getCachedLessonCount = unstable_cache(
+  () => db.lesson.count(),
+  ["home-lesson-count"],
+  { revalidate: 60 }
+)
+
 // â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type BadgeType = "FREE" | "NEW" | "PRO" | "PREMIUM"
 
@@ -206,10 +212,11 @@ function resolveSignedBannerVideoUrl(videoUrl: string | null | undefined) {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export default async function HomePage() {
   // Phase 1 – independent queries run in parallel (cached banners, session, cached rows)
-  const [dbBanners, session, homeRowsResult] = await Promise.all([
+  const [dbBanners, session, homeRowsResult, lessonCount] = await Promise.all([
     getCachedBanners().catch(() => [] as Awaited<ReturnType<typeof db.heroBanner.findMany>>),
     auth().catch(() => null),
     getCachedHomeRows(0, 2).catch(() => ({ rows: [] as HomeRowDto[], total: 0 })),
+    getCachedLessonCount().catch(() => 0),
   ])
 
   let initialHomeRows = homeRowsResult.rows
@@ -341,7 +348,21 @@ export default async function HomePage() {
       <main className="bg-zinc-950 text-white overflow-x-hidden">
 
         {/* HERO – rotating banner */}
-        <HeroBannerClient banners={banners} />
+        <div className="home-hero-shell">
+          <HeroBannerClient banners={banners} />
+
+          <div className="home-lesson-counter-wrap">
+            <div className="home-lesson-counter" aria-label={`${lessonCount} aulas cadastradas`}>
+              <div className="home-lesson-counter-icon" aria-hidden="true">
+                <Play />
+              </div>
+              <div className="home-lesson-counter-info">
+                <strong>{lessonCount.toLocaleString("pt-BR")} AULAS</strong>
+                <span>Atualização semanal</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* CARROSSÉIS */}
         <section className="pb-16 space-y-10 pt-2 bg-1">

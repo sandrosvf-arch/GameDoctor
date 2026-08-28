@@ -239,9 +239,22 @@ Validação:
 - Assinante existente recebeu respostas e estatísticas; visitante sem plano não recebeu o conteúdo restrito.
 - TypeScript e verificação de diff.
 
+## 11. Contador de aulas na home
+
+Status: `CONCLUÍDO`.
+
+Implementação:
+- Contagem real de todas as aulas cadastradas, carregada no servidor e armazenada em cache por 60 segundos.
+- Contador inserido entre o full banner e os carrosséis, com ícone e atualização semanal.
+- Estilos movidos para o CSS global, sem atributos `style`.
+- Sobreposição controlada no desktop e posicionamento relativo com espaçamento próprio no mobile.
+
+Validação:
+- TypeScript e verificação de diff.
+
 ## Registro final
 
-Todas as sete demandas foram implementadas ou verificadas no estado atual.
+Todas as onze demandas foram implementadas ou verificadas no estado atual.
 
 Entregas:
 - Navegação para a home validada nos painéis administrativo e do aluno.
