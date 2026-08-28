@@ -13,6 +13,11 @@ import {
   WHATSAPP_URL_KEY,
 } from "@/lib/app-settings"
 
+const revalidateTagWithProfile = revalidateTag as unknown as (
+  tag: string,
+  profile?: "max"
+) => void
+
 const updateSchema = z.object({
   prompt: z.string().trim().min(20).max(12_000),
   aboutVideoUrl: z.string().trim().url(),
@@ -80,7 +85,7 @@ export async function PATCH(request: Request) {
     },
   })
 
-  revalidateTag(APP_SETTINGS_CACHE_TAG)
+  revalidateTagWithProfile(APP_SETTINGS_CACHE_TAG, "max")
 
   return NextResponse.json({
     prompt: parsed.data.prompt,
