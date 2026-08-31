@@ -165,9 +165,24 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
             {slide.title}
           </h1>
 
-          <p className="text-zinc-300 leading-relaxed text-base md:text-lg max-w-[440px]">
-            Aulas em 4K, esquemas elétricos exclusivos, técnicas de solda BGA e diagnósticos avançados, do básico ao profissional.
-          </p>
+          {slide.subtitle && (
+            <p className="max-w-[440px] text-base leading-relaxed text-zinc-300 md:text-lg">
+              {slide.subtitle}
+            </p>
+          )}
+
+          {slide.consoles.length > 0 && (
+            <div className="flex max-w-[480px] flex-wrap gap-2" aria-label="Consoles em destaque">
+              {slide.consoles.map((console) => (
+                <span
+                  key={console}
+                  className="rounded-full border border-white/15 bg-black/30 px-2.5 py-1 text-[11px] font-medium text-zinc-300 backdrop-blur-sm"
+                >
+                  {console}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-3 pt-1">
             {slide.ctaText && slide.ctaHref && (
@@ -178,7 +193,7 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
               >
                 <Link href={slide.ctaHref}>
                   <Play className="mr-2 h-4 w-4 fill-zinc-950" />
-                  Ver Aulas
+                  {slide.ctaText}
                 </Link>
               </Button>
             )}
