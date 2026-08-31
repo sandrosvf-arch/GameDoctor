@@ -17,7 +17,9 @@ const model = process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini"
 
 // Strips any domain/protocol the model might hallucinate in front of internal links, e.g. "gamedoctor.com/aula/..." -> "/aula/..."
 function stripLinkDomains(text: string) {
-  return text.replace(/\]\((?:https?:\/\/)?(?:www\.)?[^\/\s)]+(\/[^)]*)\)/g, "]($1)")
+  return text
+    .replace(/\]\(\s*(?:https?:\/\/)?(?:www\.)?[^\/\s)]+(\/[^)]*)\)/g, "]($1)")
+    .replace(/\]\(\s+(\/[^)]*)\)/g, "]($1)")
 }
 
 function getOpenAiClient() {
@@ -76,32 +78,52 @@ export async function POST(request: Request) {
       })
     : []
 
-  const context = await searchAiContext(parsed.data.message)
-  const systemPrompt = await getAiSystemPrompt()
-  const completion = await openai.chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: buildAiSystemPrompt(systemPrompt, access, context) },
-      ...history.reverse().map((item) => ({
-        role: item.role === "USER" ? "user" as const : "assistant" as const,
-        content: item.content,
-      })),
-      { role: "user", content: parsed.data.message },
-    ],
-    temperature: 0.3,
-    max_tokens: 600,
-  })
+  const context = await searchAiContext(parsed.data.message, access.technicalMode)
+  const noContentMessage = "Ainda não temos um conteúdo específico sobre esse assunto."
+  const suggestionHref = `/busca?sugerir=1&q=${encodeURIComponent(parsed.data.message)}`
+  let answer = `${noContentMessage} Você pode [solicitar uma aula](${suggestionHref}) para nossa equipe.`
+  let responseModel: string | null = null
+  let inputTokens: number | null = null
+  let outputTokens: number | null = null
+  let credits = 0
+  let usage = usageBefore
 
-  const answer = completion.choices[0]?.message?.content?.trim()
-  if (!answer) {
-    return NextResponse.json({ error: "O assistente não retornou uma resposta." }, { status: 502 })
+  if (context.length > 0) {
+    const systemPrompt = await getAiSystemPrompt()
+    const completion = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: buildAiSystemPrompt(systemPrompt, access, context) },
+        ...history.reverse().map((item) => ({
+          role: item.role === "USER" ? "user" as const : "assistant" as const,
+          content: item.content,
+        })),
+        { role: "user", content: parsed.data.message },
+      ],
+      temperature: 0.2,
+      max_tokens: 600,
+    })
+
+    const completionAnswer = completion.choices[0]?.message?.content?.trim()
+    if (!completionAnswer) {
+      return NextResponse.json({ error: "O assistente não retornou uma resposta." }, { status: 502 })
+    }
+
+    answer = completionAnswer
+    responseModel = model
+    inputTokens = completion.usage?.prompt_tokens ?? null
+    outputTokens = completion.usage?.completion_tokens ?? null
+    credits = 1
+    usage = await consumeAiCredit(session.user.id, access)
   }
 
-  const sanitizedAnswer = stripLinkDomains(answer)
-
-  const usage = await consumeAiCredit(session.user.id, access)
-  const inputTokens = completion.usage?.prompt_tokens ?? null
-  const outputTokens = completion.usage?.completion_tokens ?? null
+  let sanitizedAnswer = stripLinkDomains(answer)
+  const hasNoContent = sanitizedAnswer.includes(noContentMessage)
+  if (context.length > 0
+    && !hasNoContent
+    && !sanitizedAnswer.includes(`](${context[0].href})`)) {
+    sanitizedAnswer += `\n\nConteúdo principal: [${context[0].title}](${context[0].href})`
+  }
 
   if (!conversationId) {
     const conversation = await db.aiConversation.create({
@@ -130,10 +152,10 @@ export async function POST(request: Request) {
         userId: session.user.id,
         role: "ASSISTANT",
         content: sanitizedAnswer,
-        model,
+        model: responseModel,
         inputTokens,
         outputTokens,
-        credits: 1,
+        credits,
       },
     }),
     db.aiConversation.update({
@@ -145,7 +167,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     conversationId,
     answer: sanitizedAnswer,
-    sources: context.map(({ title, href, source }) => ({ title, href, source })),
+    sources: hasNoContent ? [] : context.map(({ title, href, source }) => ({ title, href, source })),
     usage,
   })
 }

@@ -13,7 +13,9 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "bunny:previews": "node --env-file=.env --import tsx scripts/generate-bunny-previews.ts"
+    "bunny:previews": "node --env-file=.env --import tsx scripts/generate-bunny-previews.ts",
+    "ai:index": "node --env-file=.env --import tsx scripts/index-ai-knowledge.ts",
+    "ai:test": "node --env-file=.env --import tsx scripts/test-ai-responses.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",

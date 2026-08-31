@@ -146,7 +146,7 @@ function chooseSourceResolution(availableResolutions: string | null): string {
     ),
   ).sort((left, right) => left - right)
 
-  const preferred = resolutions.filter((resolution) => resolution <= 720).at(-1)
+  const preferred = resolutions.filter((resolution) => resolution <= 1080).at(-1)
   const fallback = resolutions[0]
   const selected = preferred ?? fallback
 
@@ -298,7 +298,7 @@ async function generatePreview(
         "-t",
         String(durationSeconds),
         "-vf",
-        "scale=min(1280\\,iw):min(720\\,ih):force_original_aspect_ratio=decrease:force_divisible_by=2",
+        "scale=min(1920\\,iw):min(1080\\,ih):force_original_aspect_ratio=decrease:force_divisible_by=2",
         "-c:v",
         "libx264",
         "-preset",

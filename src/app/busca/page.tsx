@@ -126,6 +126,7 @@ export default function BuscaPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialQ = searchParams.get("q") ?? ""
+  const suggestionRequested = searchParams.get("sugerir") === "1"
 
   const [query, setQuery] = useState(initialQ)
   const [debouncedQ, setDebouncedQ] = useState(initialQ)
@@ -142,8 +143,8 @@ export default function BuscaPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Suggestion form state
-  const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({ name: "", email: "", phone: "", lesson: "" })
+  const [showForm, setShowForm] = useState(suggestionRequested)
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", lesson: initialQ })
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -338,7 +339,7 @@ export default function BuscaPage() {
         )}
 
         {/* CTA — always visible after a search attempt */}
-        {searched && (
+        {(searched || showForm || submitted) && (
           <div className="mt-6 border-t border-white/10 px-8 py-10 text-center space-y-4">
             <p className="text-lg font-semibold">Não encontrou o conteúdo que procura?</p>
             <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">

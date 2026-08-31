@@ -417,6 +417,25 @@ model AiUsageMonth {
   @@map("ai_usage_months")
 }
 
+model AiKnowledgeChunk {
+  id          String                      @id @default(cuid())
+  sourceType  String                      @map("source_type")
+  sourceId    String                      @map("source_id")
+  chunkIndex  Int                         @map("chunk_index")
+  title       String
+  content     String                      @db.Text
+  href        String
+  contentHash String                      @map("content_hash")
+  embedding   Unsupported("vector(1536)")
+  createdAt   DateTime                    @default(now()) @map("created_at")
+  updatedAt   DateTime                    @updatedAt @map("updated_at")
+
+  @@unique([sourceType, sourceId, chunkIndex])
+  @@index([sourceType])
+  @@index([sourceId])
+  @@map("ai_knowledge_chunks")
+}
+
 model Course {
   id                 String       @id @default(cuid())
   title              String
