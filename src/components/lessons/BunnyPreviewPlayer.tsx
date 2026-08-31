@@ -93,11 +93,21 @@ export function BunnyPreviewPlayer({
   thumbnail: string | null
   onEnded: () => void
 }) {
+  const [started, setStarted] = useState(false)
   const [embedUrl, setEmbedUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
 
   useEffect(() => {
+    setStarted(false)
+    setEmbedUrl(null)
+    setLoading(false)
+    setUnavailable(false)
+  }, [lessonId])
+
+  useEffect(() => {
+    if (!started) return
+
     const controller = new AbortController()
 
     async function loadPreview() {
@@ -128,7 +138,7 @@ export function BunnyPreviewPlayer({
 
     void loadPreview()
     return () => controller.abort()
-  }, [lessonId])
+  }, [lessonId, started])
 
   return (
     <div className="absolute inset-0 bg-black">
@@ -141,7 +151,20 @@ export function BunnyPreviewPlayer({
         />
       )}
 
-      {loading && (
+      {!started && (
+        <button
+          type="button"
+          onClick={() => setStarted(true)}
+          aria-label="Assistir prévia"
+          className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors hover:bg-black/20"
+        >
+          <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
+            <Play className="h-7 w-7 fill-white" />
+          </span>
+        </button>
+      )}
+
+      {started && loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
           <Loader2 className="h-8 w-8 animate-spin text-white" />
         </div>
