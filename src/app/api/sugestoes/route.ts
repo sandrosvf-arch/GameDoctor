@@ -12,6 +12,9 @@ export async function POST(req: NextRequest) {
     if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return NextResponse.json({ error: "E-mail inválido." }, { status: 400 })
     }
+    if (!phone || typeof phone !== "string" || !phone.trim()) {
+      return NextResponse.json({ error: "Telefone é obrigatório." }, { status: 400 })
+    }
     if (!lesson || typeof lesson !== "string" || !lesson.trim()) {
       return NextResponse.json({ error: "Informe a aula desejada." }, { status: 400 })
     }
@@ -20,7 +23,7 @@ export async function POST(req: NextRequest) {
       data: {
         name: name.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone && typeof phone === "string" ? phone.trim() || null : null,
+        phone: phone.trim(),
         lesson: lesson.trim(),
       },
     })

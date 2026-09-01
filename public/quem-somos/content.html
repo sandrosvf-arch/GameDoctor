@@ -7930,7 +7930,7 @@ Mantém a identidade visual original e reorganiza a jornada.
                             <span aria-hidden="true">→</span>
                         </a>
                         <div class="mgu-value-offer-v3__countdown-wrap">
-                            <span class="mgu-value-offer-v3__countdown-label">ENCERRAMENTO DAS VAGAS EM:</span>
+                            <span class="mgu-value-offer-v3__countdown-label">OFERTA DE LANÇAMENTO ENCERRA EM:</span>
                             <div class="countdown countdown--offer" data-deadline="2026-08-14T23:59:59-03:00">
                                 <div><strong data-days="">00</strong><span>DIAS</span></div><b>:</b>
                                 <div><strong data-hours="">00</strong><span>HORAS</span></div><b>:</b>
@@ -7989,69 +7989,6 @@ Mantém a identidade visual original e reorganiza a jornada.
                 </div>
             </div>
         </section>
-        <!-- BLOCO 6, DECISÃO E AÇÃO / OFERTA -->
-        <section class="section plans decision-section decision-section--compact" id="planos">
-            <div class="container">
-                <div class="section-heading section-heading--center reveal compact-heading">
-                    <!--<span class="section-kicker">DECISÃO E AÇÃO</span>-->
-                    <h2>Tudo o que você precisa para <span>começar e continuar evoluindo.</span></h2>
-                </div>
-                <div class="decision-layout decision-layout--compact">
-                    <div class="decision-benefits reveal">
-                        <span class="decision-benefits__title">VOCÊ RECEBE</span>
-                        <ul>
-                            <li><strong>Formação completa GameDoctor</strong><span>Todo o conteúdo técnico, avançado,
-                                    negócios, tráfego pago e biblioteca de apoio.</span></li>
-                            <li><strong>+200 aulas</strong><span>Controles, consoles e reparos do básico ao
-                                    avançado.</span></li>
-                            <li><strong>Eletrônica + diagnóstico</strong><span>Placas, HDMI, memórias, microssolda,
-                                    BGA
-                                    e defeitos reais.</span></li>
-                            <li><strong>Negócios + marketing</strong><span>Precificação, atendimento, divulgação e
-                                    tráfego pago.</span></li>
-                            <li><strong>Comunidade + networking</strong><span>Contato com alunos, técnicos e
-                                    profissionais do setor.</span></li>
-                            <li><strong>Suporte + atualizações</strong><span>Acompanhamento durante sua evolução e
-                                    novos
-                                    conteúdos disponibilizados.</span></li>
-                            <li><strong>Acesso anual + certificado</strong><span>Estude no seu ritmo e conclua
-                                    com
-                                    certificação.</span></li>
-                        </ul>
-                    </div>
-                    <article class="plan-card plan-card--featured decision-card reveal reveal--delay-1">
-                        <div class="plan-badge">FORMAÇÃO COMPLETA • ACESSO ANUAL</div>
-                        <div class="plan-card__head"><span>GAMEDOCTOR</span>
-                            <p>Formação profissional completa</p>
-                        </div>
-                        <div class="decision-price-intro">INVESTIMENTO DO GAMEDOCTOR</div>
-                        <div class="plan-card__investment-message">
-                            <strong>Valores disponíveis no atendimento</strong>
-                            <span>Clique em “VER INVESTIMENTO” para conhecer as condições atuais.</span>
-                        </div>
-                        <a aria-label="Ver investimento do GameDoctor pelo WhatsApp" class="button button--green plan-checkout-button"
-                            href="https://wa.me/5541920055798?text=Quero%20saber%20sobre%20o%20investimento%20do%20GameDoctor." target="_blank" rel="noopener noreferrer">VER INVESTIMENTO</a>
-                        <small class="plan-checkout-note">Acesso anual</small>
-                        <div class="scarcity-panel reveal reveal--delay" style="margin-top: 20px">
-                        <span class="scarcity-panel__label">INSCRIÇÕES ABERTAS POR:</span>
-                            <div class="countdown" data-deadline="2026-08-14T23:59:59-03:00">
-                                <div><strong data-days="">00</strong><span>DIAS</span></div><b>:</b>
-                                <div><strong data-hours="">00</strong><span>HORAS</span></div><b>:</b>
-                                <div><strong data-minutes="">00</strong><span>MIN</span></div><b>:</b>
-                                <div><strong data-seconds="">00</strong><span>SEG</span></div>
-                            </div>
-                            <a class="button button--yellow button--large scarcity-cta"
-                                href="#oferta-mgu-pro" aria-label="Ver valores e condições do GameDoctor" style="display: none;">VER VALORES E CONDIÇÕES ↑</a>
-                            <small>Após o contador chegar a zero, as novas inscrições desta turma serão encerradas. Quem
-                                já
-                                estiver dentro continua normalmente com acesso, aulas, comunidade e suporte.</small>
-                        </div>
-                    </article>
-                </div>
-                <div class="decision-note reveal"><strong>Você pode continuar tentando descobrir sozinho, ou começar
-                        com um caminho já estruturado por quem vive esse mercado há mais de 20 anos.</strong></div>
-            </div>
-        </section>
         <!-- BLOCO 7, ESCASSEZ REAL / MOTIVO PARA AGIR AGORA
         <section class="section scarcity-section scarcity-section--compact section--light-dark" id="vagas">
             <div class="container">
@@ -8096,10 +8033,11 @@ Mantém a identidade visual original e reorganiza a jornada.
 
                     function tick() {
                         let hasActiveCountdown = false;
+                        // Rolling 3-day cycle so the offer never freezes at 00:00:00:00 like a fixed deadline would.
+                        const cycleMs = 3 * 24 * 60 * 60 * 1000;
 
                         countdowns.forEach((countdown) => {
-                            const deadline = new Date(countdown.dataset.deadline).getTime();
-                            const distance = deadline - Date.now();
+                            const distance = cycleMs - (Date.now() % cycleMs);
                             const daysEl = countdown.querySelector('[data-days]');
                             const hoursEl = countdown.querySelector('[data-hours]');
                             const minutesEl = countdown.querySelector('[data-minutes]');

@@ -94,7 +94,7 @@ type NavLink = { label: string; href: string } | { label: string; action: "assis
 const navLinks: NavLink[] = [
   { label: "Quem Somos", href: "/quem-somos" },
   { label: "Comunidade", href: "/comunidade" },
-  { label: "Nossa IA", action: "assistant" },
+  { label: "Dúvidas", href: "/suporte" },
 ]
 
 interface CatalogCategoryNode {

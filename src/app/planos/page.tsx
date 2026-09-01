@@ -250,8 +250,8 @@ export default async function PlanosPage() {
           <div className="mt-8 grid gap-x-10 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
             {includedContent.map((item, index) => (
               <div key={item} className="flex items-start gap-3 border-t border-white/[0.08] pt-5 text-base font-medium text-slate-200">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-300">
-                  <Check className="h-4 w-4" />
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.35)]">
+                  <Check className="h-4 w-4" strokeWidth={3} />
                 </span>
                 <span className={index === 0 ? "text-white" : undefined}>{item}</span>
               </div>

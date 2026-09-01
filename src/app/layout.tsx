@@ -4,6 +4,7 @@ import "./globals.css"
 import { Providers } from "@/components/Providers"
 import { Toaster } from "@/components/ui/toaster"
 import { PlatformAssistant } from "@/components/ai/PlatformAssistant"
+import { DesktopScrollRail } from "@/components/layout/DesktopScrollRail"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -43,6 +44,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <PlatformAssistant />
+          <DesktopScrollRail />
           <Toaster />
         </Providers>
       </body>

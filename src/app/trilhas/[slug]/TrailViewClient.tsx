@@ -237,7 +237,7 @@ export function TrailViewClient({
       )}
 
       <div className="mt-14 rounded-2xl border border-zinc-800/80 bg-zinc-900/35">
-        <SuggestLessonCta initialLesson={`Nova aula para a trilha ${course.title}`} />
+        <SuggestLessonCta />
       </div>
     </div>
   )

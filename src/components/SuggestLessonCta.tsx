@@ -1,32 +1,20 @@
 "use client"
 
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 import { Loader2 } from "lucide-react"
 
 interface SuggestLessonCtaProps {
-  initialLesson?: string
   initiallyOpen?: boolean
 }
 
 export function SuggestLessonCta({
-  initialLesson = "",
   initiallyOpen = false,
 }: SuggestLessonCtaProps) {
   const [showForm, setShowForm] = useState(initiallyOpen)
-  const [formData, setFormData] = useState({ name: "", email: "", phone: "", lesson: initialLesson })
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", lesson: "" })
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const previousInitialLesson = useRef(initialLesson)
-
-  useEffect(() => {
-    setFormData((current) => (
-      !current.lesson || current.lesson === previousInitialLesson.current
-        ? { ...current, lesson: initialLesson }
-        : current
-    ))
-    previousInitialLesson.current = initialLesson
-  }, [initialLesson])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -40,7 +28,7 @@ export function SuggestLessonCta({
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
-          phone: formData.phone || null,
+          phone: formData.phone,
           lesson: formData.lesson,
         }),
       })
@@ -101,9 +89,10 @@ export function SuggestLessonCta({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Telefone (opcional)</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Telefone *</label>
               <input
                 type="tel"
+                required
                 placeholder="(11) 9 0000-0000"
                 value={formData.phone}
                 onChange={(event) => setFormData((current) => ({ ...current, phone: event.target.value }))}

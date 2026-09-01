@@ -306,7 +306,7 @@ export default function BuscaPage() {
 
         {(searched || suggestionRequested) && (
           <div className="mt-6">
-            <SuggestLessonCta initialLesson={debouncedQ} initiallyOpen={suggestionRequested} />
+            <SuggestLessonCta initiallyOpen={suggestionRequested} />
           </div>
         )}
       </div>
