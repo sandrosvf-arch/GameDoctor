@@ -17,6 +17,7 @@ export default async function SupportPage() {
           title: true,
           slug: true,
           excerpt: true,
+          content: true,
         },
       },
     },

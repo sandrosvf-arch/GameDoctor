@@ -26,6 +26,7 @@ export async function GET(request: Request) {
       title: true,
       slug: true,
       excerpt: true,
+      content: true,
       category: {
         select: {
           name: true,

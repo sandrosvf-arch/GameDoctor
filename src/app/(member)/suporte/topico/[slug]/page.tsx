@@ -25,6 +25,7 @@ export default async function HelpTopicPage({
             title: true,
             slug: true,
             excerpt: true,
+            content: true,
           },
         },
       },

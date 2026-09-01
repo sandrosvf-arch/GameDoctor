@@ -184,7 +184,7 @@ export default async function PlanosPage() {
 
                           <div className="mt-6 border-t border-white/[0.08] pt-6">
                             <p className="mb-2 text-center text-[10px] font-bold uppercase text-slate-200">
-                              Encerramento das vagas em:
+                              Oferta especial de lançamento encerra em:
                             </p>
                             <OfferCountdown />
                           </div>

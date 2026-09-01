@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowRight, Search } from "lucide-react"
+import { Plus, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface HelpCategoryNav {
@@ -14,6 +14,7 @@ interface HelpCategoryNav {
     title: string
     slug: string
     excerpt: string | null
+    content: string
   }[]
 }
 
@@ -33,10 +34,22 @@ interface SearchResult {
   title: string
   slug: string
   excerpt: string | null
+  content: string
   category: {
     name: string
     slug: string
   }
+}
+
+function getPreviewText(topic: { excerpt: string | null; content: string }, maxLength = 110) {
+  const plainContent = topic.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+  const source = topic.excerpt?.trim() || plainContent
+  if (!source) return ""
+  if (source.length <= maxLength) return `${source}...`
+
+  const truncated = source.slice(0, maxLength)
+  const lastSpace = truncated.lastIndexOf(" ")
+  return `${lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated}...`
 }
 
 export function HelpCenterClient({
@@ -52,6 +65,7 @@ export function HelpCenterClient({
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(null)
 
   useEffect(() => {
     setActiveCategorySlug(initialCategorySlug ?? categories[0]?.slug ?? "")
@@ -82,6 +96,17 @@ export function HelpCenterClient({
   )
 
   const showingSearch = query.trim().length > 0
+
+  // Keep the first question of the active category (or first search match) expanded by default.
+  useEffect(() => {
+    if (showingSearch) return
+    setOpenId(activeCategory?.articles[0]?.id ?? null)
+  }, [activeCategory, showingSearch])
+
+  useEffect(() => {
+    if (!showingSearch) return
+    setOpenId(results[0]?.id ?? null)
+  }, [results, showingSearch])
 
   return (
     <div className="min-h-screen bg-[#080b12] text-white">
@@ -162,26 +187,76 @@ export function HelpCenterClient({
                 ) : results.length === 0 ? (
                   <p className="text-sm text-slate-400">Nenhum tópico encontrado para essa busca.</p>
                 ) : (
-                  results.map((result) => (
-                    <Link
-                      key={result.id}
-                      href={`/suporte/topico/${result.slug}`}
-                      className="group block rounded-3xl border border-white/8 bg-white/[0.03] px-5 py-5 transition hover:border-cyan-500/25 hover:bg-cyan-500/[0.06]"
-                    >
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-400/80">
-                        {result.category.name}
-                      </p>
-                      <div className="mt-3 flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-xl font-semibold text-white">{result.title}</h3>
-                          {result.excerpt ? (
-                            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">{result.excerpt}</p>
-                          ) : null}
+                  results.map((result) => {
+                    const open = openId === result.id
+
+                    return (
+                      <div
+                        key={result.id}
+                        className={cn(
+                          "overflow-hidden rounded-3xl border transition-colors",
+                          open
+                            ? "border-cyan-400/50 bg-cyan-500/[0.12] shadow-[0_12px_32px_rgba(0,207,255,0.1)]"
+                            : "border-white/15 bg-white/[0.05] hover:border-cyan-400/30 hover:bg-white/[0.08]"
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setOpenId(open ? null : result.id)}
+                          aria-expanded={open}
+                          className="flex w-full cursor-pointer items-start justify-between gap-4 px-5 py-4 text-left"
+                        >
+                          <span className="min-w-0">
+                            <span className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-400/80">
+                              {result.category.name}
+                            </span>
+                            <span
+                              className={cn(
+                                "mt-1 block font-semibold",
+                                open ? "text-xl text-white" : "text-lg font-medium text-slate-200"
+                              )}
+                            >
+                              {result.title}
+                            </span>
+                            {!open ? (
+                              <span className="mt-1 block line-clamp-2 text-sm text-slate-400">
+                                {getPreviewText(result)}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span
+                            className={cn(
+                              "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
+                              open
+                                ? "rotate-45 border-cyan-400/60 bg-cyan-400 text-[#080b12]"
+                                : "border-cyan-400/40 bg-cyan-400/10 text-cyan-300"
+                            )}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </span>
+                        </button>
+
+                        <div
+                          className={cn(
+                            "grid transition-all duration-200 ease-in-out",
+                            open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          )}
+                        >
+                          <div className="overflow-hidden">
+                            <div className="border-t border-white/10 px-5 pb-5 pt-4">
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400/70">
+                                Resposta
+                              </p>
+                              <div
+                                className="prose prose-invert max-w-none prose-p:text-sm prose-p:leading-7 prose-p:text-slate-400 prose-li:text-slate-400 prose-strong:text-slate-200 prose-a:text-cyan-300 [&_p]:my-4 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0"
+                                dangerouslySetInnerHTML={{ __html: result.content }}
+                              />
+                            </div>
+                          </div>
                         </div>
-                        <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-slate-500 transition group-hover:text-cyan-300" />
                       </div>
-                    </Link>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </div>
@@ -209,23 +284,73 @@ export function HelpCenterClient({
                 {activeCategory.articles.length === 0 ? (
                   <p className="text-sm text-slate-400">Nenhum tópico ativo nessa categoria ainda.</p>
                 ) : (
-                  activeCategory.articles.map((topic) => (
-                    <Link
-                      key={topic.id}
-                      href={`/suporte/topico/${topic.slug}`}
-                      className="group flex items-center justify-between gap-4 rounded-3xl border border-white/8 bg-white/[0.03] px-5 py-4 transition hover:border-cyan-500/25 hover:bg-cyan-500/[0.06]"
-                    >
-                      <div>
-                        <p className="text-lg font-medium text-white transition group-hover:text-cyan-300">
-                          {topic.title}
-                        </p>
-                        {topic.excerpt ? (
-                          <p className="mt-2 text-sm leading-7 text-slate-400">{topic.excerpt}</p>
-                        ) : null}
+                  activeCategory.articles.map((topic) => {
+                    const open = openId === topic.id
+
+                    return (
+                      <div
+                        key={topic.id}
+                        className={cn(
+                          "overflow-hidden rounded-3xl border transition-colors",
+                          open
+                            ? "border-cyan-400/50 bg-cyan-500/[0.12] shadow-[0_12px_32px_rgba(0,207,255,0.1)]"
+                            : "border-white/15 bg-white/[0.05] hover:border-cyan-400/30 hover:bg-white/[0.08]"
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setOpenId(open ? null : topic.id)}
+                          aria-expanded={open}
+                          className="flex w-full cursor-pointer items-start justify-between gap-4 px-5 py-4 text-left"
+                        >
+                          <span className="min-w-0">
+                            <span
+                              className={cn(
+                                "block font-semibold",
+                                open ? "text-xl text-white" : "text-lg font-medium text-slate-200"
+                              )}
+                            >
+                              {topic.title}
+                            </span>
+                            {!open ? (
+                              <span className="mt-1 block line-clamp-2 text-sm text-slate-400">
+                                {getPreviewText(topic)}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span
+                            className={cn(
+                              "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
+                              open
+                                ? "rotate-45 border-cyan-400/60 bg-cyan-400 text-[#080b12]"
+                                : "border-cyan-400/40 bg-cyan-400/10 text-cyan-300"
+                            )}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </span>
+                        </button>
+
+                        <div
+                          className={cn(
+                            "grid transition-all duration-200 ease-in-out",
+                            open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          )}
+                        >
+                          <div className="overflow-hidden">
+                            <div className="border-t border-white/10 px-5 pb-5 pt-4">
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400/70">
+                                Resposta
+                              </p>
+                              <div
+                                className="prose prose-invert max-w-none prose-p:text-sm prose-p:leading-7 prose-p:text-slate-400 prose-li:text-slate-400 prose-strong:text-slate-200 prose-a:text-cyan-300 [&_p]:my-4 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0"
+                                dangerouslySetInnerHTML={{ __html: topic.content }}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <ArrowRight className="h-5 w-5 shrink-0 text-slate-500 transition group-hover:text-cyan-300" />
-                    </Link>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </div>
