@@ -99,7 +99,7 @@ export default async function PlanosPage() {
                 />
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] [background-size:32px_32px]"
+                  className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-position:0_-4px] [background-size:32px_32px]"
                 />
                 {plan.highlighted && (
                   <div className="absolute inset-x-0 top-0 z-20 h-1 bg-gradient-to-r from-cyan-400 via-sky-300 to-cyan-400" />
