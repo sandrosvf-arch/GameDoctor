@@ -111,6 +111,9 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   const durationSeconds = meta?.length ?? null
   const duration = meta?.length ? formatDuration(meta.length) : null
   const embedUrl = isAccessible ? bunnySignedEmbedUrl(videoId) : ""
+  const previewEmbedUrl = canPreview && lesson?.previewVideoProviderId
+    ? bunnySignedEmbedUrl(lesson.previewVideoProviderId, 15 * 60, { autoplay: true, muted: false })
+    : ""
   const courseTitle = lesson?.course.title ?? "Início da Jornada"
   const courseSlug = lesson?.course.slug ?? null
   const previewImage = lesson?.thumbnail ?? lesson?.videoThumbnailUrl ?? null
@@ -137,6 +140,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       releaseAt={lessonAccess?.releaseAt ?? null}
       canViewRestrictedContent={hasRestrictedContentAccess}
       canPreview={canPreview}
+      previewEmbedUrl={previewEmbedUrl}
       isFree={lesson?.isFree ?? true}
       courseTitle={courseTitle}
       courseSlug={courseSlug}

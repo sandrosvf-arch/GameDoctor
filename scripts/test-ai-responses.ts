@@ -1,7 +1,7 @@
 import OpenAI from "openai"
 import { buildAiSystemPrompt } from "../src/lib/ai/prompt"
 import { searchAiContext } from "../src/lib/ai/search"
-import { getAiSystemPrompt } from "../src/lib/ai/settings"
+import { getAiSystemPrompts } from "../src/lib/ai/settings"
 
 const model = process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini"
 const apiKey = process.env.OPENAI_API_KEY?.trim()
@@ -47,7 +47,8 @@ const cases = [
 ]
 
 async function main() {
-  const systemPrompt = await getAiSystemPrompt()
+  const prompts = await getAiSystemPrompts()
+  const systemPrompt = prompts.paid
 
   for (const testCase of cases) {
     const context = await searchAiContext(testCase.question, true)
@@ -56,7 +57,7 @@ async function main() {
       const completion = await openai.chat.completions.create({
         model,
         messages: [
-          { role: "system", content: buildAiSystemPrompt(systemPrompt, access, context) },
+          { role: "system", content: buildAiSystemPrompt(systemPrompt, context) },
           { role: "user", content: testCase.question },
         ],
         temperature: 0,

@@ -68,7 +68,7 @@ export async function GET(request: Request) {
     embedUrl: bunnySignedEmbedUrl(
       lesson.previewVideoProviderId,
       15 * 60,
-      { autoplay: false, muted: false }
+      { autoplay: true, muted: false }
     ),
   })
 

@@ -14,6 +14,7 @@ interface AssistantMessage {
 interface UsageStatus {
   creditsRemaining: number
   monthlyCredits: number
+  renewsAt?: string
 }
 
 const STORAGE_KEY = "gamedoctor_assistant_state"
@@ -240,7 +241,12 @@ export function PlatformAssistant({
           </div>
 
           <footer className="border-t border-white/[0.08] p-3">
-            {usage && <p className="mb-2 text-[10px] text-white/40">{usage.creditsRemaining} de {usage.monthlyCredits} perguntas restantes este mês</p>}
+            {usage && (
+              <p className="mb-2 text-[10px] text-white/40">
+                {usage.creditsRemaining} de {usage.monthlyCredits} perguntas restantes este mês
+                {usage.renewsAt && ` · Renova em ${new Date(usage.renewsAt).toLocaleDateString("pt-BR", { day: "numeric", month: "long" })}`}
+              </p>
+            )}
             {session?.user ? (
               <form onSubmit={sendMessage} className="flex items-end gap-2">
                 <textarea

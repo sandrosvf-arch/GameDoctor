@@ -13,6 +13,7 @@ export interface AiAccess {
 
 export interface AiUsageStatus {
   periodStart: Date
+  renewsAt: Date
   creditsUsed: number
   creditsRemaining: number
   monthlyCredits: number
@@ -21,7 +22,7 @@ export interface AiUsageStatus {
 
 const AI_LIMITS = {
   free: {
-    monthlyCredits: 3,
+    monthlyCredits: 5,
     maxMessageCharacters: 800,
     technicalMode: false,
   },
@@ -39,6 +40,10 @@ const AI_LIMITS = {
 
 function getPeriodStart(date = new Date()) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1))
+}
+
+function getRenewsAt(periodStart: Date) {
+  return new Date(Date.UTC(periodStart.getUTCFullYear(), periodStart.getUTCMonth() + 1, 1))
 }
 
 export async function resolveAiAccess(userId: string, role?: UserRole | null): Promise<AiAccess> {
@@ -62,6 +67,7 @@ export async function getAiUsageStatus(userId: string, access: AiAccess, date = 
   const creditsUsed = usage?.creditsUsed ?? 0
   return {
     periodStart,
+    renewsAt: getRenewsAt(periodStart),
     creditsUsed,
     creditsRemaining: Math.max(0, access.monthlyCredits - creditsUsed),
     monthlyCredits: access.monthlyCredits,
@@ -106,6 +112,7 @@ export async function consumeAiCredit(userId: string, access: AiAccess, credits 
 
   return {
     periodStart,
+    renewsAt: getRenewsAt(periodStart),
     creditsUsed: usage.creditsUsed,
     creditsRemaining: Math.max(0, access.monthlyCredits - usage.creditsUsed),
     monthlyCredits: access.monthlyCredits,

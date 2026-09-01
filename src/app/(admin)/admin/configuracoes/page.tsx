@@ -5,8 +5,10 @@ import { Bot, Loader2, MessageCircle, RotateCcw, Save, Video } from "lucide-reac
 import { Button } from "@/components/ui/button"
 
 type AiSettingsResponse = {
-  prompt: string
-  defaultPrompt: string
+  promptFree: string
+  promptPaid: string
+  defaultPromptFree: string
+  defaultPromptPaid: string
   aboutVideoUrl: string
   whatsappUrl: string
   updatedAt: string | null
@@ -14,8 +16,10 @@ type AiSettingsResponse = {
 }
 
 export default function AdminConfiguracoesPage() {
-  const [prompt, setPrompt] = useState("")
-  const [defaultPrompt, setDefaultPrompt] = useState("")
+  const [promptFree, setPromptFree] = useState("")
+  const [promptPaid, setPromptPaid] = useState("")
+  const [defaultPromptFree, setDefaultPromptFree] = useState("")
+  const [defaultPromptPaid, setDefaultPromptPaid] = useState("")
   const [aboutVideoUrl, setAboutVideoUrl] = useState("")
   const [whatsappUrl, setWhatsappUrl] = useState("")
   const [loading, setLoading] = useState(true)
@@ -34,8 +38,10 @@ export default function AdminConfiguracoesPage() {
         return
       }
 
-      setPrompt(payload.prompt)
-      setDefaultPrompt(payload.defaultPrompt)
+      setPromptFree(payload.promptFree)
+      setPromptPaid(payload.promptPaid)
+      setDefaultPromptFree(payload.defaultPromptFree)
+      setDefaultPromptPaid(payload.defaultPromptPaid)
       setAboutVideoUrl(payload.aboutVideoUrl)
       setWhatsappUrl(payload.whatsappUrl)
       setLoading(false)
@@ -52,13 +58,13 @@ export default function AdminConfiguracoesPage() {
     const response = await fetch("/api/admin/configuracoes/ai", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, aboutVideoUrl, whatsappUrl }),
+      body: JSON.stringify({ promptFree, promptPaid, aboutVideoUrl, whatsappUrl }),
     })
     const payload = await response.json().catch(() => null) as AiSettingsResponse | null
     setSaving(false)
 
     if (!response.ok) {
-      setError(payload?.error ?? "Não foi possível salvar o prompt.")
+      setError(payload?.error ?? "Não foi possível salvar os prompts.")
       return
     }
 
@@ -82,7 +88,7 @@ export default function AdminConfiguracoesPage() {
           <div>
             <h2 className="font-semibold">Assistente GameDoctor</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Defina a personalidade, o objetivo e o tom das respostas da IA.
+              Defina a personalidade, o objetivo e o tom das respostas da IA para cada perfil de usuário.
             </p>
           </div>
         </div>
@@ -94,28 +100,52 @@ export default function AdminConfiguracoesPage() {
             </div>
           ) : (
             <>
+              <div className="rounded-lg border border-border bg-background/50 p-4 text-xs leading-5 text-muted-foreground">
+                <p className="font-medium text-foreground">Fontes que a IA já consulta automaticamente</p>
+                <p className="mt-1">
+                  Central de ajuda (dúvidas frequentes), aulas e trilhas, planos e comunidade já são buscados por relevância a cada pergunta.
+                  Você não precisa escrever #hashtags nem citar essas páginas no prompt para isso funcionar — é só para você saber o que já está disponível ao escrever o texto abaixo.
+                </p>
+              </div>
+
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <label htmlFor="ai-prompt" className="text-sm font-medium">Prompt-base</label>
-                  <span className="text-xs text-muted-foreground">{prompt.length.toLocaleString("pt-BR")} / 12.000</span>
+                  <label htmlFor="ai-prompt-free" className="text-sm font-medium">Prompt para usuários gratuitos</label>
+                  <span className="text-xs text-muted-foreground">{promptFree.length.toLocaleString("pt-BR")} / 12.000</span>
                 </div>
                 <textarea
-                  id="ai-prompt"
-                  value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
+                  id="ai-prompt-free"
+                  value={promptFree}
+                  onChange={(event) => setPromptFree(event.target.value)}
                   rows={12}
                   maxLength={12_000}
                   className="w-full resize-y rounded-lg border border-border bg-background px-3 py-3 text-sm leading-6 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/10"
                 />
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  As regras de segurança, acesso por plano e uso das fontes são aplicadas automaticamente e não precisam ser repetidas aqui.
-                </p>
+                <div className="mt-2 flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setPromptFree(defaultPromptFree)} disabled={saving || promptFree === defaultPromptFree}>
+                    <RotateCcw className="mr-2 h-4 w-4" /> Restaurar padrão
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setPrompt(defaultPrompt)} disabled={saving || prompt === defaultPrompt}>
-                  <RotateCcw className="mr-2 h-4 w-4" /> Restaurar padrão
-                </Button>
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <label htmlFor="ai-prompt-paid" className="text-sm font-medium">Prompt para assinantes ativos</label>
+                  <span className="text-xs text-muted-foreground">{promptPaid.length.toLocaleString("pt-BR")} / 12.000</span>
+                </div>
+                <textarea
+                  id="ai-prompt-paid"
+                  value={promptPaid}
+                  onChange={(event) => setPromptPaid(event.target.value)}
+                  rows={12}
+                  maxLength={12_000}
+                  className="w-full resize-y rounded-lg border border-border bg-background px-3 py-3 text-sm leading-6 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/10"
+                />
+                <div className="mt-2 flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setPromptPaid(defaultPromptPaid)} disabled={saving || promptPaid === defaultPromptPaid}>
+                    <RotateCcw className="mr-2 h-4 w-4" /> Restaurar padrão
+                  </Button>
+                </div>
               </div>
             </>
           )}
@@ -177,7 +207,7 @@ export default function AdminConfiguracoesPage() {
           <Button
             type="button"
             onClick={() => void save()}
-            disabled={saving || prompt.trim().length < 20 || !aboutVideoUrl || !whatsappUrl}
+            disabled={saving || promptFree.trim().length < 20 || promptPaid.trim().length < 20 || !aboutVideoUrl || !whatsappUrl}
           >
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Salvar configurações

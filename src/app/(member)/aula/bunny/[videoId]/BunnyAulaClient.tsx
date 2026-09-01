@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button"
 import { BUNNY_CDN_HOST } from "@/lib/constants"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
-import { BunnyEmbedPlayer, BunnyPreviewPlayer } from "@/components/lessons/BunnyPreviewPlayer"
+import { BunnyEmbedPlayer } from "@/components/lessons/BunnyPreviewPlayer"
 
 export interface LessonMaterial {
   id: string
@@ -90,6 +90,7 @@ interface BunnyAulaClientProps {
   releaseAt: string | null
   canViewRestrictedContent: boolean
   canPreview: boolean
+  previewEmbedUrl: string
   isFree: boolean
   courseTitle: string
   courseSlug: string | null
@@ -115,6 +116,7 @@ export default function BunnyAulaClient({
   releaseAt,
   canViewRestrictedContent,
   canPreview,
+  previewEmbedUrl,
   isFree,
   courseTitle,
   courseSlug,
@@ -355,13 +357,34 @@ export default function BunnyAulaClient({
                 </div>
               ) : !isAccessible ? (
                 <div className="absolute inset-0">
-                  {canPreview && lessonId && !paywallVisible ? (
-                    <BunnyPreviewPlayer
-                      lessonId={lessonId}
-                      title={title}
-                      thumbnail={previewImage}
-                      onEnded={() => setPaywallVisible(true)}
-                    />
+                  {canPreview && previewEmbedUrl && !paywallVisible ? (
+                    !started ? (
+                      <>
+                        {previewImage && (
+                          <img
+                            src={previewImage}
+                            alt={title}
+                            className="absolute inset-0 h-full w-full object-cover brightness-[1.2]"
+                            draggable={false}
+                          />
+                        )}
+                        <button
+                          onClick={() => setStarted(true)}
+                          aria-label="Assistir prévia"
+                          className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors"
+                        >
+                          <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/65">
+                            <Play className="h-7 w-7 fill-white" />
+                          </span>
+                        </button>
+                      </>
+                    ) : mounted ? (
+                      <BunnyEmbedPlayer
+                        embedUrl={previewEmbedUrl}
+                        title={`Prévia: ${title}`}
+                        onEnded={() => setPaywallVisible(true)}
+                      />
+                    ) : null
                   ) : (
                     <>
                       {previewImage && (

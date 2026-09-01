@@ -3,8 +3,8 @@ import { revalidateTag } from "next/cache"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { AI_SYSTEM_PROMPT_KEY } from "@/lib/ai/settings"
-import { DEFAULT_AI_SYSTEM_PROMPT, resolveAiSystemPrompt } from "@/lib/ai/prompt"
+import { AI_SYSTEM_PROMPT_FREE_KEY, AI_SYSTEM_PROMPT_PAID_KEY } from "@/lib/ai/settings"
+import { DEFAULT_AI_SYSTEM_PROMPT_FREE, DEFAULT_AI_SYSTEM_PROMPT_PAID, resolveAiSystemPrompt } from "@/lib/ai/prompt"
 import {
   ABOUT_VIDEO_URL_KEY,
   APP_SETTINGS_CACHE_TAG,
@@ -19,7 +19,8 @@ const revalidateTagWithProfile = revalidateTag as unknown as (
 ) => void
 
 const updateSchema = z.object({
-  prompt: z.string().trim().min(20).max(12_000),
+  promptFree: z.string().trim().min(20).max(12_000),
+  promptPaid: z.string().trim().min(20).max(12_000),
   aboutVideoUrl: z.string().trim().url(),
   whatsappUrl: z.string().trim().url(),
 })
@@ -37,11 +38,14 @@ export async function GET() {
   }
 
   const settings = await readAppSettings()
-  const promptSetting = settings.get(AI_SYSTEM_PROMPT_KEY)
+  const promptFreeSetting = settings.get(AI_SYSTEM_PROMPT_FREE_KEY)
+  const promptPaidSetting = settings.get(AI_SYSTEM_PROMPT_PAID_KEY)
 
   return NextResponse.json({
-    prompt: resolveAiSystemPrompt(promptSetting?.value),
-    defaultPrompt: DEFAULT_AI_SYSTEM_PROMPT,
+    promptFree: resolveAiSystemPrompt(promptFreeSetting?.value, "FREE"),
+    promptPaid: resolveAiSystemPrompt(promptPaidSetting?.value, "PAID"),
+    defaultPromptFree: DEFAULT_AI_SYSTEM_PROMPT_FREE,
+    defaultPromptPaid: DEFAULT_AI_SYSTEM_PROMPT_PAID,
     aboutVideoUrl:
       settings.get(ABOUT_VIDEO_URL_KEY)?.value
       || process.env.NEXT_PUBLIC_ABOUT_VIDEO_URL?.trim()
@@ -51,7 +55,7 @@ export async function GET() {
       || process.env.NEXT_PUBLIC_SUBSCRIPTION_CANCEL_WHATSAPP_URL?.trim()
       || process.env.NEXT_PUBLIC_WHATSAPP_URL?.trim()
       || "https://wa.me/?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20a%20GameDoctor.",
-    updatedAt: promptSetting?.updatedAt.toISOString() ?? null,
+    updatedAt: (promptFreeSetting?.updatedAt ?? promptPaidSetting?.updatedAt)?.toISOString() ?? null,
   })
 }
 
@@ -64,13 +68,14 @@ export async function PATCH(request: Request) {
   const parsed = updateSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Revise o prompt e informe URLs válidas para o vídeo e o WhatsApp." },
+      { error: "Revise os prompts e informe URLs válidas para o vídeo e o WhatsApp." },
       { status: 400 }
     )
   }
 
   const updatedAt = await upsertAppSettings([
-    { key: AI_SYSTEM_PROMPT_KEY, value: parsed.data.prompt },
+    { key: AI_SYSTEM_PROMPT_FREE_KEY, value: parsed.data.promptFree },
+    { key: AI_SYSTEM_PROMPT_PAID_KEY, value: parsed.data.promptPaid },
     { key: ABOUT_VIDEO_URL_KEY, value: parsed.data.aboutVideoUrl },
     { key: WHATSAPP_URL_KEY, value: parsed.data.whatsappUrl },
   ])
@@ -80,15 +85,16 @@ export async function PATCH(request: Request) {
       adminUserId: session.user.id,
       action: "AI_PROMPT_UPDATE",
       entityType: "APP_SETTING",
-      entityId: AI_SYSTEM_PROMPT_KEY,
-      description: "Configurações da IA, Quem somos e WhatsApp atualizadas.",
+      entityId: AI_SYSTEM_PROMPT_FREE_KEY,
+      description: "Configurações da IA (prompts gratuito e assinante), Quem somos e WhatsApp atualizadas.",
     },
   })
 
   revalidateTagWithProfile(APP_SETTINGS_CACHE_TAG, "max")
 
   return NextResponse.json({
-    prompt: parsed.data.prompt,
+    promptFree: parsed.data.promptFree,
+    promptPaid: parsed.data.promptPaid,
     aboutVideoUrl: parsed.data.aboutVideoUrl,
     whatsappUrl: parsed.data.whatsappUrl,
     updatedAt: updatedAt.toISOString(),

@@ -5,8 +5,9 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Loader2, Play } from "lucide-react"
 
 interface PlayerJsInstance {
-  on(event: "ended", callback: () => void): void
-  off?(event: "ended", callback: () => void): void
+  on(event: "ended" | "ready" | "play" | "pause", callback: () => void): void
+  off?(event: "ended" | "ready" | "play" | "pause", callback: () => void): void
+  play(): void
 }
 
 interface PlayerJsNamespace {
@@ -17,10 +18,12 @@ export function BunnyEmbedPlayer({
   embedUrl,
   title,
   onEnded,
+  autoPlayRetry = false,
 }: {
   embedUrl: string
   title: string
   onEnded: () => void
+  autoPlayRetry?: boolean
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const onEndedRef = useRef(onEnded)
@@ -43,16 +46,51 @@ export function BunnyEmbedPlayer({
     const handleEnded = () => onEndedRef.current()
 
     player.on("ended", handleEnded)
+
+    // The `autoplay=true` URL param occasionally races with the source/manifest
+    // still resolving and silently fails. Track real play/pause state (never call
+    // play() while already playing, that toggles it back to paused) and retry a
+    // couple of times only while still paused.
+    let isPlaying = false
+    const retryTimers: number[] = []
+    const handlePlay = () => { isPlaying = true }
+    const handlePause = () => { isPlaying = false }
+    const handleReady = () => {
+      const attemptPlay = () => {
+        if (isPlaying) return
+        try {
+          player.play()
+        } catch {
+          // Ignore; the player's own play button remains available as a fallback.
+        }
+      }
+
+      retryTimers.push(window.setTimeout(attemptPlay, 600))
+      retryTimers.push(window.setTimeout(attemptPlay, 1600))
+    }
+
+    if (autoPlayRetry) {
+      player.on("play", handlePlay)
+      player.on("pause", handlePause)
+      player.on("ready", handleReady)
+    }
+
     return () => {
+      retryTimers.forEach((timer) => window.clearTimeout(timer))
       if (!iframeRef.current?.contentWindow) return
 
       try {
         player.off?.("ended", handleEnded)
+        if (autoPlayRetry) {
+          player.off?.("play", handlePlay)
+          player.off?.("pause", handlePause)
+          player.off?.("ready", handleReady)
+        }
       } catch {
         // O iframe pode ser desmontado durante uma navegação.
       }
     }
-  }, [embedUrl, scriptReady])
+  }, [embedUrl, scriptReady, autoPlayRetry])
 
   const handleScriptReady = useCallback(() => {
     setScriptReady(true)
@@ -98,22 +136,17 @@ export function BunnyPreviewPlayer({
   const [loading, setLoading] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
 
+  // Fetch the signed preview URL as soon as the lesson is known, so the click that
+  // starts playback mounts the iframe synchronously (same-gesture autoplay works).
   useEffect(() => {
     setStarted(false)
     setEmbedUrl(null)
-    setLoading(false)
     setUnavailable(false)
-  }, [lessonId])
-
-  useEffect(() => {
-    if (!started) return
+    setLoading(true)
 
     const controller = new AbortController()
 
     async function loadPreview() {
-      setLoading(true)
-      setUnavailable(false)
-
       try {
         const response = await fetch(
           `/api/bunny/preview-embed?lessonId=${encodeURIComponent(lessonId)}`,
@@ -138,11 +171,11 @@ export function BunnyPreviewPlayer({
 
     void loadPreview()
     return () => controller.abort()
-  }, [lessonId, started])
+  }, [lessonId])
 
   return (
     <div className="absolute inset-0 bg-black">
-      {thumbnail && !embedUrl && (
+      {thumbnail && !started && (
         <img
           src={thumbnail}
           alt={title}
@@ -177,11 +210,12 @@ export function BunnyPreviewPlayer({
         </div>
       )}
 
-      {embedUrl && (
+      {started && embedUrl && (
         <BunnyEmbedPlayer
           embedUrl={embedUrl}
           title={`Prévia: ${title}`}
           onEnded={onEnded}
+          autoPlayRetry
         />
       )}
     </div>
