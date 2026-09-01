@@ -290,6 +290,7 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
   const periodLabel = data.order.item?.periodLabel ?? "Plano selecionado"
   const paymentMethod = formatPaymentMethod(data.order.payment?.method ?? data.order.paymentMethod)
   const orderShortId = data.order.id.slice(0, 8).toUpperCase()
+  const paidTotal = data.order.payment?.amount ?? data.order.finalTotal
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -431,7 +432,7 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
                   <p className="mt-0.5 text-[11px] text-slate-500">Valor final da inscrição</p>
                 </div>
                 <span className="text-right text-xl font-semibold tracking-[-0.03em] text-white">
-                  {formatCurrency(data.order.finalTotal)}
+                  {formatCurrency(paidTotal)}
                 </span>
               </div>
             </div>
@@ -453,7 +454,9 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
                   label="Parcelamento"
                   value={data.order.payment.method === "PIX_INSTALLMENTS"
                     ? "Parcelamento via Pix - Pagaleve"
-                    : `${data.order.payment.installments ?? 1}x`}
+                    : `${data.order.payment.installments ?? 1}x de ${formatCurrency(
+                        data.order.payment.amount / (data.order.payment.installments ?? 1)
+                      )}`}
                 />
                 {data.order.payment.paidAt ? <DetailRow label="Confirmação" value={formatDate(data.order.payment.paidAt) ?? "-"} /> : null}
                 {data.order.payment.gatewayPaymentId ? (

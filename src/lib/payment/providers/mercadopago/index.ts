@@ -42,6 +42,7 @@ export type MercadoPagoOrderDetails = {
   status?: string | null
   external_reference?: string | null
   total_amount?: number | string | null
+  total_paid_amount?: number | string | null
   transactions?: {
     payments?: Array<{
       id?: string | number

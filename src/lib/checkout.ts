@@ -67,7 +67,7 @@ function toNumber(value: Prisma.Decimal | number | null | undefined) {
 const CARD_REFERENCE_CASH_TOTAL = 614.20
 const CARD_REFERENCE_INSTALLMENT_TOTAL = 750
 
-function getCardEstimate(total: number, installments: number) {
+export function getCardEstimate(total: number, installments: number) {
   const safeInstallments = Math.max(1, installments)
   const cardTotal = Number(
     (total * (CARD_REFERENCE_INSTALLMENT_TOTAL / CARD_REFERENCE_CASH_TOTAL)).toFixed(2)

@@ -120,6 +120,10 @@ export async function POST(request: Request) {
       paymentMethodId: mpPayment?.payment_method?.id ?? paymentMethodId,
     })
     const gatewayPaymentId = mpPayment?.id ? String(mpPayment.id) : null
+    const gatewayPaidAmount = Number(mpOrder.total_paid_amount)
+    const paidAmount = Number.isFinite(gatewayPaidAmount) && gatewayPaidAmount > 0
+      ? gatewayPaidAmount
+      : checkout.quote.finalTotal
 
     await db.$transaction([
       db.order.update({
@@ -137,7 +141,7 @@ export async function POST(request: Request) {
           paymentMethod: paymentMethod ?? "CREDIT_CARD",
           paymentStatus: internalStatus,
           installments,
-          amount: checkout.quote.finalTotal,
+          amount: paidAmount,
         },
       }),
     ])

@@ -120,7 +120,7 @@ async function processOrderNotification(gatewayOrderId: string) {
     gatewayPaymentId: gatewayPayment?.id ? String(gatewayPayment.id) : null,
     status,
     paymentMethod,
-    amount: Number(gatewayPayment?.amount ?? gatewayOrder.total_amount ?? 0),
+    amount: Number(gatewayOrder.total_paid_amount ?? gatewayPayment?.amount ?? gatewayOrder.total_amount ?? 0),
     installments: gatewayPayment?.payment_method?.installments ?? 1,
   })
 }
