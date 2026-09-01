@@ -64,6 +64,7 @@ interface CheckoutQuote {
   discountTotal: number
   finalTotal: number
   installments: { max: number; noInterest: number }
+  cardEstimate: { total: number; installmentAmount: number }
   coupon: {
     applied: boolean
     code: string | null
@@ -507,11 +508,20 @@ export function CheckoutPageClient({
   useEffect(() => {
     const container = cardBrickContainerRef.current
     if (!container || selectedPaymentMethod !== "card") return
+    const activeContainer = container
 
     function cleanInstallmentLabels() {
-      container.querySelectorAll("option").forEach((option) => {
+      activeContainer.querySelectorAll("option").forEach((option) => {
         const current = option.textContent ?? ""
-        const cleaned = current.replace(/\s*\(Sem acréscimo\)/gi, "").trim()
+        const installmentMatch = current.match(/^(\d+)\s*x\b/i)
+        const installment = installmentMatch ? Number(installmentMatch[1]) : null
+        const installmentOption = installment === null
+          ? null
+          : cardInstallments.find((item) => item.installments === installment)
+        const replacement = installmentOption
+          ? ` (${formatCurrency(installmentOption.totalAmount)})`
+          : ""
+        const cleaned = current.replace(/\s*\(Sem acréscimo\)/gi, replacement).trim()
         if (cleaned !== current) option.textContent = cleaned
       })
     }
@@ -532,10 +542,10 @@ export function CheckoutPageClient({
     cleanInstallmentLabels()
     const observer = new MutationObserver(cleanInstallmentLabels)
     observer.observe(container, { childList: true, subtree: true })
-    container.addEventListener("change", handleInstallmentChange, true)
+    activeContainer.addEventListener("change", handleInstallmentChange, true)
     return () => {
       observer.disconnect()
-      container.removeEventListener("change", handleInstallmentChange, true)
+      activeContainer.removeEventListener("change", handleInstallmentChange, true)
     }
   }, [cardInstallments, selectedPaymentMethod])
 
@@ -547,10 +557,14 @@ export function CheckoutPageClient({
   const selectedCardInstallment = selectedPaymentMethod === "card"
     ? cardInstallments.find((option) => option.installments === selectedCardInstallments) ?? null
     : null
-  const checkoutTotal = selectedCardInstallment?.totalAmount ?? quote.finalTotal
+  const showCardEstimate = selectedPaymentMethod === null || selectedPaymentMethod === "card"
+  const checkoutTotal = selectedCardInstallment?.totalAmount
+    ?? (showCardEstimate ? quote.cardEstimate.total : quote.finalTotal)
   const checkoutSubtotal = selectedCardInstallment
     ? checkoutTotal + quote.discountTotal
-    : quote.subtotal
+    : showCardEstimate
+      ? quote.cardEstimate.total + quote.discountTotal
+      : quote.subtotal
   const hasProfileCpf = profile.cpf?.replace(/\D/g, "").length === 11
   const paymentMethodLabel =
     selectedPaymentMethod === "pix"
@@ -609,7 +623,11 @@ export function CheckoutPageClient({
                 <p className="mt-0.5 text-xs text-slate-500">
                   {selectedCardInstallment
                     ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
-                    : `até ${maxInstallments}x`}
+                    : showCardEstimate
+                      ? `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`
+                      : selectedPaymentMethod === "pix"
+                        ? "Pagamento via Pix"
+                        : "Parcelamento via Pix"}
                 </p>
               </div>
             </div>

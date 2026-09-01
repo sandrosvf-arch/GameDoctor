@@ -24,6 +24,10 @@ export interface CheckoutQuote {
     max: number
     noInterest: number
   }
+  cardEstimate: {
+    total: number
+    installmentAmount: number
+  }
   coupon: {
     applied: boolean
     code: string | null
@@ -58,6 +62,21 @@ type QuotePlan = {
 function toNumber(value: Prisma.Decimal | number | null | undefined) {
   if (value === null || value === undefined) return 0
   return Number(value)
+}
+
+const CARD_REFERENCE_CASH_TOTAL = 614.20
+const CARD_REFERENCE_INSTALLMENT_TOTAL = 750.98
+
+function getCardEstimate(total: number, installments: number) {
+  const safeInstallments = Math.max(1, installments)
+  const cardTotal = Number(
+    (total * (CARD_REFERENCE_INSTALLMENT_TOTAL / CARD_REFERENCE_CASH_TOTAL)).toFixed(2)
+  )
+
+  return {
+    total: cardTotal,
+    installmentAmount: Number((cardTotal / safeInstallments).toFixed(2)),
+  }
 }
 
 export function areCheckoutCouponsEnabled() {
@@ -274,6 +293,7 @@ export async function buildCheckoutQuote(input: {
   ])
 
   const finalTotal = Math.max(0, Number((offer.subtotal - couponResult.discountTotal).toFixed(2)))
+  const cardEstimate = getCardEstimate(finalTotal, plan.maxInstallments)
 
   return {
     plan: {
@@ -294,6 +314,7 @@ export async function buildCheckoutQuote(input: {
       max: plan.maxInstallments,
       noInterest: plan.maxInstallmentsNoInterest,
     },
+    cardEstimate,
     coupon: {
       applied: Boolean(couponResult.coupon),
       code: couponResult.coupon?.code ?? null,
@@ -456,6 +477,7 @@ export async function listPublicPlans(userId?: string | null) {
         period: "annual" as const,
         label: "Anual",
         price: toNumber(plan.annualPrice),
+        cardEstimate: getCardEstimate(toNumber(plan.annualPrice), plan.maxInstallments),
         accessDurationDays: plan.annualAccessDurationDays,
       },
       ...(plan.monthlyEnabled && plan.monthlyPrice !== null
@@ -463,6 +485,7 @@ export async function listPublicPlans(userId?: string | null) {
             period: "monthly" as const,
             label: "Mensal",
             price: toNumber(plan.monthlyPrice),
+            cardEstimate: getCardEstimate(toNumber(plan.monthlyPrice), plan.maxInstallments),
             accessDurationDays: plan.monthlyAccessDurationDays ?? 30,
           }]
         : []),

@@ -16,7 +16,7 @@ export async function GET() {
         benefits: plan.benefits,
         highlighted: plan.highlighted,
         currentPlan: null,
-        offers: plan.offers.map(({ price: _price, ...offer }) => offer),
+        offers: plan.offers.map(({ price: _price, cardEstimate: _cardEstimate, ...offer }) => offer),
       })),
     })
   }

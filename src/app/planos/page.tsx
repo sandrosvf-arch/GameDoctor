@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowDown, Check, ShieldCheck } from "lucide-react"
+import { ArrowDown, Check } from "lucide-react"
 import { unstable_cache } from "next/cache"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
@@ -21,10 +21,6 @@ function buildCheckoutHref(planSlug: string, period: "annual" | "monthly") {
 
 function buildLoginHref(planSlug: string, period: "annual" | "monthly") {
   return `/login?callbackUrl=${encodeURIComponent(buildCheckoutHref(planSlug, period))}`
-}
-
-function getInstallmentCount(installments: { max: number; noInterest: number }) {
-  return installments.noInterest > 1 ? installments.noInterest : installments.max
 }
 
 const getCachedLessonCount = unstable_cache(
@@ -140,9 +136,8 @@ export default async function PlanosPage() {
                     const href = isLoggedIn
                       ? buildCheckoutHref(plan.slug, offer.period)
                       : buildLoginHref(plan.slug, offer.period)
-                    const installmentCount = getInstallmentCount(plan.installments)
-                    const installmentValue = offer.price / installmentCount
-                    const noInterest = plan.installments.noInterest >= installmentCount
+                    const installmentCount = plan.installments.max
+                    const installmentValue = offer.cardEstimate.installmentAmount
 
                     return (
                       <div
@@ -151,11 +146,6 @@ export default async function PlanosPage() {
                       >
                         {canSeePrices ? installmentCount > 1 ? (
                           <div>
-                            {noInterest && (
-                              <span className="mb-3 inline-flex rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-                                Sem juros
-                              </span>
-                            )}
                             <p className="text-sm font-medium text-slate-400">Você paga apenas</p>
                             <p className="mt-1 text-4xl font-bold text-white md:text-5xl">
                               {installmentCount}x <span className="text-cyan-300">de {formatCurrency(installmentValue)}</span>
@@ -203,10 +193,6 @@ export default async function PlanosPage() {
                         {canSeePrices && (
                           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-400">
                             <span>Até {plan.installments.max}x no cartão</span>
-                            <span className="inline-flex items-center gap-1.5 text-emerald-300">
-                              <ShieldCheck className="h-3.5 w-3.5" />
-                              Até {plan.installments.noInterest}x sem juros
-                            </span>
                           </div>
                         )}
                       </div>
