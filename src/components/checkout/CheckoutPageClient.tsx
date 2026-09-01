@@ -508,6 +508,14 @@ export function CheckoutPageClient({
     const container = cardBrickContainerRef.current
     if (!container || selectedPaymentMethod !== "card") return
 
+    function cleanInstallmentLabels() {
+      container.querySelectorAll("option").forEach((option) => {
+        const current = option.textContent ?? ""
+        const cleaned = current.replace(/\s*\(Sem acréscimo\)/gi, "").trim()
+        if (cleaned !== current) option.textContent = cleaned
+      })
+    }
+
     function handleInstallmentChange(event: Event) {
       if (!(event.target instanceof HTMLSelectElement)) return
 
@@ -521,8 +529,14 @@ export function CheckoutPageClient({
       }
     }
 
+    cleanInstallmentLabels()
+    const observer = new MutationObserver(cleanInstallmentLabels)
+    observer.observe(container, { childList: true, subtree: true })
     container.addEventListener("change", handleInstallmentChange, true)
-    return () => container.removeEventListener("change", handleInstallmentChange, true)
+    return () => {
+      observer.disconnect()
+      container.removeEventListener("change", handleInstallmentChange, true)
+    }
   }, [cardInstallments, selectedPaymentMethod])
 
   const handleCardError = useCallback(() => {
