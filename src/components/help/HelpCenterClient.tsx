@@ -95,7 +95,7 @@ export function HelpCenterClient({
               Respostas rápidas, organizadas e fáceis de encontrar.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-8 text-slate-400">
-              Encontre orientações de uso, primeiros passos e dúvidas comerciais sem sair da sua área.
+              Encontre respostas para as dúvidas mais frequentes sem sair da sua área.
             </p>
           </div>
 

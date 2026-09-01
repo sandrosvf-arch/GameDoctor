@@ -182,14 +182,14 @@ const rows: CourseRow[] = [
 
 const plans = [
   { name: "Basico",  price: "R$ 97",  period: "12 meses",  badge: undefined,      highlight: false, features: ["Curso principal completo", "Modulos essenciais", "Suporte por e-mail", "Acesso por 12 meses"] },
-  { name: "Pro",     price: "R$ 197", period: "vitalicio", badge: "Mais popular", highlight: true,  features: ["Tudo do Basico", "Materiais complementares", "Certificado de conclusao", "Suporte prioritario", "Acesso vitalicio"] },
-  { name: "Premium", price: "R$ 397", period: "vitalicio", badge: undefined,      highlight: false, features: ["Tudo do Pro", "Conteudo avancado", "Comunidade exclusiva", "Mentorias ao vivo", "Novos cursos incluidos"] },
+  { name: "Pro",     price: "R$ 197", period: "12 meses", badge: "Mais popular", highlight: true,  features: ["Tudo do Basico", "Materiais complementares", "Certificado de conclusao", "Suporte prioritario", "Acesso por 12 meses"] },
+  { name: "Premium", price: "R$ 397", period: "12 meses", badge: undefined,      highlight: false, features: ["Tudo do Pro", "Conteudo avancado", "Comunidade exclusiva", "Mentorias ao vivo", "Novos cursos incluidos"] },
 ]
 
 const faqs = [
   { q: "Preciso ter experiencia previa?",     a: "Nao. Os cursos vao do basico ao avancado. Se voce sabe segurar uma chave de fenda, ja pode comecar." },
   { q: "Posso assistir antes de comprar?",    a: "Sim. Varias aulas tem previa gratuita - sem cadastro e sem cartao de credito." },
-  { q: "O que e o acesso vitalicio?",         a: "Uma vez comprado, o acesso nao expira. Atualizações e novos modulos sao incluidos automaticamente." },
+  { q: "Como funciona o acesso anual?",        a: "O acesso fica disponível por 12 meses, com atualizações e novos módulos incluídos durante esse período." },
   { q: "Quais ferramentas sao necessarias?",  a: "Cada curso lista suas ferramentas. Em geral: chaves de precisao, estacao de solda e multimetro cobrem 90% dos procedimentos." },
   { q: "Aceita Pix ou apenas cartao?",        a: "Aceitamos Pix (aprovacao instantanea) e cartao de credito em ate 12x." },
 ]
@@ -228,7 +228,7 @@ export default async function HomePage() {
       id: "default-1",
       title: "Sua plataforma completa de manutenção de videogames",
       subtitle:
-        "Aulas em 4K, esquemas elétricos exclusivos, técnicas de solda BGA e diagnósticos avançados, do básico ao profissional.",
+        "Aulas em alta resolução, esquemas elétricos exclusivos, técnicas de solda BGA e diagnósticos avançados, do básico ao profissional.",
       badge: "TÉCNICO DE MANUTENÇÃO EM VIDEOGAMES",
       videoUrl: "https://vz-38444944-922.b-cdn.net/67b73495-a6be-46e2-8fd8-e3338e929cc1/play_720p.mp4",
       imageUrl: null,
