@@ -130,6 +130,19 @@ export default async function TrailPage({ params }: TrailPageProps) {
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`
   })()
 
+  const badgeAccentColor = (() => {
+    const match = accentColor.match(/^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i)
+    if (!match) return accentColor
+
+    const channels = match.slice(1).map((channel) => parseInt(channel, 16))
+    const strongestChannel = Math.max(...channels)
+    if (strongestChannel >= 220 || strongestChannel === 0) return accentColor
+
+    const intensityScale = Math.min(235 / strongestChannel, 2)
+    const [red, green, blue] = channels.map((channel) => Math.min(255, Math.round(channel * intensityScale)))
+    return `rgb(${red}, ${green}, ${blue})`
+  })()
+
   const firstLessonHref = firstLesson
     ? firstLesson.videoProviderId
       ? `/aula/bunny/${firstLesson.videoProviderId}?titulo=${encodeURIComponent(firstLesson.title)}${firstLesson.description ? `&legenda=${encodeURIComponent(firstLesson.description)}` : ""}`
@@ -146,12 +159,19 @@ export default async function TrailPage({ params }: TrailPageProps) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={heroImage}
-            alt={course.title}
-            className="absolute inset-0 h-full w-full object-cover object-center"
+            alt=""
+            aria-hidden="true"
+            className="absolute -inset-8 h-[calc(100%+4rem)] w-[calc(100%+4rem)] object-cover brightness-75 blur-2xl"
           />
-          {/* Gradients — slightly lighter than home banner */}
-          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 from-[10%] via-zinc-950/45 via-[45%] to-transparent to-[70%]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 from-[0%] via-zinc-950/30 via-[15%] to-transparent to-[35%]" />
+          <div className="absolute inset-0 bg-zinc-950/30" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={heroImage}
+            alt={course.title}
+            className="absolute inset-0 h-full w-full object-cover object-center brightness-[1.19]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/70 from-[10%] via-zinc-950/20 via-[45%] to-transparent to-[70%]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/70 from-[0%] via-zinc-950/15 via-[15%] to-transparent to-[35%]" />
 
           {/* Content */}
           <div className="relative z-10 w-full pt-16 px-10 md:pt-0 md:px-0 md:pl-44 lg:pl-64">
@@ -165,8 +185,8 @@ export default async function TrailPage({ params }: TrailPageProps) {
               </Link>
 
               <div
-                className="flex w-fit items-center gap-2 text-[11px] font-bold uppercase tracking-widest border bg-zinc-950/50 backdrop-blur-sm px-3 py-1.5 rounded-full"
-                style={{ color: accentColor, borderColor: accentColor + "4d" }}
+                className="flex w-fit items-center gap-2 rounded-full border bg-zinc-950/80 px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-widest shadow-[0_0_18px_currentColor] backdrop-blur-sm"
+                style={{ color: badgeAccentColor, borderColor: badgeAccentColor }}
               >
                 <Gamepad2 className="h-3.5 w-3.5" />
                 Trilha de aprendizado
@@ -175,12 +195,6 @@ export default async function TrailPage({ params }: TrailPageProps) {
               <h1 className="text-[2.4rem] sm:text-[2.8rem] md:text-[3.2rem] lg:text-[3.6rem] font-black tracking-tight leading-[1.05]">
                 {course.title}
               </h1>
-
-              {course.shortDescription && (
-                <p className="text-zinc-300 leading-relaxed text-base md:text-lg max-w-[440px]">
-                  {course.shortDescription}
-                </p>
-              )}
 
               <div className="pt-1">
                 <Link

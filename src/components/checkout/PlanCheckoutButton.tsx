@@ -9,10 +9,12 @@ export function PlanCheckoutButton({
   href,
   label,
   requiresPhone = false,
+  emphasis = false,
 }: {
   href: string
   label: string
   requiresPhone?: boolean
+  emphasis?: boolean
 }) {
   const router = useRouter()
   const [pressed, setPressed] = useState(false)
@@ -75,10 +77,16 @@ export function PlanCheckoutButton({
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-80"
+        className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold text-slate-950 transition disabled:cursor-wait disabled:opacity-80 ${emphasis ? "cta-shine bg-emerald-400 shadow-[0_0_26px_rgba(52,211,153,0.45)] hover:bg-emerald-300" : "bg-cyan-400 hover:bg-cyan-300"}`}
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {loading ? "Carregando..." : label}
+        {emphasis && (
+          <span
+            className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]"
+            aria-hidden="true"
+          />
+        )}
+        {loading ? <Loader2 className="relative z-10 h-4 w-4 animate-spin" /> : null}
+        <span className="relative z-10">{loading ? "Carregando..." : label}</span>
       </button>
 
       {phoneModalOpen && (

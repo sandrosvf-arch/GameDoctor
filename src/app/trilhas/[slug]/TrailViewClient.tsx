@@ -5,6 +5,7 @@ import { useState } from "react"
 import { Play, CheckCircle2 } from "lucide-react"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 import type { Module, Lesson, Course } from "@prisma/client"
+import { brightenHexColor } from "@/lib/utils"
 
 interface TrailViewClientProps {
   course: Course
@@ -39,14 +40,6 @@ export function TrailViewClient({
     setExpandedModules(newSet)
   }
 
-  const handleDurationFormat = (seconds: number | null | undefined): string => {
-    if (!seconds) return ""
-    if (seconds >= 3600) {
-      return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}min`
-    }
-    return `${Math.floor(seconds / 60)} min`
-  }
-
   const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
 
   // Resolve accent color from trail (same logic as home page)
@@ -58,6 +51,7 @@ export function TrailViewClient({
     const r = parseInt(m[1]), g = parseInt(m[2]), b = parseInt(m[3])
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`
   })()
+  const pulseColor = brightenHexColor(accentColor)
 
   const badgeTextColor = (() => {
     const raw = course.badgeTextColorRgb?.trim()
@@ -73,7 +67,6 @@ export function TrailViewClient({
     const isCompleted = !!progress?.completedAt
     const isLocked = !courseAccess && !lesson.isFree
     const releaseAt = lessonReleaseAt[lesson.id] ?? null
-    const dur = handleDurationFormat(lesson.videoDurationSeconds ?? lesson.durationSeconds)
 
     const href = lesson.videoProviderId
       ? `/aula/bunny/${lesson.videoProviderId}?titulo=${encodeURIComponent(lesson.title)}${lesson.description ? `&legenda=${encodeURIComponent(lesson.description)}` : ""}`
@@ -97,19 +90,19 @@ export function TrailViewClient({
             // boxShadow: "0 4px 20px rgba(0,0,0,0.45)",
           }}
         >
-          <div className="relative aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
+          <div className="relative aspect-[3/2] sm:aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
             {/* Thumbnail */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={thumbnail}
               alt={lesson.title}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover brightness-[1.19]"
               draggable={false}
             />
             {releaseAt && <LessonReleaseLock releaseAt={releaseAt} compact />}
 
-            {/* Bottom shadow — strong, starts at mid-card */}
-            <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/95 via-black/60 to-transparent" />
+            {/* Bottom shadow */}
+            <div className="absolute inset-x-0 bottom-0 h-[30%] sm:h-[18%] bg-gradient-to-t from-black from-25% to-transparent" />
 
             {/* Top-left badges */}
             <div className="absolute top-2.5 left-2.5 z-20 flex gap-1.5">
@@ -133,8 +126,6 @@ export function TrailViewClient({
               )}
             </div>
 
-            {/* Hover overlay */}
-            <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover/card:opacity-100 bg-black/15 transition-opacity duration-200" />
             <div className="absolute inset-0 flex items-center justify-center opacity-0 [@media(hover:hover)]:group-hover/card:opacity-100 transition-all duration-200">
               <div className="flex h-11 w-11 scale-95 items-center justify-center rounded-full border border-white/25 bg-white/15 backdrop-blur-sm transition-transform duration-200 [@media(hover:hover)]:group-hover/card:scale-100">
                 <Play className="ml-0.5 h-5 w-5 fill-white text-white" />
@@ -142,23 +133,26 @@ export function TrailViewClient({
             </div>
 
             {/* Bottom content */}
-            <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 pt-1">
-              <p className="text-[15px] sm:text-[16px] font-bold leading-tight text-white line-clamp-2">
-                {lesson.title}
-              </p>
-              <div className="mt-1.5 flex items-center">
-                {dur && (
-                  <span className="text-[11px] text-zinc-400 font-medium">{dur}</span>
-                )}
-                {/* SVG waveform — same as home */}
-                <svg viewBox="0 0 112 16" className="ml-auto h-[12px] w-28 shrink-0" aria-hidden="true">
+            <div className="absolute inset-x-0 bottom-0 flex h-[30%] sm:h-[18%] items-center px-2.5">
+              <div className="flex w-full items-center justify-between gap-2">
+                <div className="min-w-0 [filter:drop-shadow(0_0_3px_rgb(0,0,0))_drop-shadow(0_2px_6px_rgb(0,0,0))_drop-shadow(0_4px_12px_rgba(0,0,0,0.85))]">
+                  <p className="line-clamp-2 text-[15px] font-bold leading-tight text-white sm:text-[18px] lg:text-[19px]">
+                    {lesson.title}
+                  </p>
+                </div>
+                <svg
+                  viewBox="0 0 112 16"
+                  className="h-4 w-20 shrink-0"
+                  style={{ filter: `saturate(1.8) brightness(1.4) drop-shadow(0 0 6px ${pulseColor})` }}
+                  aria-hidden="true"
+                >
                   <defs>
                     <linearGradient id={`trail-fade-${lesson.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor={accentColor} stopOpacity="0" />
-                      <stop offset="28%" stopColor={accentColor} stopOpacity="0.9" />
-                      <stop offset="50%" stopColor={accentColor} stopOpacity="1" />
-                      <stop offset="72%" stopColor={accentColor} stopOpacity="0.9" />
-                      <stop offset="100%" stopColor={accentColor} stopOpacity="0" />
+                      <stop offset="0%" stopColor={pulseColor} stopOpacity="0" />
+                      <stop offset="28%" stopColor={pulseColor} stopOpacity="0.9" />
+                      <stop offset="50%" stopColor={pulseColor} stopOpacity="1" />
+                      <stop offset="72%" stopColor={pulseColor} stopOpacity="0.9" />
+                      <stop offset="100%" stopColor={pulseColor} stopOpacity="0" />
                     </linearGradient>
                   </defs>
                   <path

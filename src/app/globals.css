@@ -116,6 +116,81 @@
   100% { left: 110%; opacity: 0; }
 }
 
+.plan-card-glow {
+  isolation: isolate;
+  border-radius: 20px;
+}
+
+.plan-card-glow::before {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  inset: 10px -12px -8px -10px;
+  border-radius: 34% 66% 42% 58% / 28% 40% 60% 72%;
+  background: linear-gradient(90deg, rgb(14 165 233 / 0.78) 0%, rgb(34 211 238 / 0.98) 33.333%, rgb(52 211 153 / 0.9) 66.667%, rgb(14 165 233 / 0.78) 100%);
+  background-size: 260px 100%;
+  filter: blur(32px);
+  opacity: 0.88;
+  pointer-events: none;
+  will-change: background-position, border-radius, transform;
+  animation: plan-card-water-flow 2.2s linear infinite, plan-card-water-morph 2.8s ease-in-out infinite alternate;
+}
+
+.plan-card-glow::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 14px -10px -11px -15px;
+  border-radius: 62% 38% 56% 44% / 48% 68% 32% 52%;
+  background: linear-gradient(90deg, rgb(34 211 238 / 0.62) 0%, rgb(14 165 233 / 0.72) 33.333%, rgb(52 211 153 / 0.66) 66.667%, rgb(34 211 238 / 0.62) 100%);
+  background-size: 260px 100%;
+  filter: blur(46px);
+  opacity: 0.64;
+  pointer-events: none;
+  will-change: background-position, border-radius, transform;
+  animation: plan-card-water-flow 2.2s linear -0.7s infinite, plan-card-water-morph-soft 3.8s ease-in-out infinite alternate;
+}
+
+@keyframes plan-card-water-flow {
+  from { background-position: 260px 50%; }
+  to   { background-position: 0 50%; }
+}
+
+@keyframes plan-card-water-morph {
+  from {
+    border-radius: 34% 66% 42% 58% / 28% 40% 60% 72%;
+    transform: translate3d(-1%, -1%, 0) scale(0.99);
+  }
+  to {
+    border-radius: 58% 42% 64% 36% / 60% 34% 66% 40%;
+    transform: translate3d(1%, 1%, 0) scale(1.02, 0.99);
+  }
+}
+
+@keyframes plan-card-water-morph-soft {
+  from {
+    border-radius: 62% 38% 56% 44% / 48% 68% 32% 52%;
+    transform: translate3d(1%, 1%, 0) scale(1.01);
+  }
+  to {
+    border-radius: 40% 60% 36% 64% / 66% 38% 62% 34%;
+    transform: translate3d(-1%, -1%, 0) scale(0.98, 1.02);
+  }
+}
+
+@media (min-width: 768px) {
+  .plan-card-glow {
+    border-radius: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-card-glow::before,
+  .plan-card-glow::after {
+    animation: none;
+  }
+}
+
 /* ── Suppress hover transitions during scroll ── */
 .is-scrolling * {
   transition-duration: 0ms !important;

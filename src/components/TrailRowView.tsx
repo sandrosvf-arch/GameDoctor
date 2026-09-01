@@ -5,6 +5,7 @@ import Image from "next/image"
 import { Play, ChevronRight } from "lucide-react"
 import { HorizontalCardRail } from "@/components/HorizontalCardRail"
 import type { HomeRowDto } from "@/lib/home-rows"
+import { brightenHexColor } from "@/lib/utils"
 
 interface TrailRowViewProps {
   row: HomeRowDto
@@ -13,6 +14,7 @@ interface TrailRowViewProps {
 export function TrailRowView({ row }: TrailRowViewProps) {
   const { id, title, platformBadge, courseSlug, brandColor, badgeTextColor, badgeLabel, cards } = row
   const isContinue = id === "continue"
+  const pulseColor = brightenHexColor(brandColor)
 
   return (
     <div className="relative">
@@ -104,17 +106,24 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                 {/* Bottom content */}
                 <div className="absolute inset-x-0 bottom-0 flex h-[30%] sm:h-[18%] items-center px-2.5">
                   <div className="flex w-full items-center justify-between gap-2">
-                    <p className="text-[15px] sm:text-[18px] lg:text-[19px] font-bold leading-tight text-white line-clamp-2">
-                      {card.title}
-                    </p>
-                    <svg viewBox="0 0 112 16" className="h-4 w-20 shrink-0" aria-hidden="true">
+                    <div className="min-w-0 [filter:drop-shadow(0_0_3px_rgb(0,0,0))_drop-shadow(0_2px_6px_rgb(0,0,0))_drop-shadow(0_4px_12px_rgba(0,0,0,0.85))]">
+                      <p className="line-clamp-2 text-[15px] font-bold leading-tight text-white sm:text-[18px] lg:text-[19px]">
+                        {card.title}
+                      </p>
+                    </div>
+                    <svg
+                      viewBox="0 0 112 16"
+                      className="h-4 w-20 shrink-0"
+                      style={{ filter: `saturate(1.8) brightness(1.4) drop-shadow(0 0 6px ${pulseColor})` }}
+                      aria-hidden="true"
+                    >
                       <defs>
                         <linearGradient id={`hb-fade-${card.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%"   stopColor={brandColor} stopOpacity="0" />
-                          <stop offset="28%"  stopColor={brandColor} stopOpacity="0.9" />
-                          <stop offset="50%"  stopColor={brandColor} stopOpacity="1" />
-                          <stop offset="72%"  stopColor={brandColor} stopOpacity="0.9" />
-                          <stop offset="100%" stopColor={brandColor} stopOpacity="0" />
+                          <stop offset="0%"   stopColor={pulseColor} stopOpacity="0" />
+                          <stop offset="28%"  stopColor={pulseColor} stopOpacity="0.9" />
+                          <stop offset="50%"  stopColor={pulseColor} stopOpacity="1" />
+                          <stop offset="72%"  stopColor={pulseColor} stopOpacity="0.9" />
+                          <stop offset="100%" stopColor={pulseColor} stopOpacity="0" />
                         </linearGradient>
                       </defs>
                       <path

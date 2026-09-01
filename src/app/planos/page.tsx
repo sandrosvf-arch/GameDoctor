@@ -1,11 +1,12 @@
 import Link from "next/link"
-import { ArrowRight, Check, CreditCard, ShieldCheck, Sparkles } from "lucide-react"
+import { ArrowDown, Check, ShieldCheck } from "lucide-react"
+import { unstable_cache } from "next/cache"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { listPublicPlans } from "@/lib/checkout"
+import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { PlanCheckoutButton } from "@/components/checkout/PlanCheckoutButton"
 import { Header } from "@/components/layout/Header"
-import { getPublicPlatformSettings } from "@/lib/app-settings"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -22,92 +23,97 @@ function buildLoginHref(planSlug: string, period: "annual" | "monthly") {
   return `/login?callbackUrl=${encodeURIComponent(buildCheckoutHref(planSlug, period))}`
 }
 
-function accessLabel(period: "annual" | "monthly") {
-  return period === "annual" ? "Acesso por 12 meses" : "Acesso mensal"
-}
-
 function getInstallmentCount(installments: { max: number; noInterest: number }) {
   return installments.noInterest > 1 ? installments.noInterest : installments.max
 }
+
+const getCachedLessonCount = unstable_cache(
+  () => db.lesson.count(),
+  ["home-lesson-count"],
+  { revalidate: 60 }
+)
+
+const repairPaybackRows = [
+  { service: "Troca / reparo de analógico", repairs: "5 reparos" },
+  { service: "Manutenção preventiva de console", repairs: "3 reparos" },
+  { service: "Reparo de HDMI", repairs: "2 reparos" },
+  { service: "Serviço avançado em placa", repairs: "1 reparo" },
+]
 
 export const dynamic = "force-dynamic"
 
 export default async function PlanosPage() {
   const session = await auth()
   const isLoggedIn = Boolean(session?.user?.id)
-  const [plans, profile, { whatsappUrl }] = await Promise.all([
+  const [plans, lessonCount] = await Promise.all([
     listPublicPlans(session?.user?.id ?? null),
-    session?.user?.id
-      ? db.user.findUnique({ where: { id: session.user.id }, select: { phone: true } })
-      : Promise.resolve(null),
-    getPublicPlatformSettings(),
+    getCachedLessonCount().catch(() => 0),
   ])
-  const canSeePrices = isLoggedIn && Boolean(profile?.phone?.trim())
+  const canSeePrices = isLoggedIn
+  const includedContent = [
+    `Mais de ${lessonCount.toLocaleString("pt-BR")} aulas disponíveis`,
+    "Discussões com a comunidade",
+    "Acesso ao professor",
+    "Diagramas",
+    "Conteúdo exclusivo",
+    "Materiais baixáveis",
+    "Lista de fornecedores",
+    "Softwares",
+    "Garantia de aprendizado",
+  ]
+
   return (
     <main className="min-h-screen bg-[#080b10] text-slate-100">
       <Header />
 
-      <section className="relative overflow-hidden border-b border-white/[0.08] bg-[radial-gradient(circle_at_50%_-20%,rgba(16,185,209,0.16),transparent_55%),#0b1018]">
-        <div className="mx-auto max-w-6xl px-5 py-10 md:px-8 md:py-16">
-          <div className="flex justify-start">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgba(34,211,238,0.18),transparent_52%),#0b1018]">
+        <div className="mx-auto max-w-5xl px-5 pb-12 pt-6 text-center md:px-8 md:pb-20 md:pt-10">
           <Link
             href="/"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-cyan-300"
+            className="flex w-fit items-center gap-2 text-sm text-slate-400 transition hover:text-cyan-300"
           >
             ← Voltar para a home
           </Link>
-          </div>
 
-          <div className="mt-12 text-center md:mt-16">
-          <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/[0.08] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-            <Sparkles className="h-3.5 w-3.5" />
-            Acesso GameDoctor
-          </div>
-
-          <h1 className="mx-auto text-2xl font-semibold tracking-[-0.06em] text-white md:text-6xl md:leading-[1.02]">
-            Aprenda de verdade como consertar videogames.
+          <h1 className="mx-auto mt-5 max-w-4xl text-3xl font-bold leading-tight text-white md:text-6xl md:leading-[1.08]">
+            Tenha acesso à plataforma mais completa do Brasil em <span className="text-cyan-300">manutenção</span> de videogames.
           </h1>
-
-          <p className="mx-auto mt-6 max-w-1xl text-base leading-7 text-slate-400 md:text-lg">
-            Um único acesso para você dominar manutenção de videogames, destravar aulas, comunidade e suporte, e evoluir com método até virar especialista.
-          </p>
-          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
+      <section className="relative z-10 mx-auto -mt-16 max-w-6xl overflow-x-clip px-5 pb-10 pt-14 md:-mt-[136px] md:px-8 md:pb-10 md:pt-28">
         {plans.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-white/[0.14] bg-[#0d121a] px-6 py-20 text-center">
+          <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-white/[0.14] px-6 py-16 text-center">
             <p className="text-sm font-medium text-slate-300">Nenhum plano disponível no momento.</p>
             <p className="mt-2 text-sm text-slate-500">Assim que novos acessos forem liberados, eles aparecerão aqui.</p>
           </div>
         ) : (
           <div className="flex flex-wrap justify-center gap-8">
             {plans.map((plan) => (
-              <article
-                key={plan.id}
-                className={[
-                  "relative flex w-full max-w-[430px] flex-col overflow-hidden rounded-[28px] border bg-[#101722] shadow-2xl shadow-black/20",
-                  plan.highlighted ? "border-cyan-400/50 shadow-cyan-950/30" : "border-white/[0.1]",
-                ].join(" ")}
-              >
+              <div key={plan.id} className="plan-card-glow relative w-full max-w-[520px]">
+                <article
+                  className={[
+                    "relative w-full overflow-hidden rounded-[20px] border bg-[#101722] shadow-2xl shadow-black/30 md:rounded-[28px]",
+                    plan.highlighted ? "border-cyan-400/50 shadow-cyan-950/30" : "border-white/[0.1]",
+                  ].join(" ")}
+                >
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(34,211,238,0.10)_0%,transparent_34%,transparent_68%,rgba(16,185,129,0.08)_100%)]"
+                />
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] [background-size:32px_32px]"
+                />
                 {plan.highlighted && (
-                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-sky-300 to-cyan-400" />
+                  <div className="absolute inset-x-0 top-0 z-20 h-1 bg-gradient-to-r from-cyan-400 via-sky-300 to-cyan-400" />
                 )}
 
-                <div className="border-b border-white/[0.08] px-7 pb-6 pt-8">
+                <div className="relative z-10 px-7 pt-6 md:px-10 md:pt-8">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Plano</p>
-                      <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">{plan.name}</h2>
-                    </div>
+                    <h3 className="text-2xl font-semibold text-white">{plan.name}</h3>
 
                     <div className="flex shrink-0 flex-col items-end gap-2">
-                      {plan.highlighted && (
-                        <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
-                          Mais escolhido
-                        </span>
-                      )}
                       {plan.currentPlan?.active && (
                         <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
                           Acesso ativo
@@ -116,7 +122,7 @@ export default async function PlanosPage() {
                     </div>
                   </div>
 
-                  {plan.description && (
+                  {plan.description && plan.description.trim().toLocaleLowerCase("pt-BR") !== plan.name.trim().toLocaleLowerCase("pt-BR") && (
                     <p className="mt-3 max-w-sm text-sm leading-6 text-slate-400">{plan.description}</p>
                   )}
 
@@ -129,7 +135,7 @@ export default async function PlanosPage() {
                   )}
                 </div>
 
-                <div className="flex flex-1 flex-col gap-6 px-7 py-7">
+                <div className="relative z-10 px-7 pb-7 pt-5 md:px-10 md:pb-9 md:pt-6">
                   {plan.offers.map((offer) => {
                     const href = isLoggedIn
                       ? buildCheckoutHref(plan.slug, offer.period)
@@ -141,105 +147,133 @@ export default async function PlanosPage() {
                     return (
                       <div
                         key={offer.period}
-                        className="rounded-3xl border border-cyan-400/20 bg-[#080d15] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                        className="border-b border-white/[0.08] py-5 first:pt-0 last:border-b-0 last:pb-0"
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{offer.label}</p>
-                            <p className="mt-1 text-sm text-slate-400">{accessLabel(offer.period)}</p>
-                          </div>
-                          {canSeePrices && noInterest && installmentCount > 1 && (
-                            <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-                              Sem juros
-                            </span>
-                          )}
-                        </div>
-
                         {canSeePrices ? installmentCount > 1 ? (
-                          <div className="mt-6">
+                          <div>
+                            {noInterest && (
+                              <span className="mb-3 inline-flex rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
+                                Sem juros
+                              </span>
+                            )}
                             <p className="text-sm font-medium text-slate-400">Você paga apenas</p>
-                            <p className="mt-1 text-4xl font-bold tracking-[-0.06em] text-white md:text-5xl">
+                            <p className="mt-1 text-4xl font-bold text-white md:text-5xl">
                               {installmentCount}x <span className="text-cyan-300">de {formatCurrency(installmentValue)}</span>
                             </p>
-                            <p className="mt-2 text-xs text-slate-500">ou {formatCurrency(offer.price)} à vista</p>
+                            <p className="mt-2 text-xs text-white">ou {formatCurrency(offer.price)} à vista</p>
                           </div>
                         ) : (
-                          <div className="mt-6">
+                          <div>
                             <p className="text-sm font-medium text-slate-400">Valor do acesso</p>
-                            <p className="mt-1 text-4xl font-bold tracking-[-0.06em] text-white">{formatCurrency(offer.price)}</p>
+                            <p className="mt-1 text-4xl font-bold text-white">{formatCurrency(offer.price)}</p>
                           </div>
                         ) : (
-                          <div className="mt-6 rounded-2xl border border-cyan-400/25 bg-cyan-400/[0.06] px-4 py-5">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Preço exclusivo</p>
-                            <p className="mt-2 text-5xl font-bold tracking-[-0.06em] text-white">R$ ****</p>
-                            <p className="mt-2 text-sm font-semibold text-white">Acesse sua conta para liberar o preço.</p>
+                          <div>
+                            <p className="text-xs font-semibold uppercase text-cyan-300">Preço exclusivo</p>
+                            <p className="mt-2 text-4xl font-bold text-white md:text-5xl">R$ ****</p>
                           </div>
                         )}
 
-                        <div className="mt-6 [&>a]:w-full [&>button]:w-full">
+                        <div className="mt-6 [&>a]:w-full [&>button]:h-12 [&>button]:w-full">
                           <PlanCheckoutButton
                             href={href}
-                            requiresPhone={isLoggedIn && !canSeePrices}
+                            emphasis={!isLoggedIn || !plan.currentPlan?.active}
                             label={
                               !isLoggedIn
-                                ? "VER PREÇO"
-                                : !canSeePrices
-                                  ? "LIBERAR PREÇO"
-                                  : plan.currentPlan?.active
+                                ? "ENTRAR PARA VER E COMPRAR"
+                                : plan.currentPlan?.active
                                     ? "Renovar meu acesso"
                                     : "Quero começar agora"
                             }
                           />
+                          {!isLoggedIn && (
+                            <p className="mt-2 text-center text-[11px] leading-4 text-white sm:text-xs sm:leading-5">
+                              Faça login para ver o preço e condições sem compromisso.
+                            </p>
+                          )}
+
+                          <div className="mt-6 border-t border-white/[0.08] pt-6">
+                            <p className="mb-2 text-center text-[10px] font-bold uppercase text-slate-200">
+                              Encerramento das vagas em:
+                            </p>
+                            <OfferCountdown />
+                          </div>
                         </div>
+
+                        {canSeePrices && (
+                          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-400">
+                            <span>Até {plan.installments.max}x no cartão</span>
+                            <span className="inline-flex items-center gap-1.5 text-emerald-300">
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Até {plan.installments.noInterest}x sem juros
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
-                  {canSeePrices ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-4">
-                        <CreditCard className="h-4 w-4 text-cyan-300" />
-                        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Parcelamento</p>
-                        <p className="mt-1 text-sm font-semibold text-white">Até {plan.installments.max}x</p>
-                      </div>
-                      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-4">
-                        <ShieldCheck className="h-4 w-4 text-cyan-300" />
-                        {/* <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Sem juros</p> */}
-                        <p className="mt-1 text-sm font-semibold text-white">Até {plan.installments.noInterest}x</p>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {plan.benefits.length > 0 && (
-                    <div className="border-t border-white/[0.08] pt-6">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Tudo incluído</p>
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        {plan.benefits.map((benefit) => (
-                          <div key={benefit} className="flex min-w-0 items-start gap-2.5 text-sm text-slate-300">
-                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-300">
-                              <Check className="h-3.5 w-3.5" />
-                            </span>
-                            <span>{benefit}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </article>
+                </article>
+              </div>
             ))}
           </div>
         )}
+      </section>
 
-        <div className="mx-auto mt-12 flex max-w-2xl flex-col items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-[#0d121a] px-6 py-5 text-center sm:flex-row sm:text-left">
-          <div>
-            <p className="text-sm font-semibold text-white">Ainda está em dúvida?</p>
-            <p className="mt-1 text-sm text-slate-500">Confira tudo com calma antes de finalizar.</p>
+      <section className="border-y border-white/[0.08] bg-[#0d1118]">
+        <div className="mx-auto max-w-6xl px-5 pb-14 pt-8 md:px-8 md:pb-20 md:pt-8">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-center text-xs font-bold uppercase text-cyan-300 sm:text-sm">
+            <span>Veja em quantos reparos você recupera o investimento</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-400/60 text-rose-400" aria-hidden="true">
+              <ArrowDown className="h-4 w-4" />
+            </span>
           </div>
-          <Link href={whatsappUrl || "/suporte"} className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200">
-            Fale com a gente <ArrowRight className="h-4 w-4" />
-          </Link>
+
+          <h2 className="mx-auto mt-7 max-w-3xl text-center text-2xl font-bold text-white md:text-3xl">
+            Reparos comuns feitos todos os dias na nossa empresa:
+          </h2>
+
+          <div className="mt-6 overflow-hidden rounded-2xl border border-white/[0.12]">
+            <table className="w-full table-fixed border-collapse text-left">
+              <thead className="bg-cyan-400 text-slate-950">
+                <tr>
+                  <th className="w-[56%] px-3 py-4 text-center text-sm font-bold sm:px-6 sm:text-base">Serviço</th>
+                  <th className="w-[44%] px-3 py-4 text-center text-xs font-bold leading-4 sm:px-6 sm:text-base sm:leading-6">
+                    Quantidade de reparos para recuperar o investimento
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.1] bg-white/[0.025]">
+                {repairPaybackRows.map((row) => (
+                  <tr key={row.service}>
+                    <td className="px-3 py-4 text-center text-sm text-slate-300 sm:px-6 sm:py-5 sm:text-base">{row.service}</td>
+                    <td className="px-3 py-4 text-center text-sm font-bold text-cyan-300 sm:px-6 sm:py-5 sm:text-base">{row.repairs}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
+
+      <section className="border-y border-white/[0.08] bg-[#0b1018]">
+        <div className="mx-auto max-w-5xl px-5 py-14 md:px-8 md:py-20">
+          <p className="text-sm font-semibold uppercase text-cyan-300">Conteúdo incluso</p>
+          <h2 className="mt-2 text-3xl font-bold text-white md:text-4xl">Tudo para aprender e aplicar</h2>
+
+          <div className="mt-8 grid gap-x-10 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+            {includedContent.map((item, index) => (
+              <div key={item} className="flex items-start gap-3 border-t border-white/[0.08] pt-5 text-base font-medium text-slate-200">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-300">
+                  <Check className="h-4 w-4" />
+                </span>
+                <span className={index === 0 ? "text-white" : undefined}>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
     </main>
   )
 }

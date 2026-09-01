@@ -358,7 +358,7 @@ export default async function HomePage() {
               </div>
               <div className="home-lesson-counter-info">
                 <strong>{lessonCount.toLocaleString("pt-BR")} AULAS</strong>
-                <span>Atualização semanal</span>
+                <span>+ Atualizações semanais</span>
               </div>
             </div>
           </div>
