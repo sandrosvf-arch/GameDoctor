@@ -13,6 +13,9 @@ import {
   ShoppingCart,
   UserRound,
   Wallet,
+  Archive,
+  Clipboard,
+  RotateCcw,
 } from "lucide-react"
 
 type PaymentMethod = "PIX" | "PIX_INSTALLMENTS" | "CREDIT_CARD" | "BOLETO" | null
@@ -49,7 +52,9 @@ interface OrderRow {
     id: string
     name: string | null
     email: string
+    phone: string | null
   }
+  attemptCount: number
   coupon: {
     code: string
   } | null
@@ -156,6 +161,8 @@ export default function AdminPedidosPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [page, setPage] = useState(1)
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
 
   const pageNumbers = useMemo(() => {
     if (!pagination) return []
@@ -175,6 +182,7 @@ export default function AdminPedidosPage() {
       pageSize: "15",
       q: deferredSearch,
       status: statusFilter,
+      archived: String(showArchived),
     })
 
     const response = await fetch(`/api/admin/pedidos?${params.toString()}`, {
@@ -198,9 +206,28 @@ export default function AdminPedidosPage() {
     setLoading(false)
   }
 
+  async function archiveOrder(order: OrderRow) {
+    setActionLoadingId(order.id)
+    const response = await fetch(`/api/admin/pedidos/${order.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: showArchived ? "restore" : "archive" }),
+    })
+    setActionLoadingId(null)
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      setError(data?.error ?? "Não foi possível atualizar o pedido.")
+      return
+    }
+
+    setExpandedOrderId(null)
+    await load(page)
+  }
+
   useEffect(() => {
     void load(page)
-  }, [page, deferredSearch, statusFilter])
+  }, [page, deferredSearch, statusFilter, showArchived])
 
   return (
     <div className="min-h-screen bg-[#090c11] text-slate-100">
@@ -221,13 +248,22 @@ export default function AdminPedidosPage() {
               </p>
             </div>
 
-            <button
-              onClick={() => load(1)}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Atualizar
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => load(1)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Atualizar
+              </button>
+              <button
+                onClick={() => { setShowArchived((current) => !current); setPage(1) }}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
+              >
+                {showArchived ? <RotateCcw className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                {showArchived ? "Ver ativos" : "Ver arquivados"}
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-px bg-white/[0.08] sm:grid-cols-2 xl:grid-cols-4">
@@ -325,6 +361,9 @@ export default function AdminPedidosPage() {
                     order={order}
                     expanded={expanded}
                     onToggle={() => setExpandedOrderId(expanded ? null : order.id)}
+                    onArchive={() => void archiveOrder(order)}
+                    actionLoading={actionLoadingId === order.id}
+                    isArchived={showArchived}
                   />
                 )
               })}
@@ -381,10 +420,16 @@ function OrderItemRow({
   order,
   expanded,
   onToggle,
+  onArchive,
+  actionLoading,
+  isArchived,
 }: {
   order: OrderRow
   expanded: boolean
   onToggle: () => void
+  onArchive: () => void
+  actionLoading: boolean
+  isArchived: boolean
 }) {
   const customerName = order.user.name?.trim() || "Aluno sem nome"
   const gateway = gatewayLabel(order.latestPayment?.gateway ?? order.gateway)
@@ -420,6 +465,9 @@ function OrderItemRow({
 
               <p className="truncate text-xs text-slate-500">
                 {order.user.email}
+              </p>
+              <p className="text-[11px] text-cyan-400/80">
+                {order.attemptCount} tentativa{order.attemptCount === 1 ? "" : "s"}
               </p>
             </div>
           </div>
@@ -474,6 +522,11 @@ function OrderItemRow({
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-4">
               <DetailSection title="Dados do pedido">
+                <div className="mb-4 grid gap-3 md:grid-cols-3">
+                  <CopyContact label="Nome" value={customerName} />
+                  <CopyContact label="Telefone" value={order.user.phone || "Não informado"} copyValue={order.user.phone} />
+                  <CopyContact label="E-mail" value={order.user.email} />
+                </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <DetailItem label="Pedido" value={order.id} />
                   <DetailItem label="Criado em" value={formatDate(order.createdAt)} />
@@ -537,6 +590,15 @@ function OrderItemRow({
             </div>
 
             <aside className="space-y-3">
+              <button
+                type="button"
+                onClick={onArchive}
+                disabled={actionLoading}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-3 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+              >
+                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isArchived ? <RotateCcw className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                {isArchived ? "Restaurar pedido" : "Arquivar pedido"}
+              </button>
               <FinancialCard
                 label="Subtotal"
                 value={formatCurrency(order.total)}
@@ -677,6 +739,50 @@ function EmptyState() {
       <p className="mt-1 text-sm text-slate-500">
         Ajuste os filtros ou tente uma nova busca.
       </p>
+    </div>
+  )
+}
+
+function CopyContact({
+  label,
+  value,
+  copyValue = value,
+}: {
+  label: string
+  value: string
+  copyValue?: string | null
+}) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    if (!copyValue || !navigator.clipboard) return
+
+    await navigator.clipboard.writeText(copyValue)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <div className="rounded-md border border-white/[0.08] bg-white/[0.025] px-3 py-2">
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-600">
+        {label}
+      </p>
+
+      <div className="mt-1 flex min-w-0 items-center gap-2">
+        <p className="min-w-0 flex-1 truncate text-sm text-slate-300">
+          {value}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => void copy()}
+          disabled={!copyValue}
+          className="inline-flex shrink-0 items-center gap-1 rounded border border-white/[0.08] px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Clipboard className="h-3 w-3" />
+          {copied ? "Copiado" : "Copiar"}
+        </button>
+      </div>
     </div>
   )
 }

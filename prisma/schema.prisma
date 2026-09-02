@@ -742,6 +742,7 @@ model Order {
   publicTokenHash    String?         @unique @map("public_token_hash")
   publicTokenExpiresAt DateTime?      @map("public_token_expires_at")
   clientFingerprintHash String?      @map("client_fingerprint_hash")
+  archivedAt            DateTime?    @map("archived_at")
   accessGrantedAt    DateTime?        @map("access_granted_at")
   accessEmailSentAt  DateTime?        @map("access_email_sent_at")
 

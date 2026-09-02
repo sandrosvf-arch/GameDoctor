@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
   const pageSizeParam = Number(searchParams.get("pageSize") ?? String(PAGE_SIZE_DEFAULT))
   const q = searchParams.get("q")?.trim() ?? ""
   const status = searchParams.get("status")?.trim() ?? "all"
+  const archived = searchParams.get("archived") === "true"
 
   const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1
   const pageSize =
@@ -58,8 +59,12 @@ export async function GET(request: NextRequest) {
       : {}),
   }
 
-  const where = {
+  const baseWhere = {
     ...searchWhere,
+    archivedAt: archived ? { not: null } : null,
+  }
+  const where = {
+    ...baseWhere,
     ...(paymentStatus ? { paymentStatus: paymentStatus as never } : {}),
   }
 
@@ -69,15 +74,15 @@ export async function GET(request: NextRequest) {
       db.order.aggregate({
         _sum: { finalTotal: true },
         where: {
-          ...searchWhere,
+          ...baseWhere,
           paymentStatus: "APPROVED",
         },
       }),
-      db.order.count({ where: { ...searchWhere, paymentStatus: "APPROVED" } }),
-      db.order.count({ where: { ...searchWhere, paymentStatus: "PENDING" } }),
+      db.order.count({ where: { ...baseWhere, paymentStatus: "APPROVED" } }),
+      db.order.count({ where: { ...baseWhere, paymentStatus: "PENDING" } }),
       db.order.count({
         where: {
-          ...searchWhere,
+          ...baseWhere,
           paymentStatus: { in: ["CANCELLED", "REFUNDED", "CHARGEBACK", "FAILED", "REFUSED", "EXPIRED"] },
         },
       }),
@@ -102,6 +107,7 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
               email: true,
+              phone: true,
             },
           },
           coupon: {
@@ -146,6 +152,14 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
+  const userIds = Array.from(new Set(orders.map((order) => order.user.id)))
+  const attempts = await db.order.groupBy({
+    by: ["userId"],
+    where: { ...baseWhere, userId: { in: userIds } },
+    _count: { _all: true },
+  })
+  const attemptsByUserId = new Map(attempts.map((item) => [item.userId, item._count._all]))
+
   return NextResponse.json({
     summary: {
       totalOrders: totalItems,
@@ -163,6 +177,7 @@ export async function GET(request: NextRequest) {
       paymentStatus: order.paymentStatus,
       gateway: order.gateway,
       gatewayReference: order.gatewayReference,
+      attemptCount: attemptsByUserId.get(order.user.id) ?? 1,
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
       user: order.user,
