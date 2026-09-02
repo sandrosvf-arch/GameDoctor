@@ -3,7 +3,14 @@ import { revalidateTag } from "next/cache"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { AI_SYSTEM_PROMPT_FREE_KEY, AI_SYSTEM_PROMPT_PAID_KEY } from "@/lib/ai/settings"
+import {
+  AI_RESPONSE_LIMIT_FREE_KEY,
+  AI_RESPONSE_LIMIT_PAID_KEY,
+  AI_SYSTEM_PROMPT_FREE_KEY,
+  AI_SYSTEM_PROMPT_PAID_KEY,
+  DEFAULT_AI_RESPONSE_LIMIT_FREE,
+  DEFAULT_AI_RESPONSE_LIMIT_PAID,
+} from "@/lib/ai/settings"
 import { DEFAULT_AI_SYSTEM_PROMPT_FREE, DEFAULT_AI_SYSTEM_PROMPT_PAID, resolveAiSystemPrompt } from "@/lib/ai/prompt"
 import {
   ABOUT_VIDEO_URL_KEY,
@@ -23,6 +30,8 @@ const updateSchema = z.object({
   promptPaid: z.string().trim().min(20).max(12_000),
   aboutVideoUrl: z.string().trim().url(),
   whatsappUrl: z.string().trim().url(),
+  responseLimitFree: z.number().int().min(200).max(12_000),
+  responseLimitPaid: z.number().int().min(200).max(12_000),
 })
 
 async function requireStaff() {
@@ -40,12 +49,16 @@ export async function GET() {
   const settings = await readAppSettings()
   const promptFreeSetting = settings.get(AI_SYSTEM_PROMPT_FREE_KEY)
   const promptPaidSetting = settings.get(AI_SYSTEM_PROMPT_PAID_KEY)
+  const responseLimitFreeSetting = settings.get(AI_RESPONSE_LIMIT_FREE_KEY)
+  const responseLimitPaidSetting = settings.get(AI_RESPONSE_LIMIT_PAID_KEY)
 
   return NextResponse.json({
     promptFree: resolveAiSystemPrompt(promptFreeSetting?.value, "FREE"),
     promptPaid: resolveAiSystemPrompt(promptPaidSetting?.value, "PAID"),
     defaultPromptFree: DEFAULT_AI_SYSTEM_PROMPT_FREE,
     defaultPromptPaid: DEFAULT_AI_SYSTEM_PROMPT_PAID,
+    responseLimitFree: Number(responseLimitFreeSetting?.value) || DEFAULT_AI_RESPONSE_LIMIT_FREE,
+    responseLimitPaid: Number(responseLimitPaidSetting?.value) || DEFAULT_AI_RESPONSE_LIMIT_PAID,
     aboutVideoUrl:
       settings.get(ABOUT_VIDEO_URL_KEY)?.value
       || process.env.NEXT_PUBLIC_ABOUT_VIDEO_URL?.trim()
@@ -76,6 +89,8 @@ export async function PATCH(request: Request) {
   const updatedAt = await upsertAppSettings([
     { key: AI_SYSTEM_PROMPT_FREE_KEY, value: parsed.data.promptFree },
     { key: AI_SYSTEM_PROMPT_PAID_KEY, value: parsed.data.promptPaid },
+    { key: AI_RESPONSE_LIMIT_FREE_KEY, value: String(parsed.data.responseLimitFree) },
+    { key: AI_RESPONSE_LIMIT_PAID_KEY, value: String(parsed.data.responseLimitPaid) },
     { key: ABOUT_VIDEO_URL_KEY, value: parsed.data.aboutVideoUrl },
     { key: WHATSAPP_URL_KEY, value: parsed.data.whatsappUrl },
   ])
@@ -95,6 +110,8 @@ export async function PATCH(request: Request) {
   return NextResponse.json({
     promptFree: parsed.data.promptFree,
     promptPaid: parsed.data.promptPaid,
+    responseLimitFree: parsed.data.responseLimitFree,
+    responseLimitPaid: parsed.data.responseLimitPaid,
     aboutVideoUrl: parsed.data.aboutVideoUrl,
     whatsappUrl: parsed.data.whatsappUrl,
     updatedAt: updatedAt.toISOString(),

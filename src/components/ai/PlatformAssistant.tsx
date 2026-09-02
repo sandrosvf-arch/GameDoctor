@@ -1,9 +1,11 @@
 "use client"
 
-import { FormEvent, useEffect, useState } from "react"
+import { FormEvent, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { usePathname } from "next/navigation"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { MessageCircle, Send, Sparkles, X } from "lucide-react"
 
 interface AssistantMessage {
@@ -28,15 +30,25 @@ function WhatsAppIcon({ className }: { className?: string }) {
 }
 
 function renderMessage(content: string) {
-  return content.split(/(\[[^\]]+\]\([^\)]+\))/g).map((part, index) => {
-    const match = part.match(/^\[([^\]]+)\]\(([^\)]+)\)$/)
-    if (!match) return <span key={index}>{part}</span>
-    return (
-      <Link key={index} href={match[2]} className="text-cyan-300 underline decoration-cyan-300/40 underline-offset-2 hover:text-cyan-200">
-        {match[1]}
-      </Link>
-    )
-  })
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+        strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+        em: ({ children }) => <em className="italic">{children}</em>,
+        a: ({ href, children }) => href?.startsWith("/")
+          ? <Link href={href} className="font-medium text-cyan-300 underline decoration-cyan-300/40 underline-offset-2 hover:text-cyan-200">{children}</Link>
+          : <a href={href} target="_blank" rel="noreferrer" className="font-medium text-cyan-300 underline decoration-cyan-300/40 underline-offset-2 hover:text-cyan-200">{children}</a>,
+        ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
+        ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
+        li: ({ children }) => <li className="pl-1">{children}</li>,
+        code: ({ children }) => <code className="rounded bg-black/20 px-1 py-0.5 text-[0.9em]">{children}</code>,
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  )
 }
 
 export function PlatformAssistant({
@@ -57,6 +69,7 @@ export function PlatformAssistant({
   const [error, setError] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(false)
   const [supportUrl, setSupportUrl] = useState(whatsappUrl)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
   const isLessonPage = pathname.startsWith("/aula/")
@@ -117,6 +130,14 @@ export function PlatformAssistant({
     if (!hydrated) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, conversationId, usage }))
   }, [hydrated, messages, conversationId, usage])
+
+  useEffect(() => {
+    if (!hydrated || !open && !page) return
+    const frame = window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [hydrated, messages, loading, error, open, page])
 
   async function sendMessage(event: FormEvent) {
     event.preventDefault()
@@ -239,6 +260,7 @@ export function PlatformAssistant({
                 )}
               </div>
             )}
+            <div ref={messagesEndRef} aria-hidden="true" />
           </div>
 
           <footer className="border-t border-white/[0.08] p-3">

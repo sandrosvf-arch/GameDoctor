@@ -50,6 +50,10 @@ export function buildAiSystemPrompt(promptText: string, context: AiContextItem[]
 
   return `${promptText}
 
+Regra operacional de prioridade:
+- Quando uma fonte do Tipo "help" responder diretamente à pergunta, devolva o texto dessa fonte sem reescrever, resumir ou completar. A fonte "help" é o FAQ oficial.
+- Sem correspondência direta no FAQ, priorize trilhas/cursos para dúvidas sobre existência ou organização de conteúdos; use aulas para detalhes específicos e a comunidade apenas como referência complementar.
+
 Fontes encontradas:
 ${contextText}`
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import { Check, Copy, Loader2, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react"
 
 type PlanStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED"
 
@@ -101,6 +101,7 @@ export default function AdminPlanosPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [copiedPlanId, setCopiedPlanId] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -122,6 +123,18 @@ export default function AdminPlanosPage() {
   useEffect(() => {
     load()
   }, [])
+
+  async function copySmartCheckoutLink(plan: PlanItem) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || window.location.origin
+    const link = `${baseUrl.replace(/\/+$/, "")}/checkout/live?plan=${encodeURIComponent(plan.slug)}`
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopiedPlanId(plan.id)
+      window.setTimeout(() => setCopiedPlanId((current) => current === plan.id ? null : current), 2_000)
+    } catch {
+      window.prompt("Copie o link do Smart Checkout:", link)
+    }
+  }
 
   function closeModal() {
     setIsModalOpen(false)
@@ -327,6 +340,13 @@ export default function AdminPlanosPage() {
                     </div>
 
                     <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => void copySmartCheckoutLink(plan)}
+                        className="rounded-full border border-cyan-500/30 p-2.5 text-cyan-300 transition hover:bg-cyan-500/10"
+                        title="Copiar link do Smart Checkout"
+                      >
+                        {copiedPlanId === plan.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </button>
                       <button
                         onClick={() => startEdit(plan)}
                         className="rounded-full border border-border p-2.5 transition hover:bg-accent"

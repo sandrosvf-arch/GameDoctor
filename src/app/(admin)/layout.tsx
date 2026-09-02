@@ -24,6 +24,7 @@ import {
   Tags,
   Download,
   Settings,
+  Bot,
   Menu,
 } from "lucide-react"
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -80,6 +81,7 @@ const navGroups: AdminNavGroup[] = [
     items: [
       { href: "/admin/perfil", label: "Administradores", icon: Shield },
       { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
+      { href: "/admin/ia", label: "Histórico da IA", icon: Bot },
     ],
   },
 ]

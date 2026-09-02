@@ -9,6 +9,8 @@ type AiSettingsResponse = {
   promptPaid: string
   defaultPromptFree: string
   defaultPromptPaid: string
+  responseLimitFree: number
+  responseLimitPaid: number
   aboutVideoUrl: string
   whatsappUrl: string
   updatedAt: string | null
@@ -20,6 +22,8 @@ export default function AdminConfiguracoesPage() {
   const [promptPaid, setPromptPaid] = useState("")
   const [defaultPromptFree, setDefaultPromptFree] = useState("")
   const [defaultPromptPaid, setDefaultPromptPaid] = useState("")
+  const [responseLimitFree, setResponseLimitFree] = useState(1200)
+  const [responseLimitPaid, setResponseLimitPaid] = useState(2400)
   const [aboutVideoUrl, setAboutVideoUrl] = useState("")
   const [whatsappUrl, setWhatsappUrl] = useState("")
   const [loading, setLoading] = useState(true)
@@ -42,6 +46,8 @@ export default function AdminConfiguracoesPage() {
       setPromptPaid(payload.promptPaid)
       setDefaultPromptFree(payload.defaultPromptFree)
       setDefaultPromptPaid(payload.defaultPromptPaid)
+      setResponseLimitFree(payload.responseLimitFree)
+      setResponseLimitPaid(payload.responseLimitPaid)
       setAboutVideoUrl(payload.aboutVideoUrl)
       setWhatsappUrl(payload.whatsappUrl)
       setLoading(false)
@@ -58,7 +64,7 @@ export default function AdminConfiguracoesPage() {
     const response = await fetch("/api/admin/configuracoes/ai", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ promptFree, promptPaid, aboutVideoUrl, whatsappUrl }),
+      body: JSON.stringify({ promptFree, promptPaid, responseLimitFree, responseLimitPaid, aboutVideoUrl, whatsappUrl }),
     })
     const payload = await response.json().catch(() => null) as AiSettingsResponse | null
     setSaving(false)
@@ -145,6 +151,19 @@ export default function AdminConfiguracoesPage() {
                   <Button type="button" variant="outline" size="sm" onClick={() => setPromptPaid(defaultPromptPaid)} disabled={saving || promptPaid === defaultPromptPaid}>
                     <RotateCcw className="mr-2 h-4 w-4" /> Restaurar padrão
                   </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-4 border-t border-border pt-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="ai-limit-free" className="text-sm font-medium">Limite de resposta para usuários gratuitos</label>
+                  <input id="ai-limit-free" type="number" min={200} max={12000} value={responseLimitFree} onChange={(event) => setResponseLimitFree(Number(event.target.value))} className="mt-2 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-cyan-400/50" />
+                  <p className="mt-1 text-xs text-muted-foreground">Quantidade máxima de caracteres por resposta.</p>
+                </div>
+                <div>
+                  <label htmlFor="ai-limit-paid" className="text-sm font-medium">Limite de resposta para assinantes</label>
+                  <input id="ai-limit-paid" type="number" min={200} max={12000} value={responseLimitPaid} onChange={(event) => setResponseLimitPaid(Number(event.target.value))} className="mt-2 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-cyan-400/50" />
+                  <p className="mt-1 text-xs text-muted-foreground">Quantidade máxima de caracteres por resposta.</p>
                 </div>
               </div>
             </>

@@ -74,6 +74,7 @@ export async function POST(request: Request) {
 
   const prompts = await getAiSystemPrompts()
   const systemPrompt = access.tier === "FREE" ? prompts.free : prompts.paid
+  const responseLimit = access.tier === "FREE" ? prompts.responseLimitFree : prompts.responseLimitPaid
   const conversationHistory = history.reverse().map((item) => ({
     role: item.role === "USER" ? "user" as const : "assistant" as const,
     content: item.content,
@@ -96,8 +97,14 @@ export async function POST(request: Request) {
   let outputTokens: number | null = routing.outputTokens
   let credits = 0
   let usage = usageBefore
+  const faqContext = context[0]?.source === "help" ? context[0] : null
 
-  if (context.length > 0) {
+  if (faqContext) {
+    // FAQs are official answers and must not be rewritten by the model.
+    answer = faqContext.text
+    credits = 1
+    usage = await consumeAiCredit(session.user.id, access)
+  } else if (context.length > 0) {
     const completion = await openai.chat.completions.create({
       model,
       messages: [
@@ -106,7 +113,7 @@ export async function POST(request: Request) {
         { role: "user", content: parsed.data.message },
       ],
       temperature: 0.2,
-      max_tokens: 600,
+      max_tokens: Math.max(200, Math.ceil(responseLimit / 3)),
     })
 
     const completionAnswer = completion.choices[0]?.message?.content?.trim()
@@ -122,7 +129,9 @@ export async function POST(request: Request) {
     usage = await consumeAiCredit(session.user.id, access)
   }
 
-  const finalized = finalizeAiAnswer(answer, context)
+  const finalized = faqContext
+    ? { answer, hasNoContent: false }
+    : finalizeAiAnswer(answer.slice(0, responseLimit), context)
   const sanitizedAnswer = finalized.answer
   const hasNoContent = finalized.hasNoContent
 

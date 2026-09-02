@@ -16,6 +16,7 @@ import {
   LogOut,
   Gamepad2,
   FileText,
+  Bot,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -49,6 +50,7 @@ const navGroups = [
     label: "Sistema",
     items: [
       { label: "Configurações", href: "/admin/configuracoes", icon: Settings },
+      { label: "Histórico da IA", href: "/admin/ia", icon: Bot },
     ],
   },
 ]
