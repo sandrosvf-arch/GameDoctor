@@ -54,6 +54,8 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
         videoThumbnailUrl: true,
         description: true,
         courseId: true,
+        videoDurationSeconds: true,
+        durationSeconds: true,
         previewEnabled: true,
         previewVideoProviderId: true,
         course: { select: { title: true, slug: true } },
@@ -108,8 +110,8 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   // previewEnabled is now admin-editable per lesson (see /admin/aulas) and defaults to true for existing paid lessons
   const canPreview = Boolean(lessonAccess?.isPreview && lesson?.previewVideoProviderId)
   const title = titulo ?? lesson?.title ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
-  const durationSeconds = meta?.length ?? null
-  const duration = meta?.length ? formatDuration(meta.length) : null
+  const durationSeconds = meta?.length ?? lesson.videoDurationSeconds ?? lesson.durationSeconds ?? null
+  const duration = durationSeconds ? formatDuration(durationSeconds) : null
   const embedUrl = isAccessible ? bunnySignedEmbedUrl(videoId) : ""
   const previewEmbedUrl = canPreview && lesson?.previewVideoProviderId
     ? bunnySignedEmbedUrl(lesson.previewVideoProviderId, 15 * 60, { autoplay: true, muted: false })

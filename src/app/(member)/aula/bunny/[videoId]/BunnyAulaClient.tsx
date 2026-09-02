@@ -155,7 +155,7 @@ export default function BunnyAulaClient({
     durationSeconds,
     initialWatchedSeconds,
     initialCompleted,
-    trackingMode: "session",
+    trackingMode: "playback",
   })
 
   useEffect(() => {
@@ -194,7 +194,14 @@ export default function BunnyAulaClient({
   }, [])
 
   const handleEnded = useCallback(() => {
-    if (!isAccessible || !autoAdvance || !nextLesson || advancingRef.current) return
+    if (!isAccessible) return
+
+    flushProgress({
+      playedSeconds: durationSeconds ?? undefined,
+      completed: true,
+    })
+
+    if (!autoAdvance || !nextLesson || advancingRef.current) return
     advancingRef.current = true
 
     const href = nextLesson.videoProviderId
@@ -202,7 +209,7 @@ export default function BunnyAulaClient({
       : `/aula/${nextLesson.id}`
 
     window.location.assign(href)
-  }, [autoAdvance, isAccessible, nextLesson])
+  }, [autoAdvance, durationSeconds, flushProgress, isAccessible, nextLesson])
 
   const loadComments = useCallback(async () => {
     if (!lessonId) return
@@ -467,6 +474,7 @@ export default function BunnyAulaClient({
                   embedUrl={embedUrl.replace("autoplay=false", "autoplay=true")}
                   title={title}
                   onEnded={handleEnded}
+                  onProgress={handlePlaybackProgress}
                 />
               ) : null}
             </div>

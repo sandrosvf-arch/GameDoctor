@@ -4,9 +4,16 @@ import Script from "next/script"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Loader2, Play } from "lucide-react"
 
+interface PlayerJsTimeUpdate {
+  seconds?: number
+  currentTime?: number
+}
+
+type PlayerJsEvent = "ended" | "ready" | "play" | "pause" | "timeupdate"
+
 interface PlayerJsInstance {
-  on(event: "ended" | "ready" | "play" | "pause", callback: () => void): void
-  off?(event: "ended" | "ready" | "play" | "pause", callback: () => void): void
+  on(event: PlayerJsEvent, callback: (data?: PlayerJsTimeUpdate) => void): void
+  off?(event: PlayerJsEvent, callback: (data?: PlayerJsTimeUpdate) => void): void
   play(): void
 }
 
@@ -18,20 +25,27 @@ export function BunnyEmbedPlayer({
   embedUrl,
   title,
   onEnded,
+  onProgress,
   autoPlayRetry = false,
 }: {
   embedUrl: string
   title: string
   onEnded: () => void
+  onProgress?: (playedSeconds: number) => void
   autoPlayRetry?: boolean
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const onEndedRef = useRef(onEnded)
+  const onProgressRef = useRef(onProgress)
   const [scriptReady, setScriptReady] = useState(false)
 
   useEffect(() => {
     onEndedRef.current = onEnded
   }, [onEnded])
+
+  useEffect(() => {
+    onProgressRef.current = onProgress
+  }, [onProgress])
 
   useEffect(() => {
     if (!scriptReady || !iframeRef.current) return
@@ -44,8 +58,15 @@ export function BunnyEmbedPlayer({
 
     const player = new playerJs.Player(iframeRef.current)
     const handleEnded = () => onEndedRef.current()
+    const handleTimeUpdate = (data?: PlayerJsTimeUpdate) => {
+      const playedSeconds = data?.seconds ?? data?.currentTime
+      if (typeof playedSeconds === "number") {
+        onProgressRef.current?.(playedSeconds)
+      }
+    }
 
     player.on("ended", handleEnded)
+    if (onProgressRef.current) player.on("timeupdate", handleTimeUpdate)
 
     // The `autoplay=true` URL param occasionally races with the source/manifest
     // still resolving and silently fails. Track real play/pause state (never call
@@ -81,6 +102,9 @@ export function BunnyEmbedPlayer({
 
       try {
         player.off?.("ended", handleEnded)
+        if (onProgressRef.current) {
+          player.off?.("timeupdate", handleTimeUpdate)
+        }
         if (autoPlayRetry) {
           player.off?.("play", handlePlay)
           player.off?.("pause", handlePause)
