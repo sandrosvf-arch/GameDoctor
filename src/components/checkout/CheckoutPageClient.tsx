@@ -587,7 +587,7 @@ export function CheckoutPageClient({
 
         <Link
           href="/planos"
-          className="hidden items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-white sm:inline-flex"
+          className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           Voltar
@@ -616,19 +616,27 @@ export function CheckoutPageClient({
               </div>
 
               <div className="sm:text-right">
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Total</p>
-                <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
-                  {formatCurrency(checkoutTotal)}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {selectedCardInstallment
-                    ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
-                    : showCardEstimate
-                      ? `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`
-                      : selectedPaymentMethod === "pix"
-                        ? "Pagamento via Pix"
-                        : "Parcelamento via Pix"}
-                </p>
+                {showCardEstimate ? (
+                  <>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Parcelamento</p>
+                    <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
+                      {selectedCardInstallment
+                        ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
+                        : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Total {formatCurrency(checkoutTotal)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Total</p>
+                    <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
+                      {formatCurrency(checkoutTotal)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {selectedPaymentMethod === "pix" ? "Pagamento via Pix" : "Parcelamento via Pix"}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -997,13 +1005,6 @@ export function CheckoutPageClient({
             </div>
           )}
 
-          <Link
-            href="/planos"
-            className="inline-flex items-center gap-2 py-2 text-sm font-medium text-slate-500 transition hover:text-white sm:hidden"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar para os planos
-          </Link>
         </section>
 
         <aside className="min-w-0 lg:sticky lg:top-5">

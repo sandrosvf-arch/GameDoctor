@@ -25,6 +25,7 @@ function getSearchTerms(question: string) {
   const stopWords = new Set([
     "para", "como", "qual", "quais", "onde", "quando", "sobre", "isso", "esta", "esse", "essa",
     "uma", "com", "dos", "das", "que", "por", "tem", "ser", "mais", "minha", "meu", "estou", "nao",
+    "aula", "aulas", "conteudo", "conteudos", "gamedoctor", "site",
   ])
 
   return Array.from(new Set(
@@ -41,6 +42,10 @@ function containsTerms(terms: string[], fields: string[]) {
   return terms.flatMap((term) => fields.map((field) => ({
     [field]: { contains: term, mode: "insensitive" as const },
   })))
+}
+
+function containsAllTerms(terms: string[], fields: string[]) {
+  return terms.map((term) => ({ OR: containsTerms([term], fields) }))
 }
 
 function stripHtml(value: string | null | undefined) {
@@ -126,13 +131,13 @@ async function searchLexicalContext(question: string, technicalMode: boolean): P
 
   const [courses, lessons, articles] = await Promise.all([
     db.course.findMany({
-      where: { status: "PUBLISHED", OR: containsTerms(terms, ["title", "shortDescription", "description"]) },
+      where: { status: "PUBLISHED", AND: containsAllTerms(terms, ["title", "shortDescription", "description"]) },
       take: 4,
       orderBy: { displayOrder: "asc" },
       select: { title: true, slug: true, shortDescription: true, description: true },
     }),
     db.lesson.findMany({
-      where: { status: "PUBLISHED", OR: containsTerms(terms, ["title", "description", "searchKeywords", "transcription"]) },
+      where: { status: "PUBLISHED", AND: containsAllTerms(terms, ["title", "description", "searchKeywords", "transcription"]) },
       take: 6,
       orderBy: [{ course: { displayOrder: "asc" } }, { order: "asc" }],
       select: {
@@ -146,7 +151,7 @@ async function searchLexicalContext(question: string, technicalMode: boolean): P
       },
     }),
     db.helpArticle.findMany({
-      where: { status: "ACTIVE", OR: containsTerms(terms, ["title", "excerpt", "content"]) },
+      where: { status: "ACTIVE", AND: containsAllTerms(terms, ["title", "excerpt", "content"]) },
       take: 4,
       orderBy: [{ order: "asc" }, { title: "asc" }],
       select: { title: true, slug: true, excerpt: true, content: true },
@@ -184,10 +189,12 @@ async function searchCommunityContext(question: string, technicalMode: boolean):
   const topics = await db.communityTopic.findMany({
     where: {
       status: "APPROVED",
-      OR: [
-        ...containsTerms(terms, ["title", "content"]),
-        { posts: { some: { status: "APPROVED", OR: containsTerms(terms, ["content"]) } } },
-      ],
+      AND: terms.map((term) => ({
+        OR: [
+          ...containsTerms([term], ["title", "content"]),
+          { posts: { some: { status: "APPROVED", OR: containsTerms([term], ["content"]) } } },
+        ],
+      })),
     },
     take: MAX_CONTEXT_ITEMS,
     orderBy: { lastReplyAt: "desc" },

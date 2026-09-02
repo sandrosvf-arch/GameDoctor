@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { DEFAULT_CATALOG_CATEGORIES } from "@/lib/catalog"
 
@@ -297,15 +297,15 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-zinc-950/80 backdrop-blur-xl">
       {pendingCategoryHref ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-primary/50" /> : null}
-      <div className="container flex h-16 items-center gap-3">
-        <div className="flex shrink-0 items-center">
+      <div className="container flex h-16 items-center gap-3 px-2 justify-end relative overflow-hidden">
+        <div className="flex shrink-0 items-center header-logo">
           <Link href="/" className="flex items-center">
             <Image
               src="/doctor-oficial.png"
               alt="GameDoctor"
               width={240}
               height={48}
-              className="h-7 w-auto md:h-9"
+              className="h-9 w-auto md:h-9"
             />
           </Link>
           <HeartbeatLine />
@@ -491,12 +491,13 @@ export function Header() {
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild className="md:hidden">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="nav-button">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="w-72">
-            <div className="flex flex-col gap-6 pt-6">
+            <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
+            <div className="flex flex-col gap-2 pt-6">
               <Link
                 href="/"
                 className="flex items-center"
@@ -538,7 +539,7 @@ export function Header() {
                           onClick={() => setOpenMobileCategoryId((current) => current === root.id ? null : root.id)}
                           className="cursor-pointer px-3 py-2 text-muted-foreground"
                         >
-                          <ChevronDown className={`h-4 w-4 transition-transform ${openMobileCategoryId === root.id ? "rotate-180" : ""}`} />
+                          <ChevronDown className={`chevron-mobile h-4 w-4 transition-transform ${openMobileCategoryId === root.id ? "rotate-180" : ""}`} />
                         </button>
                       ) : null}
                     </div>
@@ -551,7 +552,7 @@ export function Header() {
                             onClick={() => handleCategoryLinkClick(getCategoryHref(child))}
                             className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                           >
-                            <ChevronRight className="h-3.5 w-3.5" />
+                            <ChevronRight className="chevron-mobile h-3.5 w-3.5" />
                             {child.name}
                           </Link>
                         ))}
@@ -581,7 +582,7 @@ export function Header() {
                   )
                 ))}
               </nav>
-              <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <div className="flex flex-col gap-2 border-t border-border pt-2">
                 {session ? (
                   <>
                     {!isAdminUser ? (

@@ -382,7 +382,7 @@ export default async function CursosPage({
             <p className="text-sm mt-1">Volte em breve ou escolha outra categoria.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {courses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}

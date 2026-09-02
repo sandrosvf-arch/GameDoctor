@@ -60,6 +60,7 @@ export function PlatformAssistant({
 
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
   const isLessonPage = pathname.startsWith("/aula/")
+  const isAboutUsPage = pathname.startsWith("/quem-somos")
 
   if (!page && pathname === "/assistente") return null
 
@@ -164,8 +165,8 @@ export function PlatformAssistant({
   return (
     <div className={page
       ? "mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-4xl flex-col px-4 py-6 md:px-8 md:py-10"
-      : isLessonPage
-        ? "fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] right-3 z-[70] flex flex-col items-end gap-3 md:bottom-5 md:right-5"
+      : isLessonPage||isAboutUsPage
+        ? `fixed bottom-[calc(${isLessonPage ? '6.25rem' : '4.25rem'}+env(safe-area-inset-bottom))] right-3 z-[70] flex flex-col items-end gap-3 md:bottom-5 md:right-5`
         : "fixed bottom-5 right-5 z-[70] flex flex-col items-end gap-3"
     }>
       {(page || open) && (

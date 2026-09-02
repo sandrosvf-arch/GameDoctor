@@ -1,6 +1,8 @@
 import type { AiAccess } from "@/lib/ai/access"
 import type { AiContextItem } from "@/lib/ai/search"
 
+export const AI_NO_CONTENT_MESSAGE = "Ainda não temos um conteúdo específico sobre esse assunto."
+
 export const DEFAULT_AI_SYSTEM_PROMPT_FREE = `Você é o assistente da GameDoctor, uma plataforma brasileira de formação em manutenção e reparo de videogames. Você está conversando com um usuário sem assinatura ativa (gratuito). Ajude com orientação sobre a própria plataforma: cursos, trilhas, aulas, planos, comunidade e central de ajuda. Para diagnóstico técnico de reparo, explique que esse recurso exige um plano ativo e sugira conhecer os planos.
 
 Regras:
@@ -50,5 +52,29 @@ export function buildAiSystemPrompt(promptText: string, context: AiContextItem[]
 
 Fontes encontradas:
 ${contextText}`
+}
+
+export function finalizeAiAnswer(answer: string, context: AiContextItem[]) {
+  let sanitizedAnswer = answer
+    .replace(/\]\(\s*(?:https?:\/\/)?(?:www\.)?[^\/\s)]+(\/[^)]*)\)/g, "]($1)")
+    .replace(/\]\(\s+(\/[^)]*)\)/g, "]($1)")
+
+  const primarySource = context[0]
+  const hasStrongSource = typeof primarySource?.score === "number" && primarySource.score >= 0.6
+  if (primarySource && hasStrongSource && sanitizedAnswer.includes(AI_NO_CONTENT_MESSAGE)) {
+    sanitizedAnswer = `Encontrei um conteúdo diretamente relacionado à sua dúvida: [${primarySource.title}](${primarySource.href}). Ele é o melhor ponto de partida dentro da plataforma.`
+  }
+
+  const hasNoContent = sanitizedAnswer.includes(AI_NO_CONTENT_MESSAGE)
+  if (primarySource && !hasNoContent && !sanitizedAnswer.includes(`](${primarySource.href})`)) {
+    const firstInternalLink = /\]\(\/[^)]+\)/
+    if (firstInternalLink.test(sanitizedAnswer)) {
+      sanitizedAnswer = sanitizedAnswer.replace(firstInternalLink, `](${primarySource.href})`)
+    } else {
+      sanitizedAnswer += `\n\nConteúdo principal: [${primarySource.title}](${primarySource.href})`
+    }
+  }
+
+  return { answer: sanitizedAnswer, hasNoContent }
 }
 

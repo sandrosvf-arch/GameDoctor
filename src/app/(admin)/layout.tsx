@@ -24,7 +24,9 @@ import {
   Tags,
   Download,
   Settings,
+  Menu,
 } from "lucide-react"
+import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
 type AdminBadgeKey = "tickets" | "comments" | "community" | "suggestions" | "ordersToday"
 type AdminNavItem = {
@@ -157,7 +159,83 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-zinc-950">
+    <div className="flex min-h-screen flex-col bg-zinc-950 lg:flex-row">
+      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border bg-zinc-950/95 px-4 backdrop-blur lg:hidden">
+        <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-3">
+          <Image
+            src="/doctor-oficial.png"
+            alt="GameDoctor"
+            width={150}
+            height={36}
+            className="h-8 w-auto object-contain"
+            priority
+          />
+          <span className="hidden text-xs text-muted-foreground min-[380px]:inline">Admin</span>
+        </Link>
+
+        <Sheet>
+          <SheetTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-foreground"
+              aria-label="Abrir menu administrativo"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-[min(20rem,calc(100vw-2rem))] overflow-y-auto">
+            <Link href="/" className="block pr-8">
+              <Image
+                src="/doctor-oficial.png"
+                alt="GameDoctor"
+                width={160}
+                height={48}
+                className="object-contain"
+              />
+            </Link>
+            <SheetTitle className="mt-2 text-left text-sm text-muted-foreground">
+              Painel Administrativo
+            </SheetTitle>
+
+            <nav className="mt-6 space-y-5">
+              {navGroups.map((group, index) => (
+                <div key={index}>
+                  {group.title ? (
+                    <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                      {group.title}
+                    </p>
+                  ) : null}
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <SheetClose key={item.href} asChild>
+                          <Link
+                            href={item.href}
+                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span className="min-w-0 flex-1">{item.label}</span>
+                            {item.badgeKey && badgeCounts[item.badgeKey] > 0 ? (
+                              <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-cyan-300">
+                                {badgeCounts[item.badgeKey]}
+                              </span>
+                            ) : null}
+                          </Link>
+                        </SheetClose>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+
+            <div className="mt-5 border-t border-border pt-3">
+              <AdminLogoutButton email={session.user.email ?? ""} />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </header>
       <aside className="hidden w-56 shrink-0 flex-col border-r border-border p-4 lg:flex">
         <Link href="/" className="mb-6 block cursor-pointer rounded-xl px-1 py-1 transition hover:bg-accent/40">
           <Image

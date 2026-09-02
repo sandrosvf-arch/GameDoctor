@@ -24,6 +24,7 @@ import {
   SkipForward,
   Sparkles,
   User2,
+  MessageCircle,
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -807,8 +808,8 @@ export default function BunnyAulaClient({
             onClick={() => document.getElementById("aula-comments")?.scrollIntoView({ behavior: "smooth", block: "start" })}
             className="flex h-full w-[19%] flex-col items-center justify-center gap-0.5 text-zinc-300 transition-colors active:text-white"
           >
-            <Sparkles className="h-[18px] w-[18px]" />
-            <span className="text-[10px] font-medium">Perguntar</span>
+            <MessageCircle className="h-[18px] w-[18px]" />
+            <span className="text-[10px] font-medium">Comentar</span>
           </button>
 
           <button

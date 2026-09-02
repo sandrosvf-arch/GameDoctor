@@ -37,9 +37,12 @@
     --radius: 0.75rem;
 
     /* ── GameDoctor brand palette ── */
-    --gd-primary: 186 100% 44%;      /* #00DFDF cyan */
-    --gd-secondary: 265 89% 66%;     /* #9B59D4 purple */
-    --gd-accent: 45 100% 60%;        /* #FFD133 yellow/gold */
+    --gd-primary: 186 100% 44%;
+    /* #00DFDF cyan */
+    --gd-secondary: 265 89% 66%;
+    /* #9B59D4 purple */
+    --gd-accent: 45 100% 60%;
+    /* #FFD133 yellow/gold */
     --gd-dark: 220 15% 10%;
     --gd-darker: 220 15% 7%;
   }
@@ -55,7 +58,12 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-semibold tracking-tight;
   }
 }
@@ -67,6 +75,7 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
 }
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -76,13 +85,16 @@
   width: 5px;
   height: 5px;
 }
+
 ::-webkit-scrollbar-track {
   background: hsl(var(--background));
 }
+
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
 }
@@ -110,10 +122,24 @@
 }
 
 @keyframes cta-shine-pass {
-  0%   { left: -60%; opacity: 0; }
-  15%  { opacity: 0.9; }
-  45%  { left: 110%; opacity: 0; }
-  100% { left: 110%; opacity: 0; }
+  0% {
+    left: -60%;
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.9;
+  }
+
+  45% {
+    left: 110%;
+    opacity: 0;
+  }
+
+  100% {
+    left: 110%;
+    opacity: 0;
+  }
 }
 
 .plan-card-glow {
@@ -152,8 +178,13 @@
 }
 
 @keyframes plan-card-water-flow {
-  from { background-position: 260px 50%; }
-  to   { background-position: 0 50%; }
+  from {
+    background-position: 260px 50%;
+  }
+
+  to {
+    background-position: 0 50%;
+  }
 }
 
 @keyframes plan-card-water-morph {
@@ -161,6 +192,7 @@
     border-radius: 34% 66% 42% 58% / 28% 40% 60% 72%;
     transform: translate3d(-1%, -1%, 0) scale(0.99);
   }
+
   to {
     border-radius: 58% 42% 64% 36% / 60% 34% 66% 40%;
     transform: translate3d(1%, 1%, 0) scale(1.02, 0.99);
@@ -172,6 +204,7 @@
     border-radius: 62% 38% 56% 44% / 48% 68% 32% 52%;
     transform: translate3d(1%, 1%, 0) scale(1.01);
   }
+
   to {
     border-radius: 40% 60% 36% 64% / 66% 38% 62% 34%;
     transform: translate3d(-1%, -1%, 0) scale(0.98, 1.02);
@@ -185,6 +218,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .plan-card-glow::before,
   .plan-card-glow::after {
     animation: none;
@@ -199,9 +233,15 @@
 
 /* ── Card skeleton shimmer ── */
 @keyframes card-shimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(200%);
+  }
 }
+
 .card-shimmer {
   animation: card-shimmer 1.6s ease-in-out infinite;
 }
@@ -214,7 +254,9 @@
 }
 
 @keyframes search-spin-angle {
-  to { --search-angle: 360deg; }
+  to {
+    --search-angle: 360deg;
+  }
 }
 
 /* Static cyan border (idle — no animation) */
@@ -224,26 +266,24 @@
 
 /* Active spin when searching */
 .search-spinning {
-  background: conic-gradient(
-    from var(--search-angle),
-    transparent 0%,
-    #06b6d4 20%,
-    #8b5cf6 50%,
-    #06b6d4 80%,
-    transparent 100%
-  );
+  background: conic-gradient(from var(--search-angle),
+      transparent 0%,
+      #06b6d4 20%,
+      #8b5cf6 50%,
+      #06b6d4 80%,
+      transparent 100%);
   animation: search-spin-angle 1s linear infinite;
-  filter: drop-shadow(0 0 6px rgba(6,182,212,0.6));
+  filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.6));
 }
 
 
-@media(max-width: 992px){
-  .slide-navigation{
+@media(max-width: 992px) {
+  .slide-navigation {
     display: none;
   }
 }
 
-.bg-1{
+.bg-1 {
   background-color: #2a2a31;
 }
 
@@ -318,4 +358,32 @@
     padding: 0;
     background: transparent;
   }
+}
+
+svg.lucide-menu {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+@media(max-width: 992px){
+    .header-logo{
+        position: absolute;
+        left: 50%;
+        transform: translateX(-42%);
+        width: 100%;
+        z-index: 2;
+
+      @media(max-width: 375px){
+        transform: translateX(-48%);
+      }
+  }
+}
+
+.nav-button{
+  position: relative;
+  z-index: 3;
+}
+
+.chevron-mobile{
+  color: hsl(186 100% 44%);
 }

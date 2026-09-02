@@ -2048,6 +2048,7 @@
         font-style: normal;
         font-size: 20px;
         transition: .25s ease;
+        flex-shrink: 0;
     }
 
     #mgu-lp .faq-item.is-open button i {
@@ -7923,7 +7924,7 @@ Mantém a identidade visual original e reorganiza a jornada.
                     <div class="mgu-value-offer-v3__main" id="oferta-mgu-pro">
                         <div class="mgu-value-offer-v3__badge">✓ TUDO INCLUSO NO GAMEDOCTOR</div>
                         <a class="mgu-value-offer-v3__cta mgu-value-offer-v3__cta--checkout mgu-value-offer-v3__cta--above-countdown"
-                            href="https://wa.me/5541920055798?text=Quero%20saber%20sobre%20o%20investimento%20do%20GameDoctor."
+                            href="https://wa.me/5541920058506?text=Quero%20saber%20sobre%20o%20investimento%20do%20GameDoctor."
                             target="_blank" rel="noopener noreferrer"
                             aria-label="Consultar investimento do GameDoctor pelo WhatsApp">
                             CONSULTAR INVESTIMENTO
@@ -8100,6 +8101,8 @@ Mantém a identidade visual original e reorganiza a jornada.
 
                 const root = document.getElementById('mgu-lp');
                 if (!root) return;
+                if (root.dataset.mguInitialized === 'true') return;
+                root.dataset.mguInitialized = 'true';
                 const menuButton = root.querySelector('.mobile-menu');
                 const mainNav = root.querySelector('.main-nav');
 

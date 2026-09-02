@@ -4,9 +4,10 @@ import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { consumeAiCredit, getAiUsageStatus, resolveAiAccess } from "@/lib/ai/access"
-import { buildAiSystemPrompt } from "@/lib/ai/prompt"
+import { AI_NO_CONTENT_MESSAGE, buildAiSystemPrompt, finalizeAiAnswer } from "@/lib/ai/prompt"
 import { getAiSystemPrompts } from "@/lib/ai/settings"
 import { searchAiContext } from "@/lib/ai/search"
+import { routeAiConversation } from "@/lib/ai/router"
 
 const bodySchema = z.object({
   message: z.string().trim().min(1).max(4_000),
@@ -14,13 +15,6 @@ const bodySchema = z.object({
 })
 
 const model = process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini"
-
-// Strips any domain/protocol the model might hallucinate in front of internal links, e.g. "gamedoctor.com/aula/..." -> "/aula/..."
-function stripLinkDomains(text: string) {
-  return text
-    .replace(/\]\(\s*(?:https?:\/\/)?(?:www\.)?[^\/\s)]+(\/[^)]*)\)/g, "]($1)")
-    .replace(/\]\(\s+(\/[^)]*)\)/g, "]($1)")
-}
 
 function getOpenAiClient() {
   const apiKey = process.env.OPENAI_API_KEY?.trim()
@@ -78,27 +72,37 @@ export async function POST(request: Request) {
       })
     : []
 
-  const context = await searchAiContext(parsed.data.message, access.technicalMode)
-  const noContentMessage = "Ainda não temos um conteúdo específico sobre esse assunto."
-  const suggestionHref = `/busca?sugerir=1&q=${encodeURIComponent(parsed.data.message)}`
-  let answer = `${noContentMessage} Você pode [solicitar uma aula](${suggestionHref}) para nossa equipe.`
-  let responseModel: string | null = null
-  let inputTokens: number | null = null
-  let outputTokens: number | null = null
+  const prompts = await getAiSystemPrompts()
+  const systemPrompt = access.tier === "FREE" ? prompts.free : prompts.paid
+  const conversationHistory = history.reverse().map((item) => ({
+    role: item.role === "USER" ? "user" as const : "assistant" as const,
+    content: item.content,
+  }))
+  const routing = await routeAiConversation({
+    openai,
+    model,
+    promptText: systemPrompt,
+    history: conversationHistory,
+    message: parsed.data.message,
+  })
+  const context = routing.action === "search"
+    ? await searchAiContext(routing.query!, access.technicalMode)
+    : []
+  const suggestionHref = `/busca?sugerir=1&q=${encodeURIComponent(routing.query ?? parsed.data.message)}`
+  let answer = routing.answer
+    ?? `${AI_NO_CONTENT_MESSAGE} Você pode [solicitar uma aula](${suggestionHref}) para nossa equipe.`
+  let responseModel: string | null = model
+  let inputTokens: number | null = routing.inputTokens
+  let outputTokens: number | null = routing.outputTokens
   let credits = 0
   let usage = usageBefore
 
   if (context.length > 0) {
-    const prompts = await getAiSystemPrompts()
-    const systemPrompt = access.tier === "FREE" ? prompts.free : prompts.paid
     const completion = await openai.chat.completions.create({
       model,
       messages: [
         { role: "system", content: buildAiSystemPrompt(systemPrompt, context) },
-        ...history.reverse().map((item) => ({
-          role: item.role === "USER" ? "user" as const : "assistant" as const,
-          content: item.content,
-        })),
+        ...conversationHistory,
         { role: "user", content: parsed.data.message },
       ],
       temperature: 0.2,
@@ -112,19 +116,15 @@ export async function POST(request: Request) {
 
     answer = completionAnswer
     responseModel = model
-    inputTokens = completion.usage?.prompt_tokens ?? null
-    outputTokens = completion.usage?.completion_tokens ?? null
+    inputTokens = (inputTokens ?? 0) + (completion.usage?.prompt_tokens ?? 0)
+    outputTokens = (outputTokens ?? 0) + (completion.usage?.completion_tokens ?? 0)
     credits = 1
     usage = await consumeAiCredit(session.user.id, access)
   }
 
-  let sanitizedAnswer = stripLinkDomains(answer)
-  const hasNoContent = sanitizedAnswer.includes(noContentMessage)
-  if (context.length > 0
-    && !hasNoContent
-    && !sanitizedAnswer.includes(`](${context[0].href})`)) {
-    sanitizedAnswer += `\n\nConteúdo principal: [${context[0].title}](${context[0].href})`
-  }
+  const finalized = finalizeAiAnswer(answer, context)
+  const sanitizedAnswer = finalized.answer
+  const hasNoContent = finalized.hasNoContent
 
   if (!conversationId) {
     const conversation = await db.aiConversation.create({
