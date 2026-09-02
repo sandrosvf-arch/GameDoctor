@@ -142,6 +142,11 @@ enum PaymentGateway {
   MANUAL
 }
 
+enum CheckoutChannel {
+  STANDARD
+  LIVE
+}
+
 enum AccessType {
   LIFETIME
   TIMED
@@ -644,6 +649,7 @@ model Plan {
   description               String?
   price                     Decimal?    @db.Decimal(10, 2)
   annualPrice               Decimal?    @map("annual_price") @db.Decimal(10, 2)
+  cardInstallmentTotal      Decimal?    @map("card_installment_total") @db.Decimal(10, 2)
   monthlyPrice              Decimal?    @map("monthly_price") @db.Decimal(10, 2)
   billingType               BillingType @default(ONE_TIME) @map("billing_type")
   accessDurationDays        Int?        @map("access_duration_days")
@@ -732,6 +738,12 @@ model Order {
   couponId           String?         @map("coupon_id")
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime        @updatedAt @map("updated_at")
+  checkoutChannel    CheckoutChannel @default(STANDARD) @map("checkout_channel")
+  publicTokenHash    String?         @unique @map("public_token_hash")
+  publicTokenExpiresAt DateTime?      @map("public_token_expires_at")
+  clientFingerprintHash String?      @map("client_fingerprint_hash")
+  accessGrantedAt    DateTime?        @map("access_granted_at")
+  accessEmailSentAt  DateTime?        @map("access_email_sent_at")
 
   user                User          @relation(fields: [userId], references: [id])
   coupon              Coupon?       @relation(fields: [couponId], references: [id])
@@ -742,6 +754,7 @@ model Order {
   initialSubscription Subscription? @relation("SubscriptionInitialOrder")
   idempotencyKey      String?       @unique @map("idempotency_key")
 
+  @@index([checkoutChannel, clientFingerprintHash, createdAt])
   @@map("orders")
 }
 

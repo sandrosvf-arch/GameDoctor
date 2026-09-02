@@ -11,6 +11,7 @@ interface PlanItem {
   slug: string
   description: string | null
   annualPrice: number
+  cardInstallmentTotal: number | null
   monthlyPrice: number | null
   monthlyEnabled: boolean
   annualAccessDurationDays: number
@@ -36,6 +37,7 @@ interface FormState {
   name: string
   description: string
   annualPrice: string
+  cardInstallmentTotal: string
   annualAccessDurationDays: string
   monthlyEnabled: boolean
   monthlyPrice: string
@@ -51,6 +53,7 @@ const emptyForm: FormState = {
   name: "",
   description: "",
   annualPrice: "",
+  cardInstallmentTotal: "",
   annualAccessDurationDays: "365",
   monthlyEnabled: false,
   monthlyPrice: "",
@@ -138,6 +141,7 @@ export default function AdminPlanosPage() {
       name: plan.name,
       description: plan.description ?? "",
       annualPrice: String(plan.annualPrice),
+      cardInstallmentTotal: plan.cardInstallmentTotal === null ? "" : String(plan.cardInstallmentTotal),
       annualAccessDurationDays: String(plan.annualAccessDurationDays),
       monthlyEnabled: plan.monthlyEnabled,
       monthlyPrice: plan.monthlyPrice === null ? "" : String(plan.monthlyPrice),
@@ -160,6 +164,7 @@ export default function AdminPlanosPage() {
       slug: slugify(form.name),
       description: form.description,
       annualPrice: form.annualPrice,
+      cardInstallmentTotal: form.cardInstallmentTotal,
       annualAccessDurationDays: form.annualAccessDurationDays,
       monthlyEnabled: form.monthlyEnabled,
       monthlyPrice: form.monthlyPrice,
@@ -409,6 +414,17 @@ export default function AdminPlanosPage() {
                     placeholder="365"
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Total no cartao parcelado</label>
+                  <input
+                    value={form.cardInstallmentTotal}
+                    onChange={(event) => setForm((current) => ({ ...current, cardInstallmentTotal: event.target.value }))}
+                    className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
+                    placeholder="750.00"
+                  />
+                  <p className="text-xs text-muted-foreground">Valor total de referencia para o parcelamento no cartao. Pix continua usando o valor anual.</p>
                 </div>
 
                 <div className="rounded-2xl border border-border/70 bg-background/40 p-4 md:col-span-2">

@@ -39,6 +39,7 @@ function normalizePlanPayload(body: Record<string, unknown>) {
   const slug = slugify(String(body.slug ?? name))
   const description = String(body.description ?? "").trim() || null
   const annualPrice = parseDecimal(body.annualPrice)
+  const cardInstallmentTotal = parseDecimal(body.cardInstallmentTotal)
   const monthlyPrice = parseDecimal(body.monthlyPrice)
   const monthlyEnabled = Boolean(body.monthlyEnabled)
   const annualAccessDurationDays = Math.max(1, parseInteger(body.annualAccessDurationDays, 365) ?? 365)
@@ -70,6 +71,10 @@ function normalizePlanPayload(body: Record<string, unknown>) {
     return { error: "Informe um valor anual válido." }
   }
 
+  if (cardInstallmentTotal !== null && cardInstallmentTotal < annualPrice) {
+    return { error: "O valor total parcelado deve ser igual ou maior que o valor anual." }
+  }
+
   if (monthlyEnabled && (monthlyPrice === null || monthlyPrice < 0)) {
     return { error: "Informe um valor mensal válido para ativar o plano mensal." }
   }
@@ -80,6 +85,7 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       slug,
       description,
       annualPrice,
+      cardInstallmentTotal,
       monthlyPrice: monthlyEnabled ? monthlyPrice : null,
       monthlyEnabled,
       annualAccessDurationDays,
@@ -111,6 +117,7 @@ export async function GET() {
       slug: true,
       description: true,
       annualPrice: true,
+      cardInstallmentTotal: true,
       monthlyPrice: true,
       monthlyEnabled: true,
       annualAccessDurationDays: true,
@@ -138,6 +145,7 @@ export async function GET() {
       slug: plan.slug,
       description: plan.description,
       annualPrice: Number(plan.annualPrice ?? 0),
+      cardInstallmentTotal: plan.cardInstallmentTotal === null ? null : Number(plan.cardInstallmentTotal),
       monthlyPrice: plan.monthlyPrice === null ? null : Number(plan.monthlyPrice),
       monthlyEnabled: plan.monthlyEnabled,
       annualAccessDurationDays: plan.annualAccessDurationDays,

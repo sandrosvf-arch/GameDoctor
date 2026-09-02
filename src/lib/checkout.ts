@@ -20,6 +20,7 @@ export interface CheckoutQuote {
   subtotal: number
   discountTotal: number
   finalTotal: number
+  installmentTotal: number
   installments: {
     max: number
     noInterest: number
@@ -51,6 +52,7 @@ type QuotePlan = {
   highlighted: boolean
   status: string
   annualPrice: Prisma.Decimal | null
+  cardInstallmentTotal: Prisma.Decimal | null
   monthlyPrice: Prisma.Decimal | null
   monthlyEnabled: boolean
   annualAccessDurationDays: number
@@ -64,13 +66,18 @@ function toNumber(value: Prisma.Decimal | number | null | undefined) {
   return Number(value)
 }
 
-const CARD_REFERENCE_CASH_TOTAL = 614.20
-const CARD_REFERENCE_INSTALLMENT_TOTAL = 750
-
-export function getCardEstimate(total: number, installments: number) {
+export function getCardEstimate(
+  total: number,
+  installments: number,
+  referenceCashTotal = total,
+  referenceInstallmentTotal = total,
+) {
   const safeInstallments = Math.max(1, installments)
   const cardTotal = Number(
-    (total * (CARD_REFERENCE_INSTALLMENT_TOTAL / CARD_REFERENCE_CASH_TOTAL)).toFixed(2)
+    (referenceCashTotal > 0
+      ? total * (referenceInstallmentTotal / referenceCashTotal)
+      : total
+    ).toFixed(2)
   )
 
   return {
@@ -258,6 +265,7 @@ async function getPlanForQuote(planSlug: string) {
       highlighted: true,
       status: true,
       annualPrice: true,
+      cardInstallmentTotal: true,
       monthlyPrice: true,
       monthlyEnabled: true,
       annualAccessDurationDays: true,
@@ -275,7 +283,7 @@ async function getPlanForQuote(planSlug: string) {
 }
 
 export async function buildCheckoutQuote(input: {
-  userId: string
+  userId: string | null
   planSlug: string
   period: CheckoutPeriod
   couponCode?: string | null
@@ -283,17 +291,24 @@ export async function buildCheckoutQuote(input: {
   const plan = await getPlanForQuote(input.planSlug)
   const offer = resolvePlanOffer(plan, input.period)
   const [couponResult, currentPlan] = await Promise.all([
-    validateCouponForQuote({
-      userId: input.userId,
-      planId: plan.id,
-      code: input.couponCode,
-      subtotal: offer.subtotal,
-    }),
-    findCurrentPlanAccess(input.userId, plan.id),
+    input.userId
+      ? validateCouponForQuote({
+          userId: input.userId,
+          planId: plan.id,
+          code: input.couponCode,
+          subtotal: offer.subtotal,
+        })
+      : Promise.resolve({ coupon: null, discountTotal: 0, message: null }),
+    input.userId ? findCurrentPlanAccess(input.userId, plan.id) : Promise.resolve(null),
   ])
 
   const finalTotal = Math.max(0, Number((offer.subtotal - couponResult.discountTotal).toFixed(2)))
-  const cardEstimate = getCardEstimate(finalTotal, plan.maxInstallments)
+  const cardEstimate = getCardEstimate(
+    finalTotal,
+    plan.maxInstallments,
+    offer.period === "annual" ? offer.subtotal : undefined,
+    offer.period === "annual" ? toNumber(plan.cardInstallmentTotal) || offer.subtotal : undefined,
+  )
 
   return {
     plan: {
@@ -310,6 +325,7 @@ export async function buildCheckoutQuote(input: {
     subtotal: offer.subtotal,
     discountTotal: couponResult.discountTotal,
     finalTotal,
+    installmentTotal: cardEstimate.total,
     installments: {
       max: plan.maxInstallments,
       noInterest: plan.maxInstallmentsNoInterest,
@@ -334,6 +350,10 @@ export async function createPendingPlanCheckout(input: {
   idempotencyKey?: string | null
   gateway?: "MERCADOPAGO" | "PAGALEVE"
   paymentMethod?: "PIX" | "PIX_INSTALLMENTS" | "CREDIT_CARD"
+  checkoutChannel?: "STANDARD" | "LIVE"
+  publicTokenHash?: string | null
+  publicTokenExpiresAt?: Date | null
+  clientFingerprintHash?: string | null
 }) {
   const existingOrder = input.idempotencyKey
     ? await db.order.findFirst({
@@ -374,6 +394,10 @@ export async function createPendingPlanCheckout(input: {
       gateway: input.gateway ?? "MERCADOPAGO",
       idempotencyKey: input.idempotencyKey || undefined,
       couponId,
+      checkoutChannel: input.checkoutChannel ?? "STANDARD",
+      publicTokenHash: input.publicTokenHash || undefined,
+      publicTokenExpiresAt: input.publicTokenExpiresAt || undefined,
+      clientFingerprintHash: input.clientFingerprintHash || undefined,
       orderItems: {
         create: {
           planId: quote.plan.id,
@@ -425,6 +449,7 @@ export async function listPublicPlans(userId?: string | null) {
         benefits: true,
         highlighted: true,
         annualPrice: true,
+        cardInstallmentTotal: true,
         monthlyPrice: true,
         monthlyEnabled: true,
         annualAccessDurationDays: true,
@@ -477,7 +502,12 @@ export async function listPublicPlans(userId?: string | null) {
         period: "annual" as const,
         label: "Anual",
         price: toNumber(plan.annualPrice),
-        cardEstimate: getCardEstimate(toNumber(plan.annualPrice), plan.maxInstallments),
+        cardEstimate: getCardEstimate(
+          toNumber(plan.annualPrice),
+          plan.maxInstallments,
+          toNumber(plan.annualPrice),
+          toNumber(plan.cardInstallmentTotal) || toNumber(plan.annualPrice),
+        ),
         accessDurationDays: plan.annualAccessDurationDays,
       },
       ...(plan.monthlyEnabled && plan.monthlyPrice !== null

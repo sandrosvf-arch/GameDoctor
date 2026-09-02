@@ -62,3 +62,37 @@ export async function sendPasswordResetEmail(input: {
     `,
   })
 }
+
+export async function sendLiveCheckoutAccessEmail(input: {
+  email: string
+  name: string
+  planName: string
+  accessUrl: string
+  needsPassword: boolean
+}) {
+  const transporter = createTransporter()
+  const firstName = input.name.trim().split(/\s+/)[0] || "aluno"
+  const safeFirstName = escapeHtml(firstName)
+  const safePlanName = escapeHtml(input.planName)
+  const safeAccessUrl = escapeHtml(input.accessUrl)
+  const action = input.needsPassword ? "Criar minha senha" : "Entrar na plataforma"
+
+  return transporter.sendMail({
+    from: requiredEnvironment("EMAIL_FROM"),
+    to: input.email,
+    subject: "Seu acesso ao GameDoctor está liberado",
+    text: `Olá, ${firstName}. Seu pagamento foi aprovado e o acesso ao ${input.planName} já está liberado. ${action}: ${input.accessUrl}`,
+    html: `
+      <div style="background:#080b10;padding:32px 16px;font-family:Arial,sans-serif;color:#f8fafc">
+        <div style="max-width:560px;margin:0 auto;background:#11161d;border:1px solid #26313d;border-radius:16px;padding:32px">
+          <p style="margin:0 0 12px;color:#22d3ee;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">GameDoctor</p>
+          <h1 style="margin:0 0 16px;font-size:26px">Seu acesso está liberado</h1>
+          <p style="margin:0 0 12px;color:#cbd5e1;line-height:1.6">Olá, ${safeFirstName}.</p>
+          <p style="margin:0 0 24px;color:#cbd5e1;line-height:1.6">Seu pagamento foi aprovado e os 12 meses do <strong>${safePlanName}</strong> já estão disponíveis.</p>
+          <a href="${safeAccessUrl}" style="display:inline-block;background:#22d3ee;color:#061018;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px">${action}</a>
+          ${input.needsPassword ? '<p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.5">O link para criar sua senha é válido por 24 horas. Depois disso, você poderá solicitar uma nova senha pela tela de login.</p>' : ""}
+        </div>
+      </div>
+    `,
+  })
+}

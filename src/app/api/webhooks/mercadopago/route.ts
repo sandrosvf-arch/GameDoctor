@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import { suspendUserAccess } from "@/lib/access"
-import { grantOrderAccess } from "@/lib/payment/grant-order-access"
+import { grantApprovedOrderAccess, sendLiveCheckoutAccessIfNeeded } from "@/lib/payment/live-checkout-approval"
 import {
   getMercadoPagoAuthorizedPayment,
   getMercadoPagoOrder,
@@ -82,7 +82,7 @@ async function processLocalOrder(input: {
   })
 
   if (input.status === "APPROVED" && !alreadyApproved) {
-    await grantOrderAccess(order.id)
+    await db.$transaction((tx) => grantApprovedOrderAccess(order.id, tx))
 
     if (order.couponId) {
       await db.coupon.update({
@@ -90,6 +90,12 @@ async function processLocalOrder(input: {
         data: { usesCount: { increment: 1 } },
       }).catch(() => {})
     }
+  }
+
+  if (input.status === "APPROVED") {
+    await sendLiveCheckoutAccessIfNeeded(order.id).catch((error) => {
+      console.error("[live-checkout/access-email]", error)
+    })
   }
 
   if (input.status === "REFUNDED" || input.status === "CHARGEBACK") {

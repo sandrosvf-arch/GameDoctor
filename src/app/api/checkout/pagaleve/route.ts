@@ -113,7 +113,7 @@ export async function POST(request: Request) {
       paymentMethod: "PIX_INSTALLMENTS",
     })
 
-    if (checkout.quote.finalTotal <= 0) {
+    if (checkout.quote.installmentTotal <= 0) {
       return NextResponse.json({ error: "O valor final do pedido precisa ser maior que zero." }, { status: 400 })
     }
 
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     const pagaleveCheckout = await createPagaleveCheckout({
       orderId: checkout.orderId,
       userId: user.id,
-      amountInCents: Math.round(checkout.quote.finalTotal * 100),
+      amountInCents: Math.round(checkout.quote.installmentTotal * 100),
       description: `${checkout.quote.plan.name} - ${checkout.quote.periodLabel}`,
       sku: checkout.quote.plan.id,
       shopper: {
@@ -157,6 +157,7 @@ export async function POST(request: Request) {
           gatewayReference: checkoutId,
           gatewayCheckoutUrl: checkoutUrl,
           paymentMethod: "PIX_INSTALLMENTS",
+          finalTotal: checkout.quote.installmentTotal,
         },
       }),
       db.payment.update({
@@ -164,7 +165,7 @@ export async function POST(request: Request) {
         data: {
           gateway: "PAGALEVE",
           paymentMethod: "PIX_INSTALLMENTS",
-          amount: checkout.quote.finalTotal,
+          amount: checkout.quote.installmentTotal,
         },
       }),
     ])

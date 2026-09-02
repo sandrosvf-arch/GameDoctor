@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "crypto"
 import type { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
-import { grantOrderAccess } from "@/lib/payment/grant-order-access"
+import { grantApprovedOrderAccess, sendLiveCheckoutAccessIfNeeded } from "@/lib/payment/live-checkout-approval"
 import {
   capturePagaleveCheckout,
   getPagaleveCheckout,
@@ -202,7 +202,7 @@ async function approveOrder(input: {
     })
 
     if (!alreadyApproved) {
-      await grantOrderAccess(input.orderId, tx)
+      await grantApprovedOrderAccess(input.orderId, tx)
 
       const order = await tx.order.findUnique({
         where: { id: input.orderId },
@@ -233,6 +233,11 @@ export async function processPagaleveCheckout(input: {
   })
 
   if (webhook.processed) {
+    if (verified.order.paymentStatus === "APPROVED") {
+      await sendLiveCheckoutAccessIfNeeded(verified.order.id).catch((error) => {
+        console.error("[live-checkout/access-email]", error)
+      })
+    }
     return { orderId: verified.order.id, status: verified.order.paymentStatus }
   }
 
@@ -250,6 +255,9 @@ export async function processPagaleveCheckout(input: {
       orderId: verified.order.id,
       paymentId,
       amount: verified.amountInCents / 100,
+    })
+    await sendLiveCheckoutAccessIfNeeded(verified.order.id).catch((error) => {
+      console.error("[live-checkout/access-email]", error)
     })
     return { orderId: verified.order.id, status: "APPROVED" as const }
   }

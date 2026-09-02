@@ -63,6 +63,7 @@ interface CheckoutQuote {
   subtotal: number
   discountTotal: number
   finalTotal: number
+  installmentTotal: number
   installments: { max: number; noInterest: number }
   cardEstimate: { total: number; installmentAmount: number }
   coupon: {
@@ -733,7 +734,7 @@ export function CheckoutPageClient({
 
                     <div className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#090d13]">
                       <div className="grid gap-px bg-white/[0.07] sm:grid-cols-3">
-                        <PagaleveSummaryItem label="Valor da compra" value={formatCurrency(quote.finalTotal)} />
+                        <PagaleveSummaryItem label="Valor da compra" value={formatCurrency(quote.installmentTotal)} />
                         <PagaleveSummaryItem label="Primeira parcela" value="Pode ser ajustada" />
                         <PagaleveSummaryItem label="Valor total" value="Não será alterado" />
                       </div>
@@ -744,7 +745,7 @@ export function CheckoutPageClient({
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           Consulte no calculador oficial a quantidade e os valores disponíveis para esta compra.
                         </p>
-                        <PagaleveInstallmentCalculator amount={quote.finalTotal} />
+                          <PagaleveInstallmentCalculator amount={quote.installmentTotal} />
                         <div className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-3">
                           <p className="text-xs font-semibold text-amber-100">Simulação sujeita à análise</p>
                           <p className="mt-1 text-xs leading-5 text-amber-100/70">

@@ -1,2 +1,11 @@
+- Smart Checkout @done
+- Pix parcelado deixar 750,00 (Ajustar a regra dos preços) @done
+- mudar a regra da IA para priorizar primeiro a regra do faq, depois os vídeos, e dps a comunidade, pq varia muito do contexto da conversa
+    - O cara as vezes pergunta se tem aula de reparo de ps4, dai ele retornou um vídeo "Playstation 4 - PS4 - Descarga raio, reparo de circuito de rede (Ethernet), sendo que poderia jogar para trilha completa
+    - Precisa botar as trilhas no meio também, contextualizar as trilhas
+    - Limite de resposta em configs para cada: Usuário logado e usuário deslogado
+    - Histórico de chats da IA com usuário pelo admin
 - Validar progresso das aulas + continuar assistindo
 - Ver questões de certificado
+- Downloads (Stand)
+- Area de histórico de situações de compra: nome | telefone e email | comprou / não comprou | data

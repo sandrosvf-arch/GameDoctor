@@ -17,6 +17,17 @@ function getAppUrl() {
   return (appUrl || "http://localhost:3000").replace(/\/$/, "")
 }
 
+export async function createPasswordSetupUrl(userId: string, durationMs = RESET_TOKEN_DURATION_MS) {
+  const token = crypto.randomBytes(32).toString("hex")
+  const tokenHash = hashToken(token)
+  const expiresAt = new Date(Date.now() + durationMs)
+
+  await db.passwordResetToken.deleteMany({ where: { userId } })
+  await db.passwordResetToken.create({ data: { userId, tokenHash, expiresAt } })
+
+  return `${getAppUrl()}/redefinir-senha?token=${encodeURIComponent(token)}`
+}
+
 export async function requestPasswordReset(email: string) {
   const normalizedEmail = email.trim().toLowerCase()
   const user = await db.user.findUnique({
@@ -36,22 +47,12 @@ export async function requestPasswordReset(email: string) {
   })
   if (recentToken) return
 
-  const token = crypto.randomBytes(32).toString("hex")
-  const tokenHash = hashToken(token)
-  const expiresAt = new Date(Date.now() + RESET_TOKEN_DURATION_MS)
-
-  await db.passwordResetToken.deleteMany({ where: { userId: user.id } })
-  const resetToken = await db.passwordResetToken.create({
-    data: { userId: user.id, tokenHash, expiresAt },
-    select: { id: true },
-  })
-
-  const resetUrl = `${getAppUrl()}/redefinir-senha?token=${encodeURIComponent(token)}`
+  const resetUrl = await createPasswordSetupUrl(user.id)
 
   try {
     await sendPasswordResetEmail({ email: user.email, name: user.name, resetUrl })
   } catch (error) {
-    await db.passwordResetToken.delete({ where: { id: resetToken.id } }).catch(() => undefined)
+    await db.passwordResetToken.deleteMany({ where: { userId: user.id } }).catch(() => undefined)
     throw error
   }
 }
