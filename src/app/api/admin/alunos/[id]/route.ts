@@ -159,7 +159,7 @@ export async function GET(
     certificates: student.certificates.map((certificate) => ({
       id: certificate.id,
       code: certificate.certificateCode,
-      courseTitle: certificate.course.title,
+      courseTitle: certificate.course?.title ?? "Certificado global",
       issuedAt: certificate.issuedAt.toISOString(),
       status: certificate.status,
     })),

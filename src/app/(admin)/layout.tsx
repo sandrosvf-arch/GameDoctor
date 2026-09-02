@@ -26,6 +26,7 @@ import {
   Settings,
   Bot,
   Menu,
+  Award,
 } from "lucide-react"
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
@@ -57,6 +58,7 @@ const navGroups: AdminNavGroup[] = [
       { href: "/admin/trilhas", label: "Trilhas", icon: Map },
       { href: "/admin/categorias", label: "Categorias", icon: Tags },
       { href: "/admin/downloads", label: "Downloads", icon: Download },
+      { href: "/admin/certificado", label: "Certificado", icon: Award },
     ],
   },
   {

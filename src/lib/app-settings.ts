@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 export const APP_SETTINGS_CACHE_TAG = "app-settings"
 export const ABOUT_VIDEO_URL_KEY = "about.video_url"
 export const WHATSAPP_URL_KEY = "contact.whatsapp_url"
+export const CERTIFICATE_TEMPLATE_KEY = "certificate.template"
 
 const DEFAULT_ABOUT_VIDEO_URL =
   "https://player.vimeo.com/video/1212508404?badge=0&autopause=0&player_id=0&title=0&byline=0&portrait=0"
