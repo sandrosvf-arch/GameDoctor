@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { MessageCircle, Send, Sparkles, X } from "lucide-react"
@@ -60,6 +60,7 @@ export function PlatformAssistant({
 }) {
   const { data: session, status } = useSession()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState("")
   const [messages, setMessages] = useState<AssistantMessage[]>([])
@@ -74,6 +75,8 @@ export function PlatformAssistant({
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
   const isLessonPage = pathname.startsWith("/aula/")
   const isAboutUsPage = pathname.startsWith("/quem-somos")
+  const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
+  const loginHref = `/login?callbackUrl=${encodeURIComponent(currentUrl)}`
 
   if (!page && pathname === "/assistente") return null
 
@@ -226,7 +229,7 @@ export function PlatformAssistant({
               <div className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] p-4">
                 <p className="text-sm font-semibold text-white">Entre para conversar</p>
                 <p className="mt-2 text-sm leading-relaxed text-white/60">Faça login para perguntar sobre as trilhas, aulas e recursos da plataforma.</p>
-                <Link href="/login" className="mt-4 inline-flex h-9 items-center rounded-lg bg-cyan-400 px-3.5 text-xs font-semibold text-zinc-950 transition hover:bg-cyan-300">
+                <Link href={loginHref} onClick={() => setOpen(false)} className="mt-4 inline-flex h-9 items-center rounded-lg bg-cyan-400 px-3.5 text-xs font-semibold text-zinc-950 transition hover:bg-cyan-300">
                   Fazer login
                 </Link>
               </div>

@@ -6,7 +6,7 @@ import { db } from "@/lib/db"
 import { consumeAiCredit, getAiUsageStatus, resolveAiAccess } from "@/lib/ai/access"
 import { AI_NO_CONTENT_MESSAGE, buildAiSystemPrompt, finalizeAiAnswer } from "@/lib/ai/prompt"
 import { getAiSystemPrompts } from "@/lib/ai/settings"
-import { searchAiContext } from "@/lib/ai/search"
+import { searchAiContext, searchAiFaqContext } from "@/lib/ai/search"
 import { routeAiConversation } from "@/lib/ai/router"
 
 const bodySchema = z.object({
@@ -16,9 +16,31 @@ const bodySchema = z.object({
 
 const model = process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini"
 
+function isKnowledgeQuestion(message: string) {
+  const normalized = message.trim().toLowerCase()
+  if (normalized.startsWith("obrigad") || normalized.startsWith("valeu")) return false
+  const social = /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|obrigad|valeu|tchau|at[eé] mais)\b/i.test(normalized)
+  if (social) return false
+  if (/^como fa[cç]o isso funcionar\b/i.test(normalized)) return false
+  return /\b(ps[345]|xbox|nintendo|controle|aula|curso|trilha|defeito|erro|reparo|assist[eê]ncia|plano|comunidade|ferramenta|ajuda|suporte|progresso|download|assinatura|conversar|perguntar|d[uú]vida)\b/i.test(message)
+}
+
 function getOpenAiClient() {
   const apiKey = process.env.OPENAI_API_KEY?.trim()
   return apiKey ? new OpenAI({ apiKey }) : null
+}
+
+function shouldCheckFaq(message: string) {
+  const normalized = message.trim().toLowerCase()
+  if (normalized.startsWith("obrigad") || normalized.startsWith("valeu")) return false
+  const social = /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|obrigad|valeu|tchau|at[eé] mais)\b/i.test(normalized)
+  return !social && (message.includes("?") || /^(como|qual|quais|onde|quando|por que|porque|tem|existe|preciso|quero|o que|posso|consigo|vou|e se|me explica|me diga)\b/i.test(normalized))
+}
+
+function isSocialMessage(message: string) {
+  const normalized = message.trim().toLowerCase()
+  return normalized.startsWith("obrigad") || normalized.startsWith("valeu")
+    || /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|tchau|at[eé] mais)\b/i.test(normalized)
 }
 
 export async function POST(request: Request) {
@@ -79,29 +101,43 @@ export async function POST(request: Request) {
     role: item.role === "USER" ? "user" as const : "assistant" as const,
     content: item.content,
   }))
-  const routing = await routeAiConversation({
+  const faqSearch = shouldCheckFaq(parsed.data.message)
+    ? await searchAiFaqContext(parsed.data.message)
+    : { context: [], embedding: null }
+  const faqContext = faqSearch.context[0]?.source === "help" ? faqSearch.context[0] : null
+  const routing = faqContext ? null : isSocialMessage(parsed.data.message)
+    ? { action: "respond" as const, query: null, answer: "De nada! Se precisar de mais ajuda, é só avisar.", inputTokens: null, outputTokens: null }
+    : await routeAiConversation({
     openai,
     model,
     promptText: systemPrompt,
     history: conversationHistory,
     message: parsed.data.message,
   })
-  const context = routing.action === "search"
-    ? await searchAiContext(routing.query!, access.technicalMode)
-    : []
-  const suggestionHref = `/busca?sugerir=1&q=${encodeURIComponent(routing.query ?? parsed.data.message)}`
-  let answer = routing.answer
+  const shouldSearch = Boolean(faqContext) || routing?.action === "search" || isKnowledgeQuestion(parsed.data.message)
+  const searchQuery = routing?.query ?? parsed.data.message
+  const searchOptions = searchQuery === parsed.data.message
+    ? { skipFaq: true, embedding: faqSearch.embedding }
+    : { skipFaq: true }
+  const context = faqContext
+    ? faqSearch.context
+    : shouldSearch
+      ? await searchAiContext(searchQuery, access.technicalMode, searchOptions)
+      : []
+  const suggestionHref = `/busca?sugerir=1&q=${encodeURIComponent(searchQuery)}`
+  let answer = faqContext?.text
+    ?? (shouldSearch ? `${AI_NO_CONTENT_MESSAGE} VocÃª pode [solicitar uma aula](${suggestionHref}) para nossa equipe.` : routing?.answer)
     ?? `${AI_NO_CONTENT_MESSAGE} Você pode [solicitar uma aula](${suggestionHref}) para nossa equipe.`
   let responseModel: string | null = model
-  let inputTokens: number | null = routing.inputTokens
-  let outputTokens: number | null = routing.outputTokens
+  let inputTokens: number | null = routing?.inputTokens ?? null
+  let outputTokens: number | null = routing?.outputTokens ?? null
   let credits = 0
   let usage = usageBefore
-  const faqContext = context[0]?.source === "help" ? context[0] : null
+  const contextFaq = context[0]?.source === "help" ? context[0] : null
 
-  if (faqContext) {
+  if (contextFaq) {
     // FAQs are official answers and must not be rewritten by the model.
-    answer = faqContext.text
+    answer = contextFaq.text
     credits = 1
     usage = await consumeAiCredit(session.user.id, access)
   } else if (context.length > 0) {

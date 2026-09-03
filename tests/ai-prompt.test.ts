@@ -10,6 +10,11 @@ const context = [{
 
 assert.equal(resolveAiSystemPrompt("  ", "PAID"), DEFAULT_AI_SYSTEM_PROMPT_PAID)
 
+const configuredPrompt = resolveAiSystemPrompt("Responda apenas sobre a GameDoctor.", "FREE")
+assert.match(configuredPrompt, /REGRAS FIXAS DO ASSISTENTE/)
+assert.match(configuredPrompt, /NÃ£o use conhecimento externo/)
+assert.equal(resolveAiSystemPrompt(configuredPrompt, "FREE"), configuredPrompt)
+
 const prompt = buildAiSystemPrompt("Responda como um professor paciente.", context)
 assert.match(prompt, /^Responda como um professor paciente\./)
 assert.match(prompt, /Erro E100/)
