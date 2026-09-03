@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useEffect, useRef, useState } from "react"
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { usePathname, useSearchParams } from "next/navigation"
@@ -51,7 +51,7 @@ function renderMessage(content: string) {
   )
 }
 
-export function PlatformAssistant({
+function PlatformAssistantContent({
   page = false,
   whatsappUrl = "/suporte",
 }: {
@@ -317,5 +317,16 @@ export function PlatformAssistant({
         </button>
       </div>}
     </div>
+  )
+}
+
+export function PlatformAssistant(props: {
+  page?: boolean
+  whatsappUrl?: string
+}) {
+  return (
+    <Suspense fallback={null}>
+      <PlatformAssistantContent {...props} />
+    </Suspense>
   )
 }
