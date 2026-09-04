@@ -49,3 +49,7 @@ venv/
 
 # Software
 software/
+!src/app/api/auth/software/
+!src/app/api/auth/software/**
+!src/app/api/software/
+!src/app/api/software/**
