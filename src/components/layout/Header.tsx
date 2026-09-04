@@ -495,7 +495,7 @@ export function Header() {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-72">
+          <SheetContent side="right" className="h-dvh max-h-[100dvh] w-72 overflow-y-auto pb-24">
             <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
             <div className="flex flex-col gap-2 pt-6">
               <Link
@@ -506,15 +506,18 @@ export function Header() {
                 <Image src="/doctor-oficial.png" alt="GameDoctor" width={180} height={36} className="h-8 w-auto" />
               </Link>
               <nav className="flex flex-col gap-1">
-                <form onSubmit={handleSearch} className="relative mb-2">
+                <form onSubmit={handleSearch} className="relative mb-2 flex items-center gap-2">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="O que você procura?"
-                    className="h-9 w-full rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    className="h-10 min-w-0 flex-1 rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
                   />
+                  <Button type="submit" size="icon" className="h-10 w-10 shrink-0" aria-label="Buscar">
+                    <Search className="h-4 w-4" />
+                  </Button>
                 </form>
                 <Link
                   href="/cursos"

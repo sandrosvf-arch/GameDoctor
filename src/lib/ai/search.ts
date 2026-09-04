@@ -81,6 +81,12 @@ function isPlatformQuestion(question: string) {
   return !hasTechnicalSubject && /\b(planos?|progresso|downloads?|materia(?:l|is)|comunidade|suporte|ajuda|trilhas?|cursos?|m[oó]dulos?|organiza|conversar|perguntar|d[uú]vida)\b/.test(normalized)
 }
 
+function isCatalogQuestion(question: string) {
+  const normalized = normalizeText(question)
+  return /\b(tem|existe|quais|qual|onde|encontrar|disponiveis?|oferece|ensinam?)\b/.test(normalized)
+    && /\b(aulas?|cursos?|trilhas?|conteudo|material|ps[345]|xbox|nintendo|controle)\b/.test(normalized)
+}
+
 function stripHtml(value: string | null | undefined) {
   return (value ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 }
@@ -182,6 +188,31 @@ async function searchSemanticContext(
 }
 
 async function searchFaqContext(question: string, embedding: number[] | null) {
+  const normalizedQuestion = normalizeText(question)
+  if (normalizedQuestion) {
+    const exactArticles = await db.helpArticle.findMany({
+      where: {
+        status: "ACTIVE",
+        category: { slug: "duvidas-frequentes", status: "ACTIVE" },
+      },
+      select: { title: true, slug: true, content: true },
+    })
+    const exact = exactArticles.find((article) => {
+      const title = normalizeText(article.title)
+      return title === normalizedQuestion || title.includes(normalizedQuestion) || normalizedQuestion.includes(title)
+    })
+
+    if (exact) {
+      return [{
+        source: "help" as const,
+        title: exact.title,
+        text: stripHtml(exact.content),
+        href: `/suporte/topico/${exact.slug}`,
+        score: 1,
+      }]
+    }
+  }
+
   if (embedding) {
     try {
       const semantic = await searchSemanticContext(question, embedding, true, "faq")
@@ -210,7 +241,6 @@ async function searchFaqContext(question: string, embedding: number[] | null) {
     select: { title: true, slug: true, content: true },
   })
 
-  const normalizedQuestion = normalizeText(question)
   const ranked = articles
     .map((article) => {
       const title = normalizeText(article.title)
@@ -283,6 +313,8 @@ async function searchLexicalContext(question: string, technicalMode: boolean): P
     .sort((left, right) => right.match.score - left.match.score)
     .map(({ lesson }) => lesson)
 
+  const relevantCourses = !platformQuestion && !isCatalogQuestion(question) && rankedLessons.length > 0 ? [] : rankedCourses
+
   return [
     ...(platformQuestion || (rankedCourses.length === 0 && rankedLessons.length === 0) ? rankedPlatform : []).map((chunk) => ({
       source: "platform" as const,
@@ -290,7 +322,7 @@ async function searchLexicalContext(question: string, technicalMode: boolean): P
       text: stripHtml(chunk.content).slice(0, 1_200),
       href: chunk.href,
     })),
-    ...rankedCourses.map((course) => ({
+    ...relevantCourses.map((course) => ({
       source: "course" as const,
       title: course.title,
       text: stripHtml([course.shortDescription, course.description].filter(Boolean).join(" ")).slice(0, 1_200),
@@ -364,8 +396,8 @@ export async function searchAiContext(
     if (embedding) {
       const semantic = await searchSemanticContext(question, embedding, technicalMode, "learning")
       const hasSpecificLearning = semantic.some((item) => item.source === "course" || item.source === "lesson")
-      const relevantSemantic = hasSpecificLearning && !isPlatformQuestion(question)
-        ? semantic.filter((item) => item.source !== "platform")
+      const relevantSemantic = hasSpecificLearning && !isPlatformQuestion(question) && !isCatalogQuestion(question)
+        ? semantic.filter((item) => item.source !== "platform" && item.source !== "course")
         : semantic
       if ((relevantSemantic[0]?.score ?? 0) >= MIN_LEARNING_SCORE) return relevantSemantic
 

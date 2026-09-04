@@ -74,6 +74,25 @@ export function finalizeAiAnswer(answer: string, context: AiContextItem[]) {
     .replace(/\]\(\s*(?:https?:\/\/)?(?:www\.)?[^\/\s)]+(\/[^)]*)\)/g, "]($1)")
     .replace(/\]\(\s+(\/[^)]*)\)/g, "]($1)")
 
+  const normalizeLinkLabel = (value: string) => value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+
+  sanitizedAnswer = sanitizedAnswer.replace(/\[([^\]]+)\]\((\/[^)]+)\)/g, (match, label: string) => {
+    const normalizedLabel = normalizeLinkLabel(label)
+    if (normalizedLabel.length < 6 || normalizedLabel === "aqui") return match
+
+    const matchingSource = context.find((item) => {
+      const normalizedTitle = normalizeLinkLabel(item.title)
+      return normalizedTitle.includes(normalizedLabel) || normalizedLabel.includes(normalizedTitle)
+    })
+
+    return matchingSource ? `[${label}](${matchingSource.href})` : match
+  })
+
   const primarySource = context[0]
   const hasStrongSource = typeof primarySource?.score === "number" && primarySource.score >= 0.6
   if (primarySource && hasStrongSource && sanitizedAnswer.includes(AI_NO_CONTENT_MESSAGE)) {

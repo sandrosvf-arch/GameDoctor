@@ -378,6 +378,7 @@ export default function BunnyAulaClient({
                         )}
                         <button
                           onClick={() => setStarted(true)}
+                          disabled={!mounted}
                           aria-label="Assistir prévia"
                           className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors"
                         >
@@ -461,6 +462,7 @@ export default function BunnyAulaClient({
                   )}
                   <button
                     onClick={() => setStarted(true)}
+                    disabled={!mounted}
                     aria-label="Assistir aula"
                     className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors"
                   >

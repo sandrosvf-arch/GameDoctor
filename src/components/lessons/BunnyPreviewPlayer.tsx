@@ -211,7 +211,10 @@ export function BunnyPreviewPlayer({
       {!started && (
         <button
           type="button"
-          onClick={() => setStarted(true)}
+          onClick={() => {
+            if (embedUrl) setStarted(true)
+          }}
+          disabled={loading || !embedUrl}
           aria-label="Assistir prévia"
           className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors hover:bg-black/20"
         >
@@ -221,7 +224,7 @@ export function BunnyPreviewPlayer({
         </button>
       )}
 
-      {started && loading && (
+      {!started && loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
           <Loader2 className="h-8 w-8 animate-spin text-white" />
         </div>

@@ -1,11 +1,9 @@
-- Smart Checkout @done
-- Pix parcelado deixar 750,00 (Ajustar a regra dos preços) @done
-- mudar a regra da IA para priorizar primeiro a regra do faq, depois os vídeos, e dps a comunidade, pq varia muito do contexto da conversa @done
-    - O cara as vezes pergunta se tem aula de reparo de ps4, dai ele retornou um vídeo "Playstation 4 - PS4 - Descarga raio, reparo de circuito de rede (Ethernet), sendo que poderia jogar para trilha completa  @done
-    - Precisa botar as trilhas no meio também, contextualizar as trilhas  @done
-    - Limite de resposta em configs para cada: Usuário logado e usuário deslogado  @done
-    - Histórico de chats da IA com usuário pelo admin  @done
-- Validar progresso das aulas + continuar assistindo @done
-- Ver questões de certificado @done
-- Downloads (Stand)
-- Area de histórico de situações de compra: nome | telefone e email | comprou / não comprou | data @done
+Menu mobile:
+    - Quando clico no input de busca no mobile, o teclado fica por cima, precisa ajustar @done
+    - Estou sentindo falta de um botão de buscar com ícone @done
+
+Página da aula:
+- No mobile tá tendo que clicar 2 vezes para a aula iniciar. Validar pq no desk tá ok, mas no mobile não, me parece ser algo de IOS, pq no meu android tá ok; @done
+
+Chat com IA:
+- Ele ainda tá respondendo errado, sendo que deveria puxar do faq @done
