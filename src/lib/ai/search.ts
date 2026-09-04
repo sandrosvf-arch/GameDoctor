@@ -262,6 +262,97 @@ async function searchFaqContext(question: string, embedding: number[] | null) {
   return ranked.length > 0 ? [ranked[0]] : []
 }
 
+export async function classifyAiFaq(question: string, openai: OpenAI, model: string) {
+  const articles = await db.helpArticle.findMany({
+    where: {
+      status: "ACTIVE",
+      category: { slug: "duvidas-frequentes", status: "ACTIVE" },
+    },
+    orderBy: [{ order: "asc" }, { title: "asc" }],
+    select: { title: true, slug: true, content: true },
+  })
+
+  if (articles.length === 0) return null
+
+  const normalizedQuestion = normalizeText(question)
+  const literalArticle = articles.find((article) => {
+    const normalizedTitle = normalizeText(article.title)
+    return normalizedTitle === normalizedQuestion
+      || (normalizedTitle.length >= 12 && normalizedQuestion.includes(normalizedTitle))
+  })
+
+  if (literalArticle) {
+    return {
+      source: "help" as const,
+      title: literalArticle.title,
+      text: stripHtml(literalArticle.content),
+      href: `/suporte/topico/${literalArticle.slug}`,
+      score: 1,
+    }
+  }
+
+  const catalog = articles.map((article, index) => (
+    `[${index}] ${article.title}`
+  )).join("\n")
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: `Você classifica perguntas para o assistente da GameDoctor.
+
+Analise a mensagem do usuário contra os títulos de todos os FAQs abaixo. Marque isFaq=true somente quando a mensagem perguntar claramente a mesma coisa que um FAQ, mesmo com erro de digitação, abreviação ou paráfrase. Compare a intenção principal, não apenas palavras em comum. Não marque uma pergunta sobre um console, controle, defeito, aula específica ou comunidade só porque um FAQ fala genericamente sobre o curso, suporte ou aprendizado. Não force uma correspondência: se houver dúvida, use isFaq=false.
+
+Retorne somente JSON no formato informado. faqIndex deve ser o índice do FAQ escolhido ou null quando não houver correspondência segura.
+
+FAQs ativos:
+${catalog}`,
+        },
+        { role: "user", content: question },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "gamedoctor_faq_classification",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              isFaq: { type: "boolean" },
+              faqIndex: { type: ["integer", "null"] },
+            },
+            required: ["isFaq", "faqIndex"],
+            additionalProperties: false,
+          },
+        },
+      },
+      temperature: 0,
+      max_tokens: 80,
+    })
+
+    const raw = completion.choices[0]?.message?.content
+    const decision = raw ? JSON.parse(raw) as { isFaq?: unknown; faqIndex?: unknown } : null
+    const index = decision?.faqIndex
+    if (decision?.isFaq !== true || !Number.isInteger(index) || Number(index) < 0 || Number(index) >= articles.length) {
+      return null
+    }
+
+    const article = articles[Number(index)]
+    return {
+      source: "help" as const,
+      title: article.title,
+      text: stripHtml(article.content),
+      href: `/suporte/topico/${article.slug}`,
+      score: 1,
+    }
+  } catch (error) {
+    console.error("[ai/search] Classificação do FAQ indisponível; seguindo para as demais fontes.", error)
+    return null
+  }
+}
+
 async function searchLexicalContext(question: string, technicalMode: boolean): Promise<AiContextItem[]> {
   const terms = getSearchTerms(question)
   if (terms.length === 0) return []

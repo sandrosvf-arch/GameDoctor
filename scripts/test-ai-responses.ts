@@ -2,7 +2,7 @@ import OpenAI from "openai"
 import { db } from "../src/lib/db"
 import { AI_NO_CONTENT_MESSAGE, buildAiSystemPrompt, finalizeAiAnswer } from "../src/lib/ai/prompt"
 import { routeAiConversation, type AiRoutingHistoryItem } from "../src/lib/ai/router"
-import { searchAiContext, searchAiFaqContext } from "../src/lib/ai/search"
+import { classifyAiFaq, searchAiContext } from "../src/lib/ai/search"
 import { getAiSystemPrompts } from "../src/lib/ai/settings"
 import type { AiContextItem } from "../src/lib/ai/search"
 
@@ -201,10 +201,9 @@ async function main() {
     categoryResult.total += 1
     categoryTotals.set(category, categoryResult)
     const systemPrompt = testCase.tier === "free" ? prompts.free : prompts.paid
-    const faqSearch = shouldCheckFaq(testCase.message)
-      ? await searchAiFaqContext(testCase.message)
-      : { context: [], embedding: null }
-    const faqContext = faqSearch.context[0]?.source === "help" ? faqSearch.context[0] : null
+    const faqContext = isSocialMessage(testCase.message)
+      ? null
+      : await classifyAiFaq(testCase.message, openai, model)
     const routing = faqContext
       ? { action: "search" as const, query: testCase.message, answer: null, inputTokens: null, outputTokens: null }
       : isSocialMessage(testCase.message)
@@ -220,11 +219,9 @@ async function main() {
     const effectiveAction = faqContext || forceSearch ? "search" : routing?.action
     const searchQuery = routing?.query ?? testCase.message
     const context = faqContext
-      ? faqSearch.context
+      ? [faqContext]
       : (routing?.action === "search" || forceSearch)
-        ? await searchAiContext(searchQuery, testCase.tier !== "free", searchQuery === testCase.message
-          ? { skipFaq: true, embedding: faqSearch.embedding }
-          : { skipFaq: true })
+        ? await searchAiContext(searchQuery, testCase.tier !== "free", { skipFaq: true })
         : []
     let answer = routing.answer ?? "Ainda não temos um conteúdo específico sobre esse assunto. [Solicitar uma aula](/busca?sugerir=1)"
 

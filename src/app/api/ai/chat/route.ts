@@ -6,7 +6,7 @@ import { db } from "@/lib/db"
 import { consumeAiCredit, getAiUsageStatus, resolveAiAccess } from "@/lib/ai/access"
 import { AI_NO_CONTENT_MESSAGE, buildAiSystemPrompt, finalizeAiAnswer } from "@/lib/ai/prompt"
 import { getAiSystemPrompts } from "@/lib/ai/settings"
-import { searchAiContext, searchAiFaqContext } from "@/lib/ai/search"
+import { classifyAiFaq, searchAiContext } from "@/lib/ai/search"
 import { routeAiConversation } from "@/lib/ai/router"
 
 const bodySchema = z.object({
@@ -101,10 +101,9 @@ export async function POST(request: Request) {
     role: item.role === "USER" ? "user" as const : "assistant" as const,
     content: item.content,
   }))
-  const faqSearch = shouldCheckFaq(parsed.data.message)
-    ? await searchAiFaqContext(parsed.data.message)
-    : { context: [], embedding: null }
-  const faqContext = faqSearch.context[0]?.source === "help" ? faqSearch.context[0] : null
+  const faqContext = isSocialMessage(parsed.data.message)
+    ? null
+    : await classifyAiFaq(parsed.data.message, openai, model)
   const routing = faqContext ? null : isSocialMessage(parsed.data.message)
     ? { action: "respond" as const, query: null, answer: "De nada! Se precisar de mais ajuda, é só avisar.", inputTokens: null, outputTokens: null }
     : await routeAiConversation({
@@ -116,13 +115,10 @@ export async function POST(request: Request) {
   })
   const shouldSearch = Boolean(faqContext) || routing?.action === "search" || isKnowledgeQuestion(parsed.data.message)
   const searchQuery = routing?.query ?? parsed.data.message
-  const searchOptions = searchQuery === parsed.data.message
-    ? { skipFaq: true, embedding: faqSearch.embedding }
-    : { skipFaq: true }
   const context = faqContext
-    ? faqSearch.context
+    ? [faqContext]
     : shouldSearch
-      ? await searchAiContext(searchQuery, access.technicalMode, searchOptions)
+      ? await searchAiContext(searchQuery, access.technicalMode, { skipFaq: true })
       : []
   const suggestionHref = `/busca?sugerir=1&q=${encodeURIComponent(searchQuery)}`
   let answer = faqContext?.text
