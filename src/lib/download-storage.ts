@@ -7,7 +7,7 @@ export const MAX_DOWNLOAD_BYTES = 250 * 1024 * 1024
 export function getDownloadStorageAdmin() {
   const supabaseUrl = process.env.SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET
+  const bucket = process.env.SUPABASE_DOWNLOADS_BUCKET || process.env.SUPABASE_STORAGE_BUCKET
 
   if (!supabaseUrl || !serviceRoleKey || !bucket) {
     throw new Error("Supabase Storage não está configurado.")

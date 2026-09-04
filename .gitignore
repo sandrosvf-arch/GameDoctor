@@ -46,3 +46,6 @@ venv/
 .local/
 
 .env.vercel*
+
+# Software
+software/

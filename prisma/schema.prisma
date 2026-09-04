@@ -631,6 +631,8 @@ model DownloadMaterial {
   type        MaterialType @default(OTHER)
   order       Int          @default(0)
   status      EntityStatus @default(ACTIVE)
+  metadata    Json?
+  sourceKey   String?      @unique @map("source_key")
   createdById String       @map("created_by_id")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")

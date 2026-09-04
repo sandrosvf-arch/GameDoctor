@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs"
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { createSoftwareToken } from "@/lib/software-auth"
 
 const WINDOW_MS = 10 * 60 * 1000
 const MAX_ATTEMPTS_PER_IP = 10
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
       id: true,
       name: true,
       email: true,
+      cpf: true,
       role: true,
       status: true,
       passwordHash: true,
@@ -107,6 +109,9 @@ export async function POST(request: Request) {
 
   await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
 
+  const hasSoftwareAccess = user.role === "ADMIN" || user.role === "EDITOR"
+    || user.accessPermissions.some((permission) => permission.plan !== null)
+
   return NextResponse.json({
     success: true,
     status: "authenticated",
@@ -115,10 +120,11 @@ export async function POST(request: Request) {
       name: user.name,
       email: user.email,
       role: user.role,
-      accountStatus: user.status,
+        accountStatus: user.status,
+        cpf: user.cpf,
     },
     access: {
-      active: user.accessPermissions.length > 0,
+      active: hasSoftwareAccess,
       permissions: user.accessPermissions.map((permission) => ({
         id: permission.id,
         type: permission.accessType,
@@ -128,5 +134,8 @@ export async function POST(request: Request) {
         course: permission.course,
       })),
     },
+    software: hasSoftwareAccess
+      ? { token: createSoftwareToken(user.id), expiresIn: 12 * 60 * 60 }
+      : { token: null, expiresIn: 0 },
   })
 }
