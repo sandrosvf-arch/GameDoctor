@@ -136,7 +136,7 @@ const additionalCases: TestCase[] = [
     expectedAction: "search",
   },
   { name: "tecnica para usuario gratuito", category: "acesso", message: "como diagnosticar um PS4 que nao liga?", expectedAction: "search", tier: "free", expectedRestricted: true },
-  { name: "aulas para usuario gratuito", category: "acesso", message: "quero encontrar aulas de PS4", expectedAction: "search", tier: "free" },
+  { name: "aulas para usuario gratuito", category: "acesso", message: "quero encontrar aulas de PS4", expectedAction: "search", tier: "free", expectedRestricted: true },
   { name: "comunidade para usuario gratuito", category: "acesso", message: "posso acessar a comunidade?", expectedAction: "search", tier: "free" },
 ]
 

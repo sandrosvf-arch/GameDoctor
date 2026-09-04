@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { buildAiSystemPrompt, DEFAULT_AI_SYSTEM_PROMPT_PAID, resolveAiSystemPrompt } from "../src/lib/ai/prompt"
+import { buildAiSystemPrompt, DEFAULT_AI_SYSTEM_PROMPT_PAID, finalizeAiAnswer, resolveAiSystemPrompt } from "../src/lib/ai/prompt"
 
 const context = [{
   title: "Erro E100",
@@ -12,13 +12,20 @@ assert.equal(resolveAiSystemPrompt("  ", "PAID"), DEFAULT_AI_SYSTEM_PROMPT_PAID)
 
 const configuredPrompt = resolveAiSystemPrompt("Responda apenas sobre a GameDoctor.", "FREE")
 assert.match(configuredPrompt, /REGRAS FIXAS DO ASSISTENTE/)
-assert.match(configuredPrompt, /NÃ£o use conhecimento externo/)
+assert.match(configuredPrompt, /Não use conhecimento externo/)
 assert.equal(resolveAiSystemPrompt(configuredPrompt, "FREE"), configuredPrompt)
 
 const prompt = buildAiSystemPrompt("Responda como um professor paciente.", context)
 assert.match(prompt, /^Responda como um professor paciente\./)
 assert.match(prompt, /Erro E100/)
 assert.match(prompt, /\/aula\/erro-e100/)
+
+const finalized = finalizeAiAnswer(
+  "Esse conteúdo exige um plano ativo. [Conhecer os planos](/planos)",
+  [{ ...context[0], score: 0.9 }],
+)
+assert.match(finalized.answer, /\]\(\/planos\)/)
+assert.doesNotMatch(finalized.answer, /\]\(\/aula\/erro-e100\)/)
 
 console.log("Montagem do prompt configurável aprovada.")
 
