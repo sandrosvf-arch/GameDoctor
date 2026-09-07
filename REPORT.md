@@ -106,3 +106,10 @@ As demandas do `.todo` foram processadas com alterações localizadas em navega�
 - O progresso agora considera apenas aulas publicadas e preserva a ordem de `displayOrder` das trilhas, usada pela home e pela pagina de progresso.
 - O Smart Checkout atual segue o componente visual solicitado `LiveCheckoutClient-new.tsx`; o arquivo auxiliar foi removido depois da migracao. O componente atual inclui os metodos presentes nessa versao, inclusive Pagaleve.
 - Validacoes finais: `npx tsc --noEmit --incremental false` e `git diff --check HEAD` foram aprovados. `npm run build` nao conseguiu baixar o engine Prisma por `ECONNREFUSED` do proxy local; `npx next build` compilou o bundle e falhou depois em `Running TypeScript ... spawn EPERM`, limitacao do ambiente Windows.
+
+## Prompts v3.1
+
+- Criada a versao gratuita em `prompt_gamedoctor_v3_1_free.md`, bloqueando orientacao tecnica e aulas restritas, mas mantendo respostas sobre plataforma, FAQ, planos e navegacao.
+- O prompt pago recebeu um adendo de compatibilidade para impedir conhecimento externo, fontes inventadas e reescrita de FAQ.
+- Os dois prompts foram gravados via HTTPS nas chaves `ai.system_prompt_paid` e `ai.system_prompt_free` do Supabase.
+- Validacao: pago com 10.260 caracteres, gratuito com 3.154; teste direcionado do prompt e TypeScript aprovados.
