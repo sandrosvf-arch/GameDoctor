@@ -400,3 +400,27 @@ export async function hasActivePlanAccess(userId: string): Promise<boolean> {
 
   return Boolean(activePlanAccess)
 }
+
+const SOFTWARE_DOWNLOAD_DELAY_MS = 7 * 24 * 60 * 60 * 1000
+
+export async function getSoftwareDownloadAvailability(userId: string) {
+  const now = new Date()
+  const activePlanAccess = await db.accessPermission.findMany({
+    where: {
+      userId,
+      planId: { not: null },
+      status: "ACTIVE",
+      startsAt: { lte: now },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    select: { startsAt: true },
+    orderBy: { startsAt: "desc" },
+  })
+
+  if (activePlanAccess.length === 0) {
+    return { hasPlan: false, available: false, availableAt: null as Date | null }
+  }
+
+  const availableAt = new Date(activePlanAccess[0].startsAt.getTime() + SOFTWARE_DOWNLOAD_DELAY_MS)
+  return { hasPlan: true, available: availableAt <= now, availableAt }
+}

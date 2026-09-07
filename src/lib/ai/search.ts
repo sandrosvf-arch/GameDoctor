@@ -87,6 +87,10 @@ function isCatalogQuestion(question: string) {
     && /\b(aulas?|cursos?|trilhas?|conteudo|material|ps[345]|xbox|nintendo|controle)\b/.test(normalized)
 }
 
+function isExplicitCommunityQuestion(question: string) {
+  return /\b(comunidade|forum|f[oó]rum|relato|t[oó]pico|algu[eé]m comentou|outros alunos)\b/i.test(normalizeText(question))
+}
+
 function stripHtml(value: string | null | undefined) {
   return (value ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 }
@@ -485,11 +489,19 @@ export async function searchAiContext(
     }
 
     if (embedding) {
+      if (isExplicitCommunityQuestion(question)) {
+        const community = await searchSemanticContext(question, embedding, technicalMode, "community")
+        if ((community[0]?.score ?? 0) >= MIN_LEARNING_SCORE) return community
+      }
+
       const semantic = await searchSemanticContext(question, embedding, technicalMode, "learning")
       const hasSpecificLearning = semantic.some((item) => item.source === "course" || item.source === "lesson")
-      const relevantSemantic = hasSpecificLearning && !isPlatformQuestion(question) && !isCatalogQuestion(question)
-        ? semantic.filter((item) => item.source !== "platform" && item.source !== "course")
-        : semantic
+      const hasDirectLesson = semantic.some((item) => item.source === "lesson" && item.href !== "/cursos")
+      const relevantSemantic = semantic
+        .filter((item) => !(hasDirectLesson && item.source === "lesson" && item.href === "/cursos"))
+        .filter((item) => hasSpecificLearning && !isPlatformQuestion(question) && !isCatalogQuestion(question)
+          ? item.source !== "platform" && item.source !== "course"
+          : true)
       if ((relevantSemantic[0]?.score ?? 0) >= MIN_LEARNING_SCORE) return relevantSemantic
 
       const community = await searchSemanticContext(question, embedding, technicalMode, "community")

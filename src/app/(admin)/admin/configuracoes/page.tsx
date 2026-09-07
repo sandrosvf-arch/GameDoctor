@@ -11,6 +11,8 @@ type AiSettingsResponse = {
   defaultPromptPaid: string
   responseLimitFree: number
   responseLimitPaid: number
+  monthlyCreditsFree: number
+  monthlyCreditsPaid: number
   aboutVideoUrl: string
   whatsappUrl: string
   updatedAt: string | null
@@ -24,12 +26,23 @@ export default function AdminConfiguracoesPage() {
   const [defaultPromptPaid, setDefaultPromptPaid] = useState("")
   const [responseLimitFree, setResponseLimitFree] = useState(1200)
   const [responseLimitPaid, setResponseLimitPaid] = useState(2400)
+  const [monthlyCreditsFree, setMonthlyCreditsFree] = useState(5)
+  const [monthlyCreditsPaid, setMonthlyCreditsPaid] = useState(200)
   const [aboutVideoUrl, setAboutVideoUrl] = useState("")
   const [whatsappUrl, setWhatsappUrl] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  function isHttpUrl(value: string) {
+    try {
+      const url = new URL(value.trim())
+      return url.protocol === "http:" || url.protocol === "https:"
+    } catch {
+      return false
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -48,6 +61,8 @@ export default function AdminConfiguracoesPage() {
       setDefaultPromptPaid(payload.defaultPromptPaid)
       setResponseLimitFree(payload.responseLimitFree)
       setResponseLimitPaid(payload.responseLimitPaid)
+      setMonthlyCreditsFree(payload.monthlyCreditsFree)
+      setMonthlyCreditsPaid(payload.monthlyCreditsPaid)
       setAboutVideoUrl(payload.aboutVideoUrl)
       setWhatsappUrl(payload.whatsappUrl)
       setLoading(false)
@@ -61,10 +76,23 @@ export default function AdminConfiguracoesPage() {
     setMessage(null)
     setError(null)
 
+    if (!Number.isInteger(responseLimitFree) || responseLimitFree < 200 || responseLimitFree > 12_000
+      || !Number.isInteger(responseLimitPaid) || responseLimitPaid < 200 || responseLimitPaid > 12_000) {
+      setError("O limite de caracteres por resposta deve ficar entre 200 e 12.000. As perguntas mensais ficam nos campos abaixo.")
+      setSaving(false)
+      return
+    }
+
+    if (!isHttpUrl(aboutVideoUrl) || !isHttpUrl(whatsappUrl)) {
+      setSaving(false)
+      setError("Informe URLs válidas iniciadas por https:// para o vídeo e o WhatsApp.")
+      return
+    }
+
     const response = await fetch("/api/admin/configuracoes/ai", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ promptFree, promptPaid, responseLimitFree, responseLimitPaid, aboutVideoUrl, whatsappUrl }),
+      body: JSON.stringify({ promptFree, promptPaid, responseLimitFree, responseLimitPaid, monthlyCreditsFree, monthlyCreditsPaid, aboutVideoUrl, whatsappUrl }),
     })
     const payload = await response.json().catch(() => null) as AiSettingsResponse | null
     setSaving(false)
@@ -156,14 +184,29 @@ export default function AdminConfiguracoesPage() {
 
               <div className="grid gap-4 border-t border-border pt-4 md:grid-cols-2">
                 <div>
-                  <label htmlFor="ai-limit-free" className="text-sm font-medium">Limite de resposta para usuários gratuitos</label>
+                  <label htmlFor="ai-limit-free" className="text-sm font-medium">Caracteres por resposta para usuários gratuitos</label>
                   <input id="ai-limit-free" type="number" min={200} max={12000} value={responseLimitFree} onChange={(event) => setResponseLimitFree(Number(event.target.value))} className="mt-2 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-cyan-400/50" />
-                  <p className="mt-1 text-xs text-muted-foreground">Quantidade máxima de caracteres por resposta.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Tamanho máximo da resposta. Mínimo: 200 caracteres.</p>
                 </div>
                 <div>
-                  <label htmlFor="ai-limit-paid" className="text-sm font-medium">Limite de resposta para assinantes</label>
+                  <label htmlFor="ai-limit-paid" className="text-sm font-medium">Caracteres por resposta para assinantes</label>
                   <input id="ai-limit-paid" type="number" min={200} max={12000} value={responseLimitPaid} onChange={(event) => setResponseLimitPaid(Number(event.target.value))} className="mt-2 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-cyan-400/50" />
-                  <p className="mt-1 text-xs text-muted-foreground">Quantidade máxima de caracteres por resposta.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Tamanho máximo da resposta. Mínimo: 200 caracteres.</p>
+                </div>
+              </div>
+              <div className="border-t border-border pt-4">
+                <p className="mb-3 text-sm font-medium text-foreground">Limite mensal de perguntas (aparece no chat)</p>
+                <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="ai-credits-free" className="text-sm font-medium">Perguntas por mês para usuários gratuitos</label>
+                  <input id="ai-credits-free" type="number" min={1} max={10000} value={monthlyCreditsFree} onChange={(event) => setMonthlyCreditsFree(Number(event.target.value))} className="mt-2 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-cyan-400/50" />
+                  <p className="mt-1 text-xs text-muted-foreground">Quantidade de mensagens que podem ser enviadas no mês.</p>
+                </div>
+                <div>
+                  <label htmlFor="ai-credits-paid" className="text-sm font-medium">Perguntas por mês para assinantes</label>
+                  <input id="ai-credits-paid" type="number" min={1} max={10000} value={monthlyCreditsPaid} onChange={(event) => setMonthlyCreditsPaid(Number(event.target.value))} className="mt-2 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-cyan-400/50" />
+                  <p className="mt-1 text-xs text-muted-foreground">Quantidade de mensagens que podem ser enviadas no mês.</p>
+                </div>
                 </div>
               </div>
             </>

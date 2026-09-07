@@ -1,12 +1,17 @@
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { hasActivePlanAccess } from "@/lib/access"
+import { getSoftwareDownloadAvailability } from "@/lib/access"
 import { DownloadsClient, type DownloadMaterialItem } from "@/components/downloads/DownloadsClient"
 
 export default async function DownloadsPage() {
   const session = await auth()
   const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR"
-  const canAccess = isStaff || Boolean(session?.user?.id && await hasActivePlanAccess(session.user.id))
+  const downloadAccess = isStaff
+    ? { hasPlan: true, available: true, availableAt: null as Date | null }
+    : session?.user?.id
+      ? await getSoftwareDownloadAvailability(session.user.id)
+      : { hasPlan: false, available: false, availableAt: null as Date | null }
+  const canAccess = downloadAccess.hasPlan
 
   const [totalMaterials, materials] = await Promise.all([
     db.downloadMaterial.count({ where: { status: "ACTIVE" } }),
@@ -37,6 +42,8 @@ export default async function DownloadsPage() {
     <DownloadsClient
       isLoggedIn={Boolean(session?.user?.id)}
       canAccess={canAccess}
+      downloadAvailable={downloadAccess.available}
+      downloadAvailableAt={downloadAccess.availableAt?.toISOString() ?? null}
       totalMaterials={totalMaterials}
       materials={serialized}
     />

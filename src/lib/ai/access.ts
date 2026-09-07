@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
 import { hasActivePlanAccess } from "@/lib/access"
+import { getAiMonthlyCredits } from "@/lib/ai/settings"
 import type { UserRole } from "@prisma/client"
 
 export type AiAccessTier = "FREE" | "PAID" | "STAFF"
@@ -27,7 +28,7 @@ const AI_LIMITS = {
     technicalMode: false,
   },
   paid: {
-    monthlyCredits: 100,
+    monthlyCredits: 200,
     maxMessageCharacters: 2_000,
     technicalMode: true,
   },
@@ -47,14 +48,15 @@ function getRenewsAt(periodStart: Date) {
 }
 
 export async function resolveAiAccess(userId: string, role?: UserRole | null): Promise<AiAccess> {
+  const monthlyCredits = await getAiMonthlyCredits()
   if (role === "ADMIN" || role === "EDITOR") {
     return { tier: "STAFF", ...AI_LIMITS.staff }
   }
 
   const paid = await hasActivePlanAccess(userId)
   return paid
-    ? { tier: "PAID", ...AI_LIMITS.paid }
-    : { tier: "FREE", ...AI_LIMITS.free }
+    ? { tier: "PAID", ...AI_LIMITS.paid, monthlyCredits: monthlyCredits.paid }
+    : { tier: "FREE", ...AI_LIMITS.free, monthlyCredits: monthlyCredits.free }
 }
 
 export async function getAiUsageStatus(userId: string, access: AiAccess, date = new Date()): Promise<AiUsageStatus> {

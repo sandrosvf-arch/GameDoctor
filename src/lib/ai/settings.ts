@@ -5,12 +5,39 @@ export const AI_SYSTEM_PROMPT_FREE_KEY = "ai.system_prompt_free"
 export const AI_SYSTEM_PROMPT_PAID_KEY = "ai.system_prompt_paid"
 export const AI_RESPONSE_LIMIT_FREE_KEY = "ai.response_limit_free"
 export const AI_RESPONSE_LIMIT_PAID_KEY = "ai.response_limit_paid"
+export const AI_MONTHLY_CREDITS_FREE_KEY = "ai.monthly_credits_free"
+export const AI_MONTHLY_CREDITS_PAID_KEY = "ai.monthly_credits_paid"
 export const DEFAULT_AI_RESPONSE_LIMIT_FREE = 1_200
 export const DEFAULT_AI_RESPONSE_LIMIT_PAID = 2_400
+export const DEFAULT_AI_MONTHLY_CREDITS_FREE = 5
+export const DEFAULT_AI_MONTHLY_CREDITS_PAID = 200
 
 function parseResponseLimit(value: string | undefined, fallback: number) {
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed >= 200 && parsed <= 12_000 ? parsed : fallback
+}
+
+function parseMonthlyCredits(value: string | undefined, fallback: number) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 10_000 ? parsed : fallback
+}
+
+export async function getAiMonthlyCredits() {
+  try {
+    const settings = await db.$queryRaw<Array<{ key: string; value: string }>>`
+      SELECT "key", "value"
+      FROM "app_settings"
+      WHERE "key" IN (${AI_MONTHLY_CREDITS_FREE_KEY}, ${AI_MONTHLY_CREDITS_PAID_KEY})
+    `
+    const byKey = new Map(settings.map((row) => [row.key, row.value]))
+    return {
+      free: parseMonthlyCredits(byKey.get(AI_MONTHLY_CREDITS_FREE_KEY), DEFAULT_AI_MONTHLY_CREDITS_FREE),
+      paid: parseMonthlyCredits(byKey.get(AI_MONTHLY_CREDITS_PAID_KEY), DEFAULT_AI_MONTHLY_CREDITS_PAID),
+    }
+  } catch (error) {
+    console.error("[ai/settings] Não foi possível carregar os limites mensais.", error)
+    return { free: DEFAULT_AI_MONTHLY_CREDITS_FREE, paid: DEFAULT_AI_MONTHLY_CREDITS_PAID }
+  }
 }
 
 export async function getAiSystemPrompts() {

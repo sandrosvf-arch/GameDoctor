@@ -44,11 +44,15 @@ function MaterialIcon({ type }: { type: DownloadType }) {
 export function DownloadsClient({
   isLoggedIn,
   canAccess,
+  downloadAvailable,
+  downloadAvailableAt,
   totalMaterials,
   materials,
 }: {
   isLoggedIn: boolean
   canAccess: boolean
+  downloadAvailable: boolean
+  downloadAvailableAt: string | null
   totalMaterials: number
   materials: DownloadMaterialItem[]
 }) {
@@ -68,6 +72,11 @@ export function DownloadsClient({
       return matchesCategory && matchesSearch
     })
   }, [category, materials, search])
+
+  const unlockDate = downloadAvailableAt ? new Date(downloadAvailableAt) : null
+  const unlockLabel = unlockDate && !Number.isNaN(unlockDate.getTime())
+    ? `Os downloads serão liberados em ${unlockDate.toLocaleDateString("pt-BR")} às ${unlockDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`
+    : "Os downloads serão liberados após 7 dias de assinatura."
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background px-5 py-8 md:px-8 md:py-10">
@@ -110,6 +119,12 @@ export function DownloadsClient({
           </section>
         ) : (
           <section className="space-y-5">
+            {!downloadAvailable && (
+              <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-5 py-4 text-sm text-amber-100">
+                <p className="font-semibold">Downloads ainda bloqueados</p>
+                <p className="mt-1 text-amber-100/70">{unlockLabel}</p>
+              </div>
+            )}
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Biblioteca de materiais</h2>
@@ -149,7 +164,7 @@ export function DownloadsClient({
                     </div>
                     <div className="mt-5 flex items-center justify-between gap-3 border-t border-border/60 pt-4">
                       <span className="truncate text-xs text-muted-foreground" title={material.fileName}>{formatFileSize(material.sizeBytes)}</span>
-                      <a href={`/api/downloads/${material.id}`} target="_blank" rel="noreferrer" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90"><Download className="h-3.5 w-3.5" /> Baixar</a>
+                      {downloadAvailable ? <a href={`/api/downloads/${material.id}`} target="_blank" rel="noreferrer" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90"><Download className="h-3.5 w-3.5" /> Baixar</a> : <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border px-3.5 text-xs font-semibold text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5" /> Bloqueado</span>}
                     </div>
                   </article>
                 ))}

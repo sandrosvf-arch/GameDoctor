@@ -407,7 +407,7 @@ export function Header() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="O que você procura?"
-                  className="h-9 w-full rounded-[11px] bg-background pl-9 pr-3 text-sm transition-all placeholder:text-muted-foreground/50 focus:outline-none"
+                  className="h-9 w-full rounded-[11px] bg-background pl-9 pr-3 text-base md:text-sm transition-all placeholder:text-muted-foreground/50 focus:outline-none"
                 />
               </div>
             </div>
@@ -498,7 +498,11 @@ export function Header() {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="h-dvh max-h-[100dvh] w-72 overflow-y-auto pb-24">
+          <SheetContent
+            side="right"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            className="h-dvh max-h-[100dvh] w-72 overflow-y-auto pb-24"
+          >
             <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
             <div className="flex flex-col gap-2 pt-6">
               <Link
@@ -516,7 +520,7 @@ export function Header() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="O que você procura?"
-                    className="h-10 min-w-0 flex-1 rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    className="h-10 min-w-0 flex-1 rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-base placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
                   />
                   <Button type="submit" size="icon" className="h-10 w-10 shrink-0" aria-label="Buscar">
                     <Search className="h-4 w-4" />

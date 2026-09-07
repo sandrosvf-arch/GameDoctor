@@ -379,9 +379,10 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote:
                       <Field label="Cidade" value={address.city} onChange={(city) => setAddress((current) => ({ ...current, city }))} />
                       <Field label="Estado" value={address.state} onChange={(state) => setAddress((current) => ({ ...current, state: state.replace(/[^a-z]/gi, "").slice(0, 2).toUpperCase() }))} />
                     </div>
-                      <button type="button" onClick={() => void submitPagaleve()} disabled={submitting || redirecting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ff0a8a] font-semibold text-white disabled:opacity-50">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}{redirecting ? "Abrindo ambiente seguro..." : `Ver condições de parcelamento (${currency(quote.installmentTotal)})`}</button>
+                    <button type="button" onClick={() => void submitPagaleve()} disabled={submitting || redirecting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ff0a8a] font-semibold text-white disabled:opacity-50">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}{redirecting ? "Abrindo ambiente seguro..." : `Ver condições de parcelamento (${currency(quote.installmentTotal)})`}</button>
                   </div>
                 )}
+
                 {submitting && method === "card" && <p className="mt-3 flex items-center gap-2 text-sm text-cyan-200"><Loader2 className="h-4 w-4 animate-spin" />Processando seu pagamento...</p>}
                 {error && <p className="mt-4 rounded-xl border border-red-400/20 bg-red-400/[0.08] px-4 py-3 text-sm text-red-100">{error}</p>}
                 <p className="mt-4 text-center text-[11px] leading-5 text-slate-600">Ao continuar, você concorda com os <Link href="/termos-de-uso" className="underline hover:text-slate-300">Termos de Uso</Link> e a <Link href="/politica-privacidade" className="underline hover:text-slate-300">Política de Privacidade</Link>.</p>

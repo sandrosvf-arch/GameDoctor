@@ -84,20 +84,49 @@ export function finalizeAiAnswer(answer: string, context: AiContextItem[]) {
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
 
-  sanitizedAnswer = sanitizedAnswer.replace(/\[([^\]]+)\]\((\/[^)]+)\)/g, (match, label: string) => {
+  sanitizedAnswer = sanitizedAnswer.replace(/\[([^\]]+)\]\((\/[^)]+)\)/g, (match, label: string, href: string) => {
     const normalizedLabel = normalizeLinkLabel(label)
     if (normalizedLabel.length < 6 || normalizedLabel === "aqui") return match
+    const labelTerms = normalizedLabel.split(" ").filter((term) => term.length >= 4)
 
-    const matchingSource = context.find((item) => {
-      const normalizedTitle = normalizeLinkLabel(item.title)
-      return normalizedTitle.includes(normalizedLabel) || normalizedLabel.includes(normalizedTitle)
-    })
+    const matchingSource = context
+      .map((item) => ({
+        item,
+        title: normalizeLinkLabel(item.title),
+        matchCount: labelTerms.filter((term) => normalizeLinkLabel(item.title).includes(term)).length,
+      }))
+      .filter(({ title, matchCount }) => title.includes(normalizedLabel) || normalizedLabel.includes(title) || matchCount > 0)
+      .sort((left, right) => {
+        const leftExact = left.title === normalizedLabel ? 1 : 0
+        const rightExact = right.title === normalizedLabel ? 1 : 0
+        return rightExact - leftExact || right.matchCount - left.matchCount || right.title.length - left.title.length
+      })[0]?.item
 
-    return matchingSource ? `[${label}](${matchingSource.href})` : match
+    return matchingSource && matchingSource.href !== href ? `[${label}](${matchingSource.href})` : match
   })
 
   const primarySource = context[0]
-  const hasStrongSource = typeof primarySource?.score === "number" && primarySource.score >= 0.6
+  const allowedSourceHrefs = new Set(context.map((item) => item.href))
+  const allowedActionPrefixes = [
+    "/busca",
+    "/comunidade",
+    "/cursos",
+    "/downloads",
+    "/login",
+    "/planos",
+    "/progresso",
+    "/suporte",
+    "/tickets",
+  ]
+  sanitizedAnswer = sanitizedAnswer.replace(/\]\((\/[^)]+)\)/g, (match, href: string) => {
+    if (allowedSourceHrefs.has(href) || allowedActionPrefixes.some((prefix) => href === prefix || href.startsWith(`${prefix}?`))) {
+      return match
+    }
+
+    return primarySource ? `](${primarySource.href})` : ""
+  })
+
+  const hasStrongSource = typeof primarySource?.score === "number" && primarySource.score >= 0.65
   if (primarySource && hasStrongSource && sanitizedAnswer.includes(AI_NO_CONTENT_MESSAGE)) {
     sanitizedAnswer = `Encontrei um conteúdo diretamente relacionado à sua dúvida: [${primarySource.title}](${primarySource.href}). Ele é o melhor ponto de partida dentro da plataforma.`
   }
@@ -106,9 +135,7 @@ export function finalizeAiAnswer(answer: string, context: AiContextItem[]) {
   const hasActionLink = /\]\(\/(?:planos|login|busca(?:\?|\)|\/))/.test(sanitizedAnswer)
   if (primarySource && !hasNoContent && !hasActionLink && !sanitizedAnswer.includes(`](${primarySource.href})`)) {
     const firstInternalLink = /\]\(\/[^)]+\)/
-    if (firstInternalLink.test(sanitizedAnswer)) {
-      sanitizedAnswer = sanitizedAnswer.replace(firstInternalLink, `](${primarySource.href})`)
-    } else {
+    if (!firstInternalLink.test(sanitizedAnswer)) {
       sanitizedAnswer += `\n\nConteúdo principal: [${primarySource.title}](${primarySource.href})`
     }
   }

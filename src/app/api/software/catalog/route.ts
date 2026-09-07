@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSoftwareBearer } from "@/lib/software-auth"
-import { hasActivePlanAccess } from "@/lib/access"
+import { getSoftwareDownloadAvailability } from "@/lib/access"
 
 function mapCategory(type: string) {
   if (type === "PDF") return "documento"
@@ -16,7 +16,11 @@ export async function GET(request: Request) {
 
   const user = await db.user.findUnique({ where: { id: token.userId }, select: { role: true } })
   if (!user) return NextResponse.json({ error: "Conta não encontrada." }, { status: 401 })
-  if (user.role !== "ADMIN" && user.role !== "EDITOR" && !await hasActivePlanAccess(token.userId)) {
+  const isStaff = user.role === "ADMIN" || user.role === "EDITOR"
+  const downloadAccess = isStaff
+    ? { hasPlan: true, available: true, availableAt: null as Date | null }
+    : await getSoftwareDownloadAvailability(token.userId)
+  if (!isStaff && !downloadAccess.hasPlan) {
     return NextResponse.json({ error: "É necessário ter um plano ativo." }, { status: 403 })
   }
 
@@ -41,6 +45,8 @@ export async function GET(request: Request) {
   })
 
   return NextResponse.json({
+    downloadAvailable: downloadAccess.available,
+    downloadAvailableAt: downloadAccess.availableAt?.toISOString() ?? null,
     items: materials.map((material) => ({
       id: material.id,
       nome: material.title,
@@ -60,6 +66,8 @@ export async function GET(request: Request) {
       criado_em: material.createdAt.toISOString(),
       atualizado_em: material.updatedAt.toISOString(),
       storage_path: material.storagePath,
+      download_available: downloadAccess.available,
+      download_available_at: downloadAccess.availableAt?.toISOString() ?? null,
     })),
   })
 }

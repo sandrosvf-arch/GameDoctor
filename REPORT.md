@@ -1,0 +1,97 @@
+# Relatório de Implementação
+
+## Resumo
+
+As demandas do `.todo` foram processadas com alterações localizadas em navegação mobile, FAQ, assistente, configurações administrativas, progresso, Smart Checkout e downloads. As validações de TypeScript, scripts do software, índice RAG em simulação e bateria real do assistente foram executadas.
+
+## Demandas
+
+### Menu mobile e zoom no iOS
+
+- Status: Concluída.
+- Implementado: o menu não força foco na busca ao abrir; os campos de busca e chat usam fonte de 16px no mobile.
+- Arquivos: `src/components/layout/Header.tsx`, `src/app/busca/page.tsx`, `src/components/ai/PlatformAssistant.tsx`.
+- Risco/limitação: validação visual em dispositivo iOS físico ainda depende de teste manual.
+
+### Badge de aula grátis
+
+- Status: Concluída anteriormente e verificada.
+- Implementado: o selo `GRÁTIS` é derivado de `isFree`; não foi alterado código sem necessidade.
+- Arquivos verificados: `src/lib/home-rows.ts` e componente de cards da home.
+
+### FAQ
+
+- Status: Concluída.
+- Implementado: links do conteúdo têm cor, peso, sublinhado e espaçamento visual para indicar que são clicáveis; o cabeçalho, a busca, as categorias e os cards foram reduzidos para uma apresentação mais limpa e minimalista.
+- Arquivo: `src/components/help/HelpCenterClient.tsx`.
+
+### Assistente e RAG
+
+- Status: Parcialmente concluída, com indexação pendente de aplicação.
+- Implementado: usuários gratuitos recebem CTA de planos ao atingir o limite; assinantes usam 200 perguntas mensais; os limites 5/200 ficaram configuráveis em `AppSetting`; JSONs de `knowledgebase` são lidos recursivamente e transformados em documentos RAG.
+- Arquivos: `src/lib/ai/access.ts`, `src/lib/ai/settings.ts`, `src/lib/ai/prompt.ts`, `src/app/api/ai/chat/route.ts`, `src/components/ai/PlatformAssistant.tsx`, `src/app/api/admin/configuracoes/ai/route.ts`, `src/app/(admin)/admin/configuracoes/page.tsx`, `scripts/index-ai-knowledge.ts`.
+- Validação: `npm run ai:test` terminou com 110/110 casos aprovados, incluindo FAQs literais e variações, aulas, trilhas, comunidade, abreviações, conversas encadeadas, perguntas externas e usuários gratuitos.
+- Risco/limitação: a simulação encontrou 7.033 documentos e 11.436 trechos, mas os novos embeddings não foram enviados com `--apply`.
+
+### Configurações administrativas da IA
+
+- Status: Concluída.
+- Implementado: URLs são validadas no navegador antes do envio e os limites mensais e de tamanho de resposta são persistidos separadamente.
+- Arquivos: `src/app/(admin)/admin/configuracoes/page.tsx`, `src/app/api/admin/configuracoes/ai/route.ts`, `src/lib/ai/settings.ts`.
+
+### Ordem da página de progresso
+
+- Status: Concluída/verificada.
+- Implementado: a listagem de progresso e a home usam `Course.displayOrder`; as aulas publicadas também são ordenadas por módulo e ordem da aula.
+- Arquivos verificados: `src/lib/member-progress.ts`, `src/lib/home-rows.ts`, `src/app/(member)/progresso/page.tsx`.
+
+### Smart Checkout
+
+- Status: Concluída.
+- Implementado: o fluxo da live exibe somente cartão e Pix. As rotas Pagaleve existentes foram preservadas para não afetar o checkout padrão.
+- Arquivo: `src/components/checkout/LiveCheckoutClient.tsx`.
+
+### Downloads após sete dias
+
+- Status: Concluída.
+- Implementado: a API calcula a liberação sete dias após o início do plano ativo; administradores e editores continuam liberados. O software recebe a data, exibe contador e bloqueia o clique; a área web e sua API aplicam a mesma regra.
+- Arquivos: `src/lib/access/index.ts`, `src/app/api/software/catalog/route.ts`, `src/app/api/software/materials/[id]/download/route.ts`, `src/app/(member)/downloads/page.tsx`, `src/app/api/downloads/[id]/route.ts`, `src/components/downloads/DownloadsClient.tsx`, `software/ui/app.js`.
+
+## Testes realizados
+
+- Validacao posterior dos links do FAQ e do chat: `npx tsc --noEmit --incremental false` aprovado e `git diff --check` sem erros.
+- Bateria offline do knowledgebase: `node --experimental-strip-types scripts/test-ai-knowledgebase.ts` aprovou 7/7 cenarios e carregou 6.730 documentos JSON reais.
+- A bateria `npm run ai:test` nao executou os cenarios nesta rodada porque o Supabase recusou a conexao TLS no Windows (`Credenciais nao disponiveis no pacote de seguranca`).
+- `npx next build` compilou o bundle, mas terminou com `spawn EPERM` ao iniciar o worker de TypeScript nesta rodada; o `npx tsc --noEmit --incremental false` continua aprovado.
+- `npx next build --webpack` tambem terminou com `spawn EPERM` antes da compilacao; o bloqueio e do ambiente Windows, nao do codigo compilado.
+
+- `npx tsc --noEmit --incremental false`: aprovado.
+- `git diff --check`: aprovado.
+- `python -m py_compile software/gd_auth.py software/gd_sync.py software/gd_bridge.py`: aprovado.
+- `node --check software/ui/app.js`: aprovado.
+- `npm run ai:index`: simulação aprovada; 7.033 documentos e 11.436 trechos identificados.
+- `npm run ai:test`: aprovado; 110/110 cenários, repetido após o ajuste de escopo e roteamento.
+- `npm run build`: a etapa `prisma generate` não concluiu porque o Windows bloqueou a substituição do engine Prisma em `node_modules/.prisma/client` (`EPERM`). O `npx next build`, usando o client já gerado, concluiu com sucesso: compilação, TypeScript, 123 páginas e otimização.
+- `node --env-file=.env --import tsx tests/ai-prompt.test.ts`: aprovado; regras fixas do prompt e reconciliação de links validadas.
+- `npx vitest run tests/ai-prompt.test.ts`: não executado porque `vitest` não está instalado/cacheado no projeto.
+
+## Alterações relevantes
+
+- Limites mensais da IA separados dos limites de caracteres por resposta.
+- Importação futura de JSONs feita pelo próprio indexador, sem arquivos ou dados temporários no banco.
+- Regra de sete dias aplicada no servidor, não apenas na interface.
+- Pagaleve removido somente da experiência do Smart Checkout de live.
+- Respostas fora do escopo da plataforma são bloqueadas no endpoint e links gerados pela IA são reconciliados com os títulos das fontes retornadas.
+
+## Pendências
+
+- Rodar `npm run ai:index -- --apply` com autorização explícita para enviar os trechos novos à OpenAI e gravá-los no índice; a tentativa foi bloqueada pela revisão de segurança por envolver dados potencialmente privados.
+- Reexecutar `npm run build` após fechar os processos Node que mantêm o engine Prisma bloqueado; a compilação Next já foi validada separadamente.
+- Instalar/configurar `vitest` caso o teste unitário direcionado seja obrigatório neste ambiente.
+
+## Observações
+
+- A alteração existente em `.todo` foi preservada.
+- Nenhuma migration foi criada para os limites da IA ou para o bloqueio de downloads; ambos usam dados e configurações já existentes.
+- Validacao adicional: a bateria offline ampliada aprovou 20/20 cenarios e carregou 6.730 documentos JSON reais. A bateria online permanece pendente por erro TLS do Prisma no Windows.
+- Validacao online posterior: com a conexao temporaria de teste, o indice real do Supabase aprovou 110/110 casos; nenhuma configuracao insegura foi gravada no projeto.

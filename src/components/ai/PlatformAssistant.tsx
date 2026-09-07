@@ -21,6 +21,21 @@ interface UsageStatus {
 
 const STORAGE_KEY = "gamedoctor_assistant_state"
 
+function linkifyMessageUrls(content: string) {
+  return content.replace(
+    /(^|[\s(])((?:https?:\/\/|www\.)[^\s<>"')]+)/gi,
+    (_match, prefix: string, rawUrl: string, offset: number, source: string) => {
+      if (source.slice(0, offset + prefix.length).endsWith("](")) return `${prefix}${rawUrl}`
+
+      const trailingMatch = rawUrl.match(/[.,!?;:)\]]+$/)
+      const trailing = trailingMatch?.[0] ?? ""
+      const url = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl
+      const href = url.startsWith("www.") ? `https://${url}` : url
+      return `${prefix}[${url}](${href})${trailing}`
+    }
+  )
+}
+
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
@@ -46,7 +61,7 @@ function renderMessage(content: string) {
         code: ({ children }) => <code className="rounded bg-black/20 px-1 py-0.5 text-[0.9em]">{children}</code>,
       }}
     >
-      {content}
+      {linkifyMessageUrls(content)}
     </ReactMarkdown>
   )
 }
@@ -66,6 +81,7 @@ function PlatformAssistantContent({
   const [messages, setMessages] = useState<AssistantMessage[]>([])
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [usage, setUsage] = useState<UsageStatus | null>(null)
+  const [requiresUpgrade, setRequiresUpgrade] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(false)
@@ -153,6 +169,7 @@ function PlatformAssistantContent({
 
     setMessage("")
     setError(null)
+    setRequiresUpgrade(false)
     setMessages((current) => [...current, { role: "USER", content: text }])
     setLoading(true)
 
@@ -166,6 +183,7 @@ function PlatformAssistantContent({
       if (!response.ok) {
         setError(data?.error ?? "Não foi possível falar com o assistente.")
         if (data?.usage) setUsage(data.usage)
+        setRequiresUpgrade(data?.requiresUpgrade === true)
         return
       }
 
@@ -250,17 +268,16 @@ function PlatformAssistantContent({
             {error && (
               <div className="space-y-3 rounded-lg bg-red-400/10 px-3 py-2.5 text-xs text-red-200">
                 <p>{error}</p>
-                {limitReached && (
-                  <a
-                    href={supportUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-white transition hover:bg-emerald-400"
-                  >
+                {limitReached && (requiresUpgrade ? (
+                  <Link href="/planos" onClick={() => setOpen(false)} className="inline-flex items-center rounded-lg bg-cyan-300 px-3 py-2 font-semibold text-zinc-950 transition hover:bg-cyan-200">
+                    Conhecer os planos
+                  </Link>
+                ) : (
+                  <a href={supportUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-white transition hover:bg-emerald-400">
                     <WhatsAppIcon className="h-4 w-4" />
                     Continuar com um humano no WhatsApp
                   </a>
-                )}
+                ))}
               </div>
             )}
             <div ref={messagesEndRef} aria-hidden="true" />
@@ -287,7 +304,7 @@ function PlatformAssistantContent({
                   placeholder="Digite sua pergunta..."
                   rows={2}
                   disabled={loading}
-                  className="min-h-10 flex-1 resize-none rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-cyan-300/50"
+                  className="min-h-10 flex-1 resize-none rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-base text-white outline-none placeholder:text-white/35 focus:border-cyan-300/50"
                 />
                 <button type="submit" disabled={loading || !message.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-400 text-zinc-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40" title="Enviar pergunta">
                   <Send className="h-4 w-4" />

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSoftwareBearer } from "@/lib/software-auth"
 import { getDownloadStorageAdmin } from "@/lib/download-storage"
-import { hasActivePlanAccess } from "@/lib/access"
+import { getSoftwareDownloadAvailability } from "@/lib/access"
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = getSoftwareBearer(request)
@@ -10,10 +10,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const user = await db.user.findUnique({ where: { id: token.userId }, select: { role: true } })
   if (!user) return NextResponse.json({ error: "Conta não encontrada." }, { status: 401 })
-  if (user.role !== "ADMIN" && user.role !== "EDITOR" && !await hasActivePlanAccess(token.userId)) {
-    return NextResponse.json({ error: "É necessário ter um plano ativo." }, { status: 403 })
+  const isStaff = user.role === "ADMIN" || user.role === "EDITOR"
+  if (!isStaff) {
+    const downloadAccess = await getSoftwareDownloadAvailability(token.userId)
+    if (!downloadAccess.hasPlan) return NextResponse.json({ error: "É necessário ter um plano ativo." }, { status: 403 })
+    if (!downloadAccess.available) {
+      return NextResponse.json({
+        error: "Os downloads serão liberados após 7 dias de assinatura.",
+        downloadAvailableAt: downloadAccess.availableAt?.toISOString() ?? null,
+      }, { status: 403 })
+    }
   }
-
   const { id } = await params
   const material = await db.downloadMaterial.findFirst({
     where: { id, status: "ACTIVE" },

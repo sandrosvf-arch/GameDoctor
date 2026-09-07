@@ -6,11 +6,12 @@ Card dos cursos:
 
 FAQ:
     - Colocar destaque nos links, não parece que é algo clicável;
+    - Deixar mais minimalista o faq e opção de busca, tá meio zoado;
 
 Chat com IA:
     - (MOBILE) No IOS, no CHAT e na busca ele tá dando zoom ao focar nos inputs;
-    - Importar os arquivos .json para o RAG e validar modelos de respostas;
     - Quando a pessoa atringir o limite, pedir para fazer o upgrade ao invés de mandar para o Whatsapp (Isso se for usuário gratuito);
+    - Importar os arquivos .json da pasta (knowledgebase) para o RAG e validar modelos de respostas; Também fazer algo inteligente para se alimentar facilmente futuramente;
 
 Admin Configurações:
     - Ao salvar tá dando erro: "Revise os prompts e informe URLs válidas para o vídeo e o WhatsApp."

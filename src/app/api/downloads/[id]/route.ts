@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getDownloadStorageAdmin } from "@/lib/download-storage"
-import { hasActivePlanAccess } from "@/lib/access"
+import { getSoftwareDownloadAvailability } from "@/lib/access"
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -11,8 +11,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   const isStaff = session.user.role === "ADMIN" || session.user.role === "EDITOR"
-  if (!isStaff && !await hasActivePlanAccess(session.user.id)) {
-    return NextResponse.json({ error: "Assine um plano para acessar os materiais." }, { status: 403 })
+  if (!isStaff) {
+    const downloadAccess = await getSoftwareDownloadAvailability(session.user.id)
+    if (!downloadAccess.hasPlan) return NextResponse.json({ error: "Assine um plano para acessar os materiais." }, { status: 403 })
+    if (!downloadAccess.available) {
+      return NextResponse.json({
+        error: "Os downloads serão liberados após 7 dias de assinatura.",
+        downloadAvailableAt: downloadAccess.availableAt?.toISOString() ?? null,
+      }, { status: 403 })
+    }
   }
 
   const { id } = await params

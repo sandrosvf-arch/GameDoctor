@@ -1,4 +1,6 @@
 import crypto from "node:crypto"
+import { readdir, readFile } from "node:fs/promises"
+import path from "node:path"
 import OpenAI from "openai"
 import { PrismaClient } from "@prisma/client"
 
@@ -174,6 +176,8 @@ async function loadDocuments(): Promise<SourceDocument[]> {
     }),
   ])
 
+  const knowledgebaseDocuments = await loadKnowledgebaseDocuments()
+
   return [
     ...platformDocuments,
     ...courses.map((course) => ({
@@ -204,7 +208,78 @@ async function loadDocuments(): Promise<SourceDocument[]> {
       content: [topic.content, ...topic.posts.map((post) => post.content)].join("\n"),
       href: `/comunidade/topico/${topic.slug}`,
     })),
+    ...knowledgebaseDocuments,
   ]
+}
+
+async function listJsonFiles(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true })
+  const files: string[] = []
+  for (const entry of entries) {
+    const fullPath = path.join(directory, entry.name)
+    if (entry.isDirectory()) files.push(...await listJsonFiles(fullPath))
+    else if (entry.isFile() && entry.name.toLowerCase().endsWith(".json")) files.push(fullPath)
+  }
+  return files
+}
+
+function jsonTitle(value: unknown, fallback: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return fallback
+  const record = value as Record<string, unknown>
+  for (const key of ["titulo", "título", "title", "nome", "name", "arquivo"]) {
+    if (typeof record[key] === "string" && record[key].trim()) return record[key].trim()
+  }
+  return fallback
+}
+
+function jsonText(value: unknown, label = ""): string {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return label ? `${label}: ${String(value)}` : String(value)
+  }
+  if (Array.isArray(value)) return value.map((item) => jsonText(item)).filter(Boolean).join("\n")
+  if (value && typeof value === "object") {
+    return Object.entries(value)
+      .filter(([key]) => !["embedding", "vector"].includes(key.toLowerCase()))
+      .map(([key, item]) => jsonText(item, key))
+      .filter(Boolean)
+      .join("\n")
+  }
+  return ""
+}
+
+async function loadKnowledgebaseDocuments(): Promise<SourceDocument[]> {
+  const root = path.resolve(process.cwd(), "knowledgebase")
+  let files: string[]
+  try {
+    files = await listJsonFiles(root)
+  } catch {
+    return []
+  }
+
+  const documents: SourceDocument[] = []
+  for (const file of files) {
+    try {
+      const parsed: unknown = JSON.parse(await readFile(file, "utf8"))
+      const values = Array.isArray(parsed) ? parsed : [parsed]
+      const relative = path.relative(root, file).replaceAll(path.sep, "/")
+      values.forEach((value, index) => {
+        const fallback = relative.replace(/\.json$/i, "")
+        const title = values.length > 1 ? `${jsonTitle(value, fallback)} (${index + 1})` : jsonTitle(value, fallback)
+        const content = jsonText(value).slice(0, 50_000)
+        if (!content.trim()) return
+        documents.push({
+          sourceType: "lesson",
+          sourceId: `knowledgebase:${relative}:${index}`,
+          title,
+          content,
+          href: "/cursos",
+        })
+      })
+    } catch (error) {
+      console.warn(`JSON ignorado no knowledgebase: ${file}`, error)
+    }
+  }
+  return documents
 }
 
 function chunkKey(chunk: Pick<KnowledgeChunk, "sourceType" | "sourceId" | "chunkIndex">) {

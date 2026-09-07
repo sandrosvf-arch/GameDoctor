@@ -139,7 +139,6 @@ export default function BuscaPage() {
   const [resultPage, setResultPage] = useState(1)
   const [resultTotal, setResultTotal] = useState(0)
   const [hasMore, setHasMore] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -207,11 +206,6 @@ export default function BuscaPage() {
     observer.observe(target)
     return () => observer.disconnect()
   }, [debouncedQ, doSearch, hasMore, loading, loadingMore, resultPage])
-
-  // Auto-focus on mount
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
 
   const total = resultTotal
   const exactCourses = courses.filter((course) => course.matchType === "exact")

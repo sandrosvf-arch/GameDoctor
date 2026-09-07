@@ -22,7 +22,13 @@ function isKnowledgeQuestion(message: string) {
   const social = /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|obrigad|valeu|tchau|at[eé] mais)\b/i.test(normalized)
   if (social) return false
   if (/^como fa[cç]o isso funcionar\b/i.test(normalized)) return false
-  return /\b(ps[345]|xbox|nintendo|controle|aula|curso|trilha|defeito|erro|reparo|assist[eê]ncia|plano|comunidade|ferramenta|ajuda|suporte|progresso|download|assinatura|conversar|perguntar|d[uú]vida)\b/i.test(message)
+  return /\b(ps[345]|xbox|nintendo|controle|aula|curso|trilha|defeito|erro|reparo|assist[eê]ncia|plano|pre[cç]o|pagar|comprar|cart[aã]o|pix|login|senha|cadastro|email|cpf|acesso|conta|comunidade|ferramenta|ajuda|suporte|progresso|download|assinatura|conversar|perguntar|d[uú]vida)\b/i.test(message)
+}
+
+function isOutsidePlatformQuestion(message: string) {
+  const normalized = message.trim().toLowerCase()
+  if (/^(n[aã]o est[aá] funcionando|como fa[cç]o isso funcionar|n[aã]o entendi|me ajuda|pode me ajudar)\b/i.test(normalized)) return false
+  return !isSocialMessage(message) && !isKnowledgeQuestion(message)
 }
 
 function getOpenAiClient() {
@@ -71,6 +77,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       error: "Você atingiu o limite mensal do assistente.",
       usage: usageBefore,
+      requiresUpgrade: access.tier === "FREE",
     }, { status: 429 })
   }
 
@@ -113,6 +120,7 @@ export async function POST(request: Request) {
     history: conversationHistory,
     message: parsed.data.message,
   })
+  const outsidePlatform = !faqContext && routing?.action === "respond" && isOutsidePlatformQuestion(parsed.data.message)
   const shouldSearch = Boolean(faqContext) || routing?.action === "search" || isKnowledgeQuestion(parsed.data.message)
   const searchQuery = routing?.query ?? parsed.data.message
   const context = faqContext
@@ -122,6 +130,7 @@ export async function POST(request: Request) {
       : []
   const suggestionHref = `/busca?sugerir=1&q=${encodeURIComponent(searchQuery)}`
   let answer = faqContext?.text
+    ?? (outsidePlatform ? "Posso ajudar somente com a GameDoctor, seus cursos, aulas, comunidade e recursos da plataforma." : null)
     ?? (shouldSearch ? `${AI_NO_CONTENT_MESSAGE} VocÃª pode [solicitar uma aula](${suggestionHref}) para nossa equipe.` : routing?.answer)
     ?? `${AI_NO_CONTENT_MESSAGE} Você pode [solicitar uma aula](${suggestionHref}) para nossa equipe.`
   let responseModel: string | null = model

@@ -27,5 +27,15 @@ const finalized = finalizeAiAnswer(
 assert.match(finalized.answer, /\]\(\/planos\)/)
 assert.doesNotMatch(finalized.answer, /\]\(\/aula\/erro-e100\)/)
 
+const linkReconciled = finalizeAiAnswer(
+  "Acesse [Potenciômetro do Analógico](/aula/troca-analogicos).",
+  [
+    { title: "Controles - Troca de Analógicos - Todos os Modelos", text: "", href: "/aula/troca-analogicos", source: "lesson", score: 0.77 },
+    { title: "Controles - Potenciômetro do Analógico", text: "", href: "/aula/potenciometro", source: "lesson", score: 0.69 },
+  ],
+)
+assert.match(linkReconciled.answer, /\]\(\/aula\/potenciometro\)/)
+assert.doesNotMatch(linkReconciled.answer, /\]\(\/aula\/troca-analogicos\)/)
+
 console.log("Montagem do prompt configurável aprovada.")
 

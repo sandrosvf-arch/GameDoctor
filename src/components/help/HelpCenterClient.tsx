@@ -52,6 +52,42 @@ function getPreviewText(topic: { excerpt: string | null; content: string }, maxL
   return `${lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated}...`
 }
 
+const faqLinkStyle =
+  "color:#67e8f9;font-weight:600;text-decoration:underline;text-decoration-color:rgba(103,232,249,.65);text-underline-offset:3px"
+
+function linkifyPlainUrls(html: string) {
+  let insideAnchor = false
+
+  return html
+    .split(/(<[^>]+>)/g)
+    .map((part) => {
+      if (part.startsWith("<")) {
+        if (/^<a\b/i.test(part)) {
+          insideAnchor = true
+          if (!/\bstyle\s*=/i.test(part)) {
+            return part.replace(/^<a\b/i, `<a style="${faqLinkStyle}"`)
+          }
+        }
+        if (/^<\/a>/i.test(part)) insideAnchor = false
+        return part
+      }
+
+      if (insideAnchor) return part
+
+      return part.replace(
+        /(^|[\s>])((?:https?:\/\/|www\.)[^\s<>"']+)/gi,
+        (_match, prefix: string, rawUrl: string) => {
+          const trailingMatch = rawUrl.match(/[.,!?;:)\]]+$/)
+          const trailing = trailingMatch?.[0] ?? ""
+          const url = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl
+          const href = url.startsWith("www.") ? `https://${url}` : url
+          return `${prefix}<a href="${href}" target="_blank" rel="noreferrer" style="${faqLinkStyle}">${url}</a>${trailing}`
+        }
+      )
+    })
+    .join("")
+}
+
 export function HelpCenterClient({
   categories,
   initialCategorySlug,
@@ -111,15 +147,15 @@ export function HelpCenterClient({
   return (
     <div className="min-h-screen bg-[#080b12] text-white">
       <div className="border-b border-white/6 bg-[radial-gradient(circle_at_top_left,_rgba(0,207,255,0.12),_transparent_28%),linear-gradient(180deg,#0b0f18_0%,#090d14_100%)]">
-        <div className="mx-auto flex max-w-[1320px] flex-col gap-6 px-6 py-10 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mx-auto flex max-w-[1180px] flex-col gap-5 px-5 py-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-cyan-400/80">
               Central de Ajuda
             </p>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight text-white md:text-5xl">
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
               Respostas rápidas, organizadas e fáceis de encontrar.
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-8 text-slate-400">
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
               Encontre respostas para as dúvidas mais frequentes sem sair da sua área.
             </p>
           </div>
@@ -130,16 +166,16 @@ export function HelpCenterClient({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Pesquise por assunto, dúvida ou recurso"
-              className="h-14 w-full rounded-2xl border border-cyan-500/20 bg-white/[0.03] pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:bg-white/[0.05] focus:ring-4 focus:ring-cyan-500/10"
+              className="h-12 w-full rounded-xl border border-cyan-500/20 bg-white/[0.03] pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:bg-white/[0.05] focus:ring-4 focus:ring-cyan-500/10"
             />
           </div>
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1320px] gap-6 px-6 py-8 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="rounded-[30px] border border-white/8 bg-white/[0.03] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur">
+      <div className="mx-auto grid max-w-[1180px] gap-5 px-5 py-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 backdrop-blur">
           <div className="border-b border-white/6 pb-4">
-            <h2 className="text-2xl font-semibold text-white">Categorias</h2>
+            <h2 className="text-xl font-semibold text-white">Categorias</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
               Navegue pelos assuntos disponíveis e encontre o tópico certo com mais rapidez.
             </p>
@@ -157,7 +193,7 @@ export function HelpCenterClient({
                     setActiveCategorySlug(category.slug)
                   }}
                   className={cn(
-                    "group block w-full cursor-pointer rounded-2xl border px-4 py-3 text-left text-sm transition",
+                    "group block w-full cursor-pointer rounded-xl border px-3.5 py-2.5 text-left text-sm transition",
                     active
                       ? "border-cyan-500/25 bg-cyan-500/10 text-cyan-300"
                       : "border-transparent bg-transparent text-slate-300 hover:border-white/8 hover:bg-white/[0.04] hover:text-white"
@@ -173,7 +209,7 @@ export function HelpCenterClient({
           </div>
         </aside>
 
-        <section className="rounded-[30px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur md:p-8 xl:p-10">
+        <section className="rounded-2xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-5 backdrop-blur md:p-7">
           {showingSearch ? (
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-cyan-400/80">Pesquisa</p>
@@ -194,7 +230,7 @@ export function HelpCenterClient({
                       <div
                         key={result.id}
                         className={cn(
-                          "overflow-hidden rounded-3xl border transition-colors",
+                          "overflow-hidden rounded-2xl border transition-colors",
                           open
                             ? "border-cyan-400/50 bg-cyan-500/[0.12] shadow-[0_12px_32px_rgba(0,207,255,0.1)]"
                             : "border-white/15 bg-white/[0.05] hover:border-cyan-400/30 hover:bg-white/[0.08]"
@@ -248,8 +284,8 @@ export function HelpCenterClient({
                                 Resposta
                               </p>
                               <div
-                                className="prose prose-invert max-w-none prose-p:text-sm prose-p:leading-7 prose-p:text-slate-400 prose-li:text-slate-400 prose-strong:text-slate-200 prose-a:text-cyan-300 [&_p]:my-4 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0"
-                                dangerouslySetInnerHTML={{ __html: result.content }}
+                                className="prose prose-invert max-w-none prose-p:text-sm prose-p:leading-7 prose-p:text-slate-400 prose-li:text-slate-400 prose-strong:text-slate-200 prose-a:font-medium prose-a:text-cyan-300 prose-a:underline prose-a:decoration-cyan-300/50 prose-a:underline-offset-2 [&_p]:my-4 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0"
+                                dangerouslySetInnerHTML={{ __html: linkifyPlainUrls(result.content) }}
                               />
                             </div>
                           </div>
@@ -271,8 +307,8 @@ export function HelpCenterClient({
               ) : null}
 
               <div
-                className="prose prose-invert mt-10 max-w-none prose-headings:text-white prose-a:text-cyan-300 prose-strong:text-white prose-p:text-slate-300 prose-li:text-slate-300 prose-blockquote:border-cyan-500/30 prose-blockquote:text-slate-400"
-                dangerouslySetInnerHTML={{ __html: article.content }}
+                className="prose prose-invert mt-10 max-w-none prose-headings:text-white prose-a:font-medium prose-a:text-cyan-300 prose-a:underline prose-a:decoration-cyan-300/50 prose-a:underline-offset-2 prose-strong:text-white prose-p:text-slate-300 prose-li:text-slate-300 prose-blockquote:border-cyan-500/30 prose-blockquote:text-slate-400"
+                dangerouslySetInnerHTML={{ __html: linkifyPlainUrls(article.content) }}
               />
             </article>
           ) : activeCategory ? (
@@ -291,7 +327,7 @@ export function HelpCenterClient({
                       <div
                         key={topic.id}
                         className={cn(
-                          "overflow-hidden rounded-3xl border transition-colors",
+                          "overflow-hidden rounded-2xl border transition-colors",
                           open
                             ? "border-cyan-400/50 bg-cyan-500/[0.12] shadow-[0_12px_32px_rgba(0,207,255,0.1)]"
                             : "border-white/15 bg-white/[0.05] hover:border-cyan-400/30 hover:bg-white/[0.08]"
@@ -342,8 +378,8 @@ export function HelpCenterClient({
                                 Resposta
                               </p>
                               <div
-                                className="prose prose-invert max-w-none prose-p:text-sm prose-p:leading-7 prose-p:text-slate-400 prose-li:text-slate-400 prose-strong:text-slate-200 prose-a:text-cyan-300 [&_p]:my-4 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0"
-                                dangerouslySetInnerHTML={{ __html: topic.content }}
+                                className="prose prose-invert max-w-none prose-p:text-sm prose-p:leading-7 prose-p:text-slate-400 prose-li:text-slate-400 prose-strong:text-slate-200 prose-a:font-medium prose-a:text-cyan-300 prose-a:underline prose-a:decoration-cyan-300/50 prose-a:underline-offset-2 [&_p]:my-4 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0"
+                                dangerouslySetInnerHTML={{ __html: linkifyPlainUrls(topic.content) }}
                               />
                             </div>
                           </div>
@@ -357,7 +393,7 @@ export function HelpCenterClient({
           ) : (
             <p className="text-sm text-slate-400">Nenhuma categoria disponível.</p>
           )}
-          <div className="mt-10 rounded-[28px] border border-cyan-500/15 bg-cyan-500/[0.04] px-5 py-5">
+          <div className="mt-8 rounded-2xl border border-cyan-500/15 bg-cyan-500/[0.04] px-5 py-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-sm font-medium text-white">Nao encontrou o que procurava?</p>
