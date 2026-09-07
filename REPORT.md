@@ -95,3 +95,14 @@ As demandas do `.todo` foram processadas com alterações localizadas em navega�
 - Nenhuma migration foi criada para os limites da IA ou para o bloqueio de downloads; ambos usam dados e configurações já existentes.
 - Validacao adicional: a bateria offline ampliada aprovou 20/20 cenarios e carregou 6.730 documentos JSON reais. A bateria online permanece pendente por erro TLS do Prisma no Windows.
 - Validacao online posterior: com a conexao temporaria de teste, o indice real do Supabase aprovou 110/110 casos; nenhuma configuracao insegura foi gravada no projeto.
+
+## Estado final da validacao
+
+> Nota: os registros anteriores deste arquivo refletem tentativas intermediarias. Os resultados abaixo sao os resultados autoritativos da auditoria final.
+
+- O RAG foi validado contra o indice real `ai_knowledge_chunks` do Supabase: `npm run ai:test` aprovou 110/110 cenarios apos a correcao do roteamento de aulas e comunidade.
+- A bateria offline ampliada carregou 6.730 documentos JSON reais e aprovou 20/20 cenarios de conversa, incluindo erros de digitacao, abreviacoes, duvidas tecnicas, referencias ao historico e perguntas sem conteudo.
+- O erro TLS do Prisma foi contornado somente no processo temporario de teste com `sslmode=disable`; nenhuma variavel, arquivo ou configuracao de producao foi alterada para desativar TLS.
+- O progresso agora considera apenas aulas publicadas e preserva a ordem de `displayOrder` das trilhas, usada pela home e pela pagina de progresso.
+- O Smart Checkout atual segue o componente visual solicitado `LiveCheckoutClient-new.tsx`; o arquivo auxiliar foi removido depois da migracao. O componente atual inclui os metodos presentes nessa versao, inclusive Pagaleve.
+- Validacoes finais: `npx tsc --noEmit --incremental false` e `git diff --check HEAD` foram aprovados. `npm run build` nao conseguiu baixar o engine Prisma por `ECONNREFUSED` do proxy local; `npx next build` compilou o bundle e falhou depois em `Running TypeScript ... spawn EPERM`, limitacao do ambiente Windows.

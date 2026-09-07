@@ -252,7 +252,7 @@ export async function getMemberProgressSummary(
 
   const courseProgress = courses.map((course) => {
     const courseLessons = lessonsByCourse.get(course.id) ?? []
-    const courseProgressItems = allProgress.filter((item) => item.courseId === course.id)
+    const courseProgressItems = allProgress.filter((item) => item.courseId === course.id && lessonsById.has(item.lessonId))
     const totalLessons = courseLessons.length
     const completedLessons = courseProgressItems.filter((item) => item.completed).length
     const studySeconds = courseProgressItems.reduce((sum, item) => sum + item.watchedSeconds, 0)
@@ -326,21 +326,6 @@ export async function getMemberProgressSummary(
       nextLesson: toLessonSummary(nextLesson),
       lastLesson: toLessonSummary(lastLesson),
     }
-  }).sort((a, b) => {
-    const rank = (status: CourseProgressSummary["status"]) => {
-      if (status === "IN_PROGRESS") return 0
-      if (status === "COMPLETED") return 1
-      return 2
-    }
-
-    const rankDiff = rank(a.status) - rank(b.status)
-    if (rankDiff !== 0) return rankDiff
-
-    const aDate = a.lastWatchedAt ? new Date(a.lastWatchedAt).getTime() : 0
-    const bDate = b.lastWatchedAt ? new Date(b.lastWatchedAt).getTime() : 0
-    if (aDate !== bDate) return bDate - aDate
-
-    return a.title.localeCompare(b.title, "pt-BR")
   })
 
   const progressCandidates = allProgress
