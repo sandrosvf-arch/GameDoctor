@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
 import { getCommunityBadgeLabel, type CommunityAuthorStats } from "@/lib/community-stats"
+import { isTrustedUploadUrl, sanitizeTrustedHtml } from "@/lib/security-input"
 
 type CommunityTopicBan = {
   id: string
@@ -68,6 +69,10 @@ function withBadge(author: CommunityTopicAuthor) {
       badgeLabel: getCommunityBadgeLabel(author.communityStats.score),
     },
   }
+}
+
+function filterTrustedAttachments(attachments: CommunityTopicAttachment[]) {
+  return attachments.filter((attachment) => isTrustedUploadUrl(attachment.fileUrl))
 }
 
 export async function getCommunityTopicPage({
@@ -249,7 +254,14 @@ export async function getCommunityTopicPage({
 
   return {
     ...topic,
+    content: sanitizeTrustedHtml(topic.content),
     author: withBadge(topic.author),
-    posts: topic.posts.map((post) => ({ ...post, author: withBadge(post.author) })),
+    attachments: filterTrustedAttachments(topic.attachments),
+    posts: topic.posts.map((post) => ({
+      ...post,
+      content: sanitizeTrustedHtml(post.content),
+      attachments: filterTrustedAttachments(post.attachments),
+      author: withBadge(post.author),
+    })),
   }
 }

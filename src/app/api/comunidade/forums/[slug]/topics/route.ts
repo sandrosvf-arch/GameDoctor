@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getCommunityActiveBanWhere, isCommunityWriterBanned, slugifyCommunity } from "@/lib/community"
 import { getCommunityForumPage } from "@/lib/community-data"
+import { isTrustedUploadUrl, sanitizeTrustedHtml } from "@/lib/security-input"
 
 const PAGE_SIZE = 20
 
@@ -108,7 +109,7 @@ export async function POST(
 
   const body = await request.json().catch(() => null)
   const title = typeof body?.title === "string" ? body.title.trim() : ""
-  const content = typeof body?.content === "string" ? body.content.trim() : ""
+  const content = typeof body?.content === "string" ? sanitizeTrustedHtml(body.content) : ""
   const attachments = Array.isArray(body?.attachments) ? body.attachments : []
 
   if (title.length < 6) {
@@ -120,7 +121,10 @@ export async function POST(
   }
 
   const normalizedAttachments = attachments
-    .filter((attachment: unknown) => typeof (attachment as { url?: unknown })?.url === "string")
+    .filter((attachment: unknown) => {
+      const url = (attachment as { url?: unknown })?.url
+      return typeof url === "string" && isTrustedUploadUrl(url)
+    })
     .slice(0, 6)
     .map((attachment: {
       fileName?: string

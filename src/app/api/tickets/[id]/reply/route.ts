@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { nextTicketStatusOnReply } from "@/lib/tickets"
+import { isTrustedUploadUrl } from "@/lib/security-input"
 
 async function requireStudent() {
   const session = await auth()
@@ -14,7 +15,10 @@ function normalizeAttachments(input: unknown) {
   if (!Array.isArray(input)) return []
 
   return input
-    .filter((attachment) => typeof (attachment as { url?: unknown })?.url === "string")
+    .filter((attachment) => {
+      const url = (attachment as { url?: unknown })?.url
+      return typeof url === "string" && isTrustedUploadUrl(url)
+    })
     .slice(0, 5)
     .map((attachment) => {
       const current = attachment as {

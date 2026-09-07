@@ -17,7 +17,10 @@ export async function POST(
 ) {
   // Proteção básica por secret
   const adminKey = request.headers.get("x-admin-key")
-  const expectedKey = process.env.ADMIN_SECRET ?? "dev-only"
+  const expectedKey = process.env.ADMIN_SECRET?.trim()
+  if (process.env.NODE_ENV !== "development" && !expectedKey) {
+    return NextResponse.json({ error: "Admin secret is not configured" }, { status: 500 })
+  }
   if (process.env.NODE_ENV !== "development" && adminKey !== expectedKey) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

@@ -4,6 +4,7 @@ import { hasActivePlanAccess } from "@/lib/access"
 import { db } from "@/lib/db"
 import { getCommunityActiveBanWhere, isCommunityWriterBanned } from "@/lib/community"
 import { emptyCommunityAuthorStats, getCommunityStatsByUserIds } from "@/lib/community-stats"
+import { isTrustedUploadUrl, sanitizeTrustedHtml } from "@/lib/security-input"
 
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "EDITOR"
@@ -33,7 +34,7 @@ function normalizePost(post: {
           authorName: post.parentPost.author.name,
         }
       : null,
-    attachments: post.attachments?.map((attachment) => ({
+    attachments: post.attachments?.filter((attachment) => isTrustedUploadUrl(attachment.fileUrl)).map((attachment) => ({
       id: attachment.id,
       fileName: attachment.fileName,
       fileUrl: attachment.fileUrl,
@@ -181,7 +182,7 @@ export async function POST(
   }
 
   const body = await request.json().catch(() => null)
-  const content = typeof body?.content === "string" ? body.content.trim() : ""
+  const content = typeof body?.content === "string" ? sanitizeTrustedHtml(body.content) : ""
   const attachments = Array.isArray(body?.attachments) ? body.attachments : []
   const parentPostId = typeof body?.parentPostId === "string" && body.parentPostId.trim()
     ? body.parentPostId.trim()
@@ -209,7 +210,10 @@ export async function POST(
   }
 
   const normalizedAttachments = attachments
-    .filter((attachment: unknown) => typeof (attachment as { url?: unknown })?.url === "string")
+    .filter((attachment: unknown) => {
+      const url = (attachment as { url?: unknown })?.url
+      return typeof url === "string" && isTrustedUploadUrl(url)
+    })
     .slice(0, 6)
     .map((attachment: {
       fileName?: string

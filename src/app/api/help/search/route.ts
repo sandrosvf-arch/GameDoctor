@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { sanitizeHelpHtml } from "@/lib/help-content"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -36,5 +37,7 @@ export async function GET(request: Request) {
     },
   })
 
-  return NextResponse.json({ results })
+  return NextResponse.json({
+    results: results.map((result) => ({ ...result, content: sanitizeHelpHtml(result.content) })),
+  })
 }

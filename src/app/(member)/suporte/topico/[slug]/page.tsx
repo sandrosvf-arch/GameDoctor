@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db"
 import { HelpCenterClient } from "@/components/help/HelpCenterClient"
+import { sanitizeHelpHtml } from "@/lib/help-content"
 
 export default async function HelpTopicPage({
   params,
@@ -55,11 +56,16 @@ export default async function HelpTopicPage({
     notFound()
   }
 
+  const safeCategories = categories.map((category) => ({
+    ...category,
+    articles: category.articles.map((item) => ({ ...item, content: sanitizeHelpHtml(item.content) })),
+  }))
+
   return (
     <HelpCenterClient
-      categories={categories}
+      categories={safeCategories}
       initialCategorySlug={article.category.slug}
-      article={article}
+      article={{ ...article, content: sanitizeHelpHtml(article.content) }}
     />
   )
 }

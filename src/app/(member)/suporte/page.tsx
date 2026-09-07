@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
 import { HelpCenterClient } from "@/components/help/HelpCenterClient"
+import { sanitizeHelpHtml } from "@/lib/help-content"
 
 export default async function SupportPage() {
   const categories = await db.helpCategory.findMany({
@@ -23,5 +24,13 @@ export default async function SupportPage() {
     },
   })
 
-  return <HelpCenterClient categories={categories} initialCategorySlug={categories[0]?.slug} />
+  return (
+    <HelpCenterClient
+      categories={categories.map((category) => ({
+        ...category,
+        articles: category.articles.map((article) => ({ ...article, content: sanitizeHelpHtml(article.content) })),
+      }))}
+      initialCategorySlug={categories[0]?.slug}
+    />
+  )
 }

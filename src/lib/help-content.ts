@@ -1,3 +1,5 @@
+import { sanitizeTrustedHtml } from "@/lib/security-input"
+
 export function slugifyHelp(value: string) {
   return value
     .normalize("NFD")
@@ -9,12 +11,7 @@ export function slugifyHelp(value: string) {
 }
 
 export function sanitizeHelpHtml(html: string) {
-  return html
-    .replace(/<\s*(script|style|iframe|object|embed)[^>]*>[\s\S]*?<\s*\/\s*\1>/gi, "")
-    .replace(/\son[a-z]+\s*=\s*(['"]).*?\1/gi, "")
-    .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, "")
-    .replace(/javascript:/gi, "")
-    .trim()
+  return sanitizeTrustedHtml(html)
 }
 
 export function stripHelpHtml(html: string) {

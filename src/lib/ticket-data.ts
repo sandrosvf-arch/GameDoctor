@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client"
+import { isTrustedUploadUrl } from "@/lib/security-input"
 
 export const ticketListSelect = {
   id: true,
@@ -130,7 +131,7 @@ export function mapTicketDetail(ticket: TicketDetailResult) {
       content: message.content,
       createdAt: message.createdAt.toISOString(),
       author: message.author,
-      attachments: message.attachments.map((attachment) => ({
+      attachments: message.attachments.filter((attachment) => isTrustedUploadUrl(attachment.fileUrl)).map((attachment) => ({
         id: attachment.id,
         fileName: attachment.fileName,
         fileUrl: attachment.fileUrl,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getCommunityActiveBanWhere } from "@/lib/community"
+import { sanitizeTrustedHtml } from "@/lib/security-input"
 
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "EDITOR"
@@ -77,5 +78,5 @@ export async function GET(request: Request) {
     },
   })
 
-  return NextResponse.json(topics)
+  return NextResponse.json(topics.map((topic) => ({ ...topic, content: sanitizeTrustedHtml(topic.content) })))
 }
