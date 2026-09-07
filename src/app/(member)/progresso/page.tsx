@@ -117,7 +117,7 @@ export default async function ProgressoPage() {
 
         <div className="grid gap-px bg-white/[0.08] sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
-            label="Cursos"
+            label="Trilhas"
             value={totalCourses}
             description={`${completedCourses} concluído${completedCourses !== 1 ? "s" : ""}`}
           />

@@ -53,3 +53,6 @@ software/
 !src/app/api/auth/software/**
 !src/app/api/software/
 !src/app/api/software/**
+
+# Knowledge base
+knowledgebase/

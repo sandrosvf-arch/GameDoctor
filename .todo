@@ -1,9 +1,27 @@
 Menu mobile:
-    - Quando clico no input de busca no mobile, o teclado fica por cima, precisa ajustar @done
-    - Estou sentindo falta de um botão de buscar com ícone @done
+    - Tá fazendo focus automaticamente na busca ao clicar no bars; Precisa remover;
 
-Página da aula:
-- No mobile tá tendo que clicar 2 vezes para a aula iniciar. Validar pq no desk tá ok, mas no mobile não, me parece ser algo de IOS, pq no meu android tá ok; @done
+Card dos cursos:
+    - Badge de aula "grátis" (Somente quando a aula for gratuita) (Somente o grátis)
+
+FAQ:
+    - Colocar destaque nos links, não parece que é algo clicável;
 
 Chat com IA:
-- Ele ainda tá respondendo errado, sendo que deveria puxar do faq @done
+    - (MOBILE) No IOS, no CHAT e na busca ele tá dando zoom ao focar nos inputs;
+    - Importar os arquivos .json para o RAG e validar modelos de respostas;
+    - Quando a pessoa atringir o limite, pedir para fazer o upgrade ao invés de mandar para o Whatsapp (Isso se for usuário gratuito);
+
+Admin Configurações:
+    - Ao salvar tá dando erro: "Revise os prompts e informe URLs válidas para o vídeo e o WhatsApp."
+    - Limite de resposta para usuários gratuitos: 5
+    - Limite de resposta para assinantes: 200
+
+/progresso:
+    - A ordem das trilhas devem seguir o mesmo da página inicial; Atualmente tá: Início da Jornada > Conhecendo as ferramentas; Na home tá: Início da Jornada > Eletrônica Básica > Controles > Manutenção Geral ... Pode assustar o cara;
+
+Smart Checkout - Subir o html e tirar o PagaLeve nesse primeiro momento;
+
+Software:
+    - Bloquear downloads antes dos 7 dias de assinatura, colocar um contador de quanto tempo para liberar. Se o cara for assinante novo, não iremos liberar, pq se não ele pode baixar tudo e pedir reembolso.
+

@@ -12,6 +12,7 @@ import {
   Award,
   Heart,
   HeadphonesIcon,
+  MessageCircleQuestion,
   Ticket,
   Settings,
   LogOut,
@@ -27,17 +28,17 @@ import { cn } from "@/lib/utils"
 
 const mainNavItems = [
   { label: "Início", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Meu plano", href: "/dashboard#plano", icon: CreditCard },
+  { label: "Trilhas de aprendizado", href: "/progresso", icon: TrendingUp },
   // { label: "Minhas Trilhas", href: "/meus-cursos", icon: BookMarked },
   { label: "Continuar Assistindo", href: "/dashboard#continuar", icon: Play },
-  { label: "Progresso", href: "/progresso", icon: TrendingUp },
-  { label: "Downloads", href: "/downloads", icon: Download },
+  // { label: "Downloads", href: "/downloads", icon: Download },
   { label: "Certificados", href: "/certificados", icon: Award },
+  { label: "Meu plano", href: "/dashboard#plano", icon: CreditCard },
   // { label: "Favoritos", href: "/favoritos", icon: Heart },
 ]
 
 const supportNavItems = [
-  { label: "Central de Ajuda", href: "/suporte", icon: HeadphonesIcon },
+  { label: "Dúvidas", href: "/suporte", icon: MessageCircleQuestion },
   { label: "Tickets", href: "/tickets", icon: Ticket },
   { label: "Comunidade", href: "/comunidade", icon: Globe },
 ]

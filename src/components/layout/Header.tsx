@@ -460,14 +460,17 @@ export function Header() {
                     <Link href={memberHome}>Minha área</Link>
                   </DropdownMenuItem>
                 ) : null}
-                <DropdownMenuItem asChild>
-                  <Link href="/minha-conta">Minha conta</Link>
-                </DropdownMenuItem>
                 {isAdminUser ? (
                   <DropdownMenuItem asChild>
                     <Link href="/admin/dashboard">Painel Admin</Link>
                   </DropdownMenuItem>
                 ) : null}
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard">Minha Conta</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/minha-conta">Perfil</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
