@@ -177,9 +177,11 @@ async function loadDocuments(): Promise<SourceDocument[]> {
   ])
 
   const knowledgebaseDocuments = await loadKnowledgebaseDocuments()
+  const planDocuments = await loadPlanDocuments()
 
   return [
     ...platformDocuments,
+    ...planDocuments,
     ...courses.map((course) => ({
       sourceType: "course" as const,
       sourceId: course.id,
@@ -210,6 +212,73 @@ async function loadDocuments(): Promise<SourceDocument[]> {
     })),
     ...knowledgebaseDocuments,
   ]
+}
+
+// Documento de planos gerado do banco a cada indexação: preço atual + analogias com
+// a tabela de referência de serviços (o valor do curso comparado ao que o aluno cobra).
+const PLAN_ANALOGY_SERVICES: Array<{ label: string; low: number; high: number }> = [
+  { label: "trocas de par de analógico em controle de PS5 (R$ 120 a R$ 150 cada)", low: 120, high: 150 },
+  { label: "revisões gerais de controle de PS4 (R$ 120 a R$ 150 cada)", low: 120, high: 150 },
+  { label: "trocas de leitor de PS4 Slim/Pro (R$ 540 a R$ 675 cada)", low: 540, high: 675 },
+  { label: "reparos de placa de PS5 (R$ 1.020 a R$ 1.275 cada)", low: 1020, high: 1275 },
+]
+
+function formatBrl(value: number) {
+  return `R$ ${value.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`
+}
+
+async function loadPlanDocuments(): Promise<SourceDocument[]> {
+  try {
+    const plans = await db.$queryRaw<Array<{
+      name: string
+      slug: string
+      price: unknown
+      annual_price: unknown
+      monthly_price: unknown
+      access_duration_days: number | null
+      max_installments: number | null
+      max_installments_no_interest: number | null
+      card_installment_total: unknown
+      benefits: unknown
+      highlighted: boolean | null
+    }>>`SELECT "name", "slug", "price", "annual_price", "monthly_price", "access_duration_days", "max_installments", "max_installments_no_interest", "card_installment_total", "benefits", "highlighted" FROM "plans" WHERE "status" = 'ACTIVE' ORDER BY "highlighted" DESC, "price" ASC`
+    // Decisão do Professor: a IA só apresenta a assinatura ANUAL; plano vitalício não entra na base.
+    const offeredPlans = plans.filter((plan) => (plan.access_duration_days ?? 0) < 999 && !/vitalic/i.test(plan.name))
+    if (offeredPlans.length === 0) return []
+
+    const lines = offeredPlans.map((plan) => {
+      const price = Number(plan.price ?? plan.annual_price ?? 0)
+      const installmentTotal = Number(plan.card_installment_total ?? 0)
+      const installments = plan.max_installments ?? 1
+      const perMonth = installments > 1 && installmentTotal > 0 ? installmentTotal / installments : null
+      const lifetime = (plan.access_duration_days ?? 0) >= 999
+      const analogies = PLAN_ANALOGY_SERVICES
+        .map((service) => {
+          const count = Math.max(1, Math.round(price / ((service.low + service.high) / 2)))
+          return `${count} ${service.label}`
+        })
+        .join("; ")
+      const benefits = Array.isArray(plan.benefits) ? (plan.benefits as string[]).join(", ") : ""
+      return [
+        `Plano ${plan.name}${plan.highlighted ? " (mais escolhido)" : ""}: ${formatBrl(price)} à vista${lifetime ? ", acesso vitalício" : `, acesso por ${plan.access_duration_days} dias`}` +
+          (perMonth ? `, ou em até ${installments}x de ${formatBrl(perMonth)} no cartão (total ${formatBrl(installmentTotal)}${(plan.max_installments_no_interest ?? 0) >= installments ? ", sem juros" : ""})` : "") +
+          (perMonth && !lifetime ? ` — dá cerca de ${formatBrl(installmentTotal / 12)} por mês, menos de ${formatBrl(Math.ceil(installmentTotal / 365))} por dia` : "") + ".",
+        `Em serviços que o próprio aluno cobra (tabela de referência): o plano ${plan.name} equivale a aproximadamente ${analogies}. Os primeiros reparos pagam o curso.`,
+        benefits ? `Inclui: ${benefits}.` : "",
+      ].filter(Boolean).join("\n")
+    })
+
+    return [{
+      sourceType: "platform",
+      sourceId: "plans-pricing",
+      title: "Planos e preços da GameDoctor (quanto custa o curso, formas de pagamento)",
+      content: `${lines.join("\n\n")}\n\nValores e condições atualizados, cupons e checkout: página de planos. O preço é investimento na profissão, não gasto: compare com o que o aluno vai cobrar nos próprios serviços. Aula nova toda semana, dúvidas respondidas diariamente e o aluno pode pedir aula sobre o que ainda não existe.`,
+      href: "/planos",
+    }]
+  } catch (error) {
+    console.warn("Não foi possível montar o documento de planos.", error)
+    return []
+  }
 }
 
 async function listJsonFiles(directory: string): Promise<string[]> {
@@ -247,6 +316,91 @@ function jsonText(value: unknown, label = ""): string {
   return ""
 }
 
+// Chunk no "schema v2" da base de conhecimento (03_schema_chunk.md do Projeto IA).
+// Cada chunk já é auto-contido; aqui só montamos título/texto e preservamos os metadados
+// como cabeçalho legível, para entrarem no embedding e na busca textual.
+type KnowledgebaseChunkV2 = {
+  titulo: string
+  conteudo: string
+  tipo?: string
+  console?: string
+  placa?: string
+  escopo?: string
+  nivel_acesso?: string
+  confianca?: string
+  codigos?: string[]
+  designators?: string[]
+  sintomas?: string[]
+  link_web?: string | null
+  link_app?: string | null
+  aula_id?: string | null
+  t_segundos?: number | null
+  fonte?: string
+}
+
+const KNOWLEDGEBASE_EXCLUDED = ["inventario", "triagem", "anotacoes_coordenadas", "visao_pendente"]
+
+function isKnowledgebaseChunkV2(value: unknown): value is KnowledgebaseChunkV2 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false
+  const record = value as Record<string, unknown>
+  return typeof record.titulo === "string" && typeof record.conteudo === "string" && typeof record.tipo === "string"
+}
+
+const TIPO_LABEL: Record<string, string> = {
+  ficha_erro: "Ficha de erro",
+  mapa_tensao: "Mapa de tensão",
+  mapa_resistencia: "Mapa de resistência",
+  sequencia: "Sequência de start",
+  comportamento: "Comportamento da placa",
+  referencia_ci: "Referência de CI (datasheet)",
+  sinal: "Sinal / pinout",
+  esquema: "Esquema elétrico",
+  manual_servico: "Manual de serviço",
+  aula: "Aula",
+  plataforma: "Plataforma",
+  faq: "FAQ",
+  referencia_precos: "Referência de preços (quanto cobrar)",
+}
+
+function listOrEmpty(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : []
+}
+
+function buildKnowledgebaseDocument(chunk: KnowledgebaseChunkV2, sourceId: string): SourceDocument {
+  const console_ = chunk.console?.trim()
+  const placa = chunk.placa?.trim()
+  const codigos = listOrEmpty(chunk.codigos)
+  const sintomas = listOrEmpty(chunk.sintomas)
+  const designators = listOrEmpty(chunk.designators)
+  const tipoLabel = TIPO_LABEL[chunk.tipo ?? ""] ?? chunk.tipo ?? "Material técnico"
+
+  const scope = [console_, placa].filter(Boolean).join(" · ")
+  const title = scope ? `${chunk.titulo.trim()} [${scope}]` : chunk.titulo.trim()
+
+  const header = [
+    `Tipo: ${tipoLabel}`,
+    console_ ? `Console: ${console_}` : null,
+    placa ? `Placa: ${placa}` : null,
+    codigos.length > 0 ? `Códigos: ${codigos.join(", ")}` : null,
+    sintomas.length > 0 ? `Sintomas: ${sintomas.join("; ")}` : null,
+    designators.length > 0 ? `Componentes: ${designators.join(", ")}` : null,
+    chunk.confianca ? `Confiança: ${chunk.confianca}` : null,
+  ].filter(Boolean).join("\n")
+
+  // Deep link só quando a base trouxer um (link_web); caso contrário fica o marcador
+  // "/cursos", que a busca já interpreta como material "knowledge" (não é aula navegável).
+  const linkWeb = typeof chunk.link_web === "string" ? chunk.link_web.trim() : ""
+  const href = linkWeb.startsWith("/") ? linkWeb : "/cursos"
+
+  return {
+    sourceType: "lesson",
+    sourceId,
+    title,
+    content: `${header}\n\n${chunk.conteudo.trim()}`.slice(0, 50_000),
+    href,
+  }
+}
+
 async function loadKnowledgebaseDocuments(): Promise<SourceDocument[]> {
   const root = path.resolve(process.cwd(), "knowledgebase")
   let files: string[]
@@ -257,28 +411,36 @@ async function loadKnowledgebaseDocuments(): Promise<SourceDocument[]> {
   }
 
   const documents: SourceDocument[] = []
+  let v2Count = 0
+  let legacyCount = 0
   for (const file of files) {
+    const relative = path.relative(root, file).replaceAll(path.sep, "/")
+    if (KNOWLEDGEBASE_EXCLUDED.some((token) => relative.toLowerCase().includes(token))) continue
     try {
       const parsed: unknown = JSON.parse(await readFile(file, "utf8"))
       const values = Array.isArray(parsed) ? parsed : [parsed]
-      const relative = path.relative(root, file).replaceAll(path.sep, "/")
       values.forEach((value, index) => {
+        const sourceId = `knowledgebase:${relative}:${index}`
+        if (isKnowledgebaseChunkV2(value)) {
+          if (!value.conteudo.trim()) return
+          documents.push(buildKnowledgebaseDocument(value, sourceId))
+          v2Count += 1
+          return
+        }
+
+        // Formato livre (JSON sem schema v2): comportamento antigo, achatado em texto.
         const fallback = relative.replace(/\.json$/i, "")
         const title = values.length > 1 ? `${jsonTitle(value, fallback)} (${index + 1})` : jsonTitle(value, fallback)
         const content = jsonText(value).slice(0, 50_000)
         if (!content.trim()) return
-        documents.push({
-          sourceType: "lesson",
-          sourceId: `knowledgebase:${relative}:${index}`,
-          title,
-          content,
-          href: "/cursos",
-        })
+        documents.push({ sourceType: "lesson", sourceId, title, content, href: "/cursos" })
+        legacyCount += 1
       })
     } catch (error) {
       console.warn(`JSON ignorado no knowledgebase: ${file}`, error)
     }
   }
+  console.log(`knowledgebase: ${v2Count} chunk(s) no schema v2, ${legacyCount} em formato livre, ${files.length} arquivo(s).`)
   return documents
 }
 

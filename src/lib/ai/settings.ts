@@ -7,8 +7,8 @@ export const AI_RESPONSE_LIMIT_FREE_KEY = "ai.response_limit_free"
 export const AI_RESPONSE_LIMIT_PAID_KEY = "ai.response_limit_paid"
 export const AI_MONTHLY_CREDITS_FREE_KEY = "ai.monthly_credits_free"
 export const AI_MONTHLY_CREDITS_PAID_KEY = "ai.monthly_credits_paid"
-export const DEFAULT_AI_RESPONSE_LIMIT_FREE = 1_200
-export const DEFAULT_AI_RESPONSE_LIMIT_PAID = 2_400
+export const DEFAULT_AI_RESPONSE_LIMIT_FREE = 8_000
+export const DEFAULT_AI_RESPONSE_LIMIT_PAID = 8_000
 export const DEFAULT_AI_MONTHLY_CREDITS_FREE = 5
 export const DEFAULT_AI_MONTHLY_CREDITS_PAID = 200
 

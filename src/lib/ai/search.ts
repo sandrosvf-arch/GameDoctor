@@ -28,7 +28,9 @@ const MIN_SEMANTIC_SCORE = 0.54
 const MIN_FAQ_SCORE = 0.6
 const MIN_FAQ_MARGIN = 0.04
 const MIN_LEARNING_SCORE = 0.58
-const MAX_CONTEXT_ITEMS = 6
+const MAX_CONTEXT_ITEMS = 9
+const MAX_EXACT_CODE_ITEMS = 2
+const MIN_LESSON_SLOTS = 3
 
 function getSearchTerms(question: string) {
   const stopWords = new Set([
@@ -61,9 +63,22 @@ function getSearchTerms(question: string) {
   return terms.slice(0, 8)
 }
 
+// Códigos de erro de todas as famílias: PS4/PS5 (CE-34878-0, SU-, NP-, NW-, WS-, WV-, E2-),
+// PS3 (8002F147, 80710102), Xbox One/Series (E100, E200, 0x87DD0006, 0x8B050033),
+// Xbox 360 (0033, 0100, 0110, E74), Switch (2002-4153, 2124-4007).
+const DIAGNOSTIC_CODE_PATTERNS = [
+  /\b(?:SU|CE|NP|NW|WS|WV|WC|E2)[-_ ]?\d{4,6}(?:[-_ ]\d{1,2})?\b/g,
+  /\bE[-_]?\d{2,3}\b/g,
+  /\b8[0-9A-F]{7}\b/g,
+  /\b0X[0-9A-F]{8}\b/g,
+  /\b2\d{3}-\d{4}\b/g,
+  /\b0\d{3}\b/g,
+]
+
 function getDiagnosticCodes(question: string) {
+  const upper = question.toUpperCase()
   return Array.from(new Set(
-    question.toUpperCase().match(/\b(?:SU|CE|E)[-_]?\d{2,6}(?:[-_]\d{1,4})?\b/g) ?? [],
+    DIAGNOSTIC_CODE_PATTERNS.flatMap((pattern) => upper.match(pattern) ?? []).map((code) => code.replace(/[_ ]/g, "-")),
   ))
 }
 
@@ -145,7 +160,7 @@ async function searchSemanticContext(
   question: string,
   embedding: number[],
   technicalMode: boolean,
-  sourceGroup: "faq" | "learning" | "community",
+  sourceGroup: "faq" | "learning" | "lessons" | "community",
 ) {
   const rows = await db.$queryRaw<SemanticRow[]>`
     WITH scored AS (
@@ -156,7 +171,7 @@ async function searchSemanticContext(
       CASE
         WHEN "source_type" IN ('lesson', 'community') AND NOT ${technicalMode}
           THEN 'Conteúdo disponível para alunos com plano ativo.'
-        ELSE LEFT("content", 1200)
+        ELSE LEFT("content", 2400)
       END AS "text",
       "href",
       (
@@ -174,6 +189,7 @@ async function searchSemanticContext(
         (${sourceGroup === "community"} AND "source_type" = 'community')
         OR (${sourceGroup === "faq"} AND "source_type" = 'help')
         OR (${sourceGroup === "learning"} AND "source_type" IN ('course', 'lesson', 'platform'))
+        OR (${sourceGroup === "lessons"} AND "source_type" = 'lesson' AND "href" <> '/cursos')
       )
         AND (
         1 - ("embedding" <=> ${vectorLiteral(embedding)}::vector) >= ${MIN_SEMANTIC_SCORE}
@@ -253,7 +269,7 @@ async function searchFaqContext(question: string, embedding: number[] | null) {
         return [top]
       }
     } catch (error) {
-      console.error("[ai/search] FAQ semÃ¢ntico indisponÃ­vel; usando tÃ­tulos do FAQ.", error)
+      console.error("[ai/search] FAQ semântico indisponível; usando títulos do FAQ.", error)
     }
   }
 
@@ -333,7 +349,7 @@ export async function classifyAiFaq(
       const completion = await providerOrOpenAi.complete({
         system: `Voce classifica perguntas para o assistente da GameDoctor.
 
-Analise a mensagem do usuario contra os titulos de todos os FAQs abaixo. Marque isFaq=true somente quando a mensagem perguntar claramente a mesma coisa que um FAQ, mesmo com erro de digitacao, abreviacao ou parafrase. Compare a intencao principal, nao apenas palavras em comum. Nao force uma correspondencia: se houver duvida, use isFaq=false.
+Analise a mensagem do usuario contra os titulos de todos os FAQs abaixo. Marque isFaq=true somente quando a mensagem perguntar claramente a mesma coisa que um FAQ, mesmo com erro de digitacao, abreviacao ou parafrase. Compare a intencao principal, nao apenas palavras em comum. NUNCA marque uma pergunta sobre um console, controle, defeito, sintoma, codigo de erro, medicao, aula especifica ou comunidade so porque um FAQ fala genericamente sobre o curso, suporte, ferramentas ou aprendizado: essas perguntas sao tecnicas e devem ir para as aulas e o material tecnico (isFaq=false). Nao force uma correspondencia: se houver duvida, use isFaq=false.
 
 Retorne somente JSON no formato informado. faqIndex deve ser o indice do FAQ escolhido ou null quando nao houver correspondencia segura.
 
@@ -521,32 +537,32 @@ async function searchLexicalContext(question: string, technicalMode: boolean): P
     ...(platformQuestion || (rankedCourses.length === 0 && rankedLessons.length === 0) ? rankedPlatform : []).map((chunk) => ({
       source: "platform" as const,
       title: chunk.title,
-      text: stripHtml(chunk.content).slice(0, 1_200),
+      text: stripHtml(chunk.content).slice(0, 2_400),
       href: chunk.href,
     })),
     ...(knowledgeFirst ? rankedKnowledge.slice(0, 3) : []).map((chunk) => ({
       source: knowledgeSource(chunk),
       title: chunk.title,
-      text: technicalMode ? stripHtml(chunk.content).slice(0, 1_200) : "ConteÃºdo tÃ©cnico disponÃ­vel para alunos com plano ativo.",
+      text: technicalMode ? stripHtml(chunk.content).slice(0, 2_400) : "Conteúdo técnico disponível para alunos com plano ativo.",
       href: chunk.href,
     })),
     ...relevantCourses.map((course) => ({
       source: "course" as const,
       title: course.title,
-      text: stripHtml([course.shortDescription, course.description].filter(Boolean).join(" ")).slice(0, 1_200),
+      text: stripHtml([course.shortDescription, course.description].filter(Boolean).join(" ")).slice(0, 2_400),
       href: `/trilhas/${course.slug}`,
     })),
     ...(!knowledgeFirst ? rankedKnowledge.slice(0, 3) : []).map((chunk) => ({
       source: knowledgeSource(chunk),
       title: chunk.title,
-      text: technicalMode ? stripHtml(chunk.content).slice(0, 1_200) : "ConteÃºdo tÃ©cnico disponÃ­vel para alunos com plano ativo.",
+      text: technicalMode ? stripHtml(chunk.content).slice(0, 2_400) : "Conteúdo técnico disponível para alunos com plano ativo.",
       href: chunk.href,
     })),
     ...rankedLessons.map((lesson) => ({
       source: "lesson" as const,
       title: `${lesson.course.title} - ${lesson.title}`,
       text: technicalMode
-        ? stripHtml([lesson.description, lesson.searchKeywords, lesson.transcription].filter(Boolean).join(" ")).slice(0, 1_200)
+        ? stripHtml([lesson.description, lesson.searchKeywords, lesson.transcription].filter(Boolean).join(" ")).slice(0, 2_400)
         : "Conteúdo técnico disponível para alunos com plano ativo.",
       href: buildLessonHref(lesson),
     })),
@@ -586,10 +602,83 @@ async function searchCommunityContext(question: string, technicalMode: boolean):
     source: "community" as const,
     title: topic.title,
     text: technicalMode
-      ? stripHtml([topic.content, ...topic.posts.map((post) => post.content)].join(" ")).slice(0, 1_200)
+      ? stripHtml([topic.content, ...topic.posts.map((post) => post.content)].join(" ")).slice(0, 2_400)
       : "Discussão da comunidade disponível para alunos com plano ativo.",
     href: `/comunidade/topico/${topic.slug}`,
   }))
+}
+
+// Ficha cujo título traz o código de erro literal da pergunta: entra sempre, e em primeiro.
+async function searchExactCodeChunks(codes: string[]): Promise<AiContextItem[]> {
+  if (codes.length === 0) return []
+  const rows = await db.aiKnowledgeChunk.findMany({
+    where: {
+      sourceType: "lesson",
+      chunkIndex: 0,
+      OR: codes.flatMap((code) => [
+        { title: { contains: code, mode: "insensitive" as const } },
+        { title: { contains: code.replace(/-/g, ""), mode: "insensitive" as const } },
+      ]),
+    },
+    take: 20,
+    select: { sourceType: true, title: true, content: true, href: true },
+  })
+  const normalizedCodes = codes.map((code) => normalizeText(code).replace(/-/g, ""))
+  return rows
+    .map((row) => ({
+      row,
+      hits: normalizedCodes.filter((code) => normalizeText(row.title).replace(/-/g, "").includes(code)).length,
+    }))
+    .filter(({ hits }) => hits > 0)
+    .sort((left, right) => right.hits - left.hits || left.row.title.length - right.row.title.length)
+    .slice(0, MAX_EXACT_CODE_ITEMS)
+    .map(({ row }) => ({
+      source: getKnowledgeSource(row.sourceType as AiContextItem["source"], row.href),
+      title: row.title,
+      text: stripHtml(row.content).slice(0, 2_400),
+      href: row.href,
+      score: 1,
+    }))
+}
+
+// Pergunta sobre preço/plano/assinatura: o documento "Planos e preços" (gerado do banco na
+// indexação) entra sempre, em primeiro, para a resposta ter valor, parcelas e analogias reais.
+function isPricingQuestion(question: string) {
+  return /\b(plano|planos|assinatura|assinar|assinante|custa|custo|preco|precos|valor|caro|barato|mensalidade|anual|vitalicio|checkout|parcel\w*|pagar|pagamento)\b/.test(normalizeText(question))
+    && !/\b(cobrar|cobro|orcamento|cliente)\b/.test(normalizeText(question))
+}
+
+async function searchPlansDocument(): Promise<AiContextItem[]> {
+  const rows = await db.aiKnowledgeChunk.findMany({
+    where: { sourceType: "platform", sourceId: "plans-pricing" },
+    orderBy: { chunkIndex: "asc" },
+    take: 2,
+    select: { title: true, content: true, href: true },
+  })
+  return rows.map((row) => ({ source: "platform" as const, title: row.title, text: stripHtml(row.content).slice(0, 2_400), href: row.href, score: 1 }))
+}
+
+function contextKey(item: AiContextItem) {
+  return `${item.source}:${item.href}:${item.title}`
+}
+
+// Monta o contexto final: código literal → fontes semânticas → aulas garantidas.
+function mergeContext(exact: AiContextItem[], semantic: AiContextItem[], lessons: AiContextItem[]) {
+  const merged: AiContextItem[] = []
+  const seen = new Set<string>()
+  const push = (item: AiContextItem) => {
+    const key = contextKey(item)
+    if (seen.has(key) || merged.length >= MAX_CONTEXT_ITEMS) return
+    seen.add(key)
+    merged.push(item)
+  }
+  exact.forEach(push)
+  const lessonsWanted = lessons.filter((item) => (item.score ?? 0) >= MIN_SEMANTIC_SCORE).slice(0, MIN_LESSON_SLOTS)
+  const semanticBudget = MAX_CONTEXT_ITEMS - merged.length - lessonsWanted.filter((item) => !seen.has(contextKey(item))).length
+  semantic.slice(0, Math.max(0, semanticBudget)).forEach(push)
+  lessonsWanted.forEach(push)
+  semantic.forEach(push)
+  return merged
 }
 
 export async function searchAiContext(
@@ -607,13 +696,22 @@ export async function searchAiContext(
       if (faq.length > 0) return faq
     }
 
+    const diagnosticCodes = getDiagnosticCodes(question)
+    const exactChunks = [
+      ...(isPricingQuestion(question) ? await searchPlansDocument() : []),
+      ...await searchExactCodeChunks(diagnosticCodes),
+    ]
+
     if (embedding) {
       if (isExplicitCommunityQuestion(question)) {
         const community = await searchSemanticContext(question, embedding, technicalMode, "community")
         if ((community[0]?.score ?? 0) >= MIN_LEARNING_SCORE) return community
       }
 
-      const semantic = await searchSemanticContext(question, embedding, technicalMode, "learning")
+      const [semantic, lessonSemantic] = await Promise.all([
+        searchSemanticContext(question, embedding, technicalMode, "learning"),
+        isTechnicalQuestion(question) ? searchSemanticContext(question, embedding, technicalMode, "lessons") : Promise.resolve([]),
+      ])
       const hasSpecificLearning = semantic.some((item) => item.source === "course" || item.source === "lesson")
       const hasDirectLesson = semantic.some((item) => item.source === "lesson" && item.href !== "/cursos")
       const relevantSemantic = semantic
@@ -621,7 +719,6 @@ export async function searchAiContext(
         .filter((item) => hasSpecificLearning && !isPlatformQuestion(question) && !isCatalogQuestion(question)
           ? item.source !== "platform" && item.source !== "course"
           : true)
-      const diagnosticCodes = getDiagnosticCodes(question)
       const exactLesson = diagnosticCodes.length > 0
         ? relevantSemantic.find((item) => item.source === "lesson"
           && diagnosticCodes.some((code) => normalizeText(item.title).includes(normalizeText(code))))
@@ -629,7 +726,9 @@ export async function searchAiContext(
       const orderedSemantic = exactLesson
         ? [exactLesson, ...relevantSemantic.filter((item) => item !== exactLesson)]
         : relevantSemantic
-      if ((orderedSemantic[0]?.score ?? 0) >= MIN_LEARNING_SCORE) return orderedSemantic
+      if (exactChunks.length > 0 || (orderedSemantic[0]?.score ?? 0) >= MIN_LEARNING_SCORE) {
+        return mergeContext(exactChunks, orderedSemantic, lessonSemantic)
+      }
 
       const community = await searchSemanticContext(question, embedding, technicalMode, "community")
       if ((community[0]?.score ?? 0) >= MIN_LEARNING_SCORE) return community
