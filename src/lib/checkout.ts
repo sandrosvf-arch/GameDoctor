@@ -486,7 +486,14 @@ export async function listPublicPlans(userId?: string | null) {
     ])
   )
 
-  return plans.map((plan) => ({
+  const publicPlans = plans.filter((plan) => {
+    const planIdentifier = `${plan.name} ${plan.slug}`.toLocaleLowerCase("pt-BR")
+    const isNamedLifetime = /vital[ií]cio|lifetime/.test(planIdentifier)
+    const isLongTermAccess = plan.annualAccessDurationDays >= 3650
+    return !isNamedLifetime && !isLongTermAccess
+  })
+
+  return publicPlans.map((plan) => ({
     id: plan.id,
     name: plan.name,
     slug: plan.slug,
