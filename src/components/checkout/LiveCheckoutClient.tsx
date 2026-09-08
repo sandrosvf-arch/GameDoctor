@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { CardPayment, initMercadoPago } from "@mercadopago/sdk-react"
 import { Check, Copy, CreditCard, Loader2, MapPin, QrCode, ShieldCheck, Wallet } from "lucide-react"
@@ -286,7 +287,8 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote:
     <main className="relative overflow-hidden px-4 pb-28 pt-8 sm:px-6 lg:py-12 lg:pb-32">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(circle_at_20%_0%,rgba(6,182,212,0.16),transparent_36%),radial-gradient(circle_at_80%_10%,rgba(245,158,11,0.10),transparent_30%)]" />
       <div className="relative mx-auto max-w-3xl">
-        <div className="mb-8 max-w-3xl">
+        <div className="mb-8 max-w-3xl text-center">
+          <Image src="/doctor-oficial.png" alt="GameDoctor" width={180} height={36} className="mx-auto h-8 w-auto mb-10" />
           <p className="text-xl text-center font-black uppercase tracking-[0.20em] text-cyan-300 sm:text-2xl">Oferta especial de lançamento</p>
         </div>
 
@@ -299,9 +301,9 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote:
                   <h2 className="mt-1 text-sm text-slate-400">{quote.plan.name}</h2>
                 </div>
                 <div className="shrink-0 sm:text-right">
-                  <p className="text-xs text-slate-500">No cartão</p>
+                  <p className="text-xs">No cartão</p>
                   <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">12x de {currency(quote.cardEstimate.installmentAmount)}</p>
-                  <p className="mt-1 text-xs text-slate-500">ou {currency(quote.finalTotal)} à vista</p>
+                  <p className="mt-1 text-xs">ou {currency(quote.finalTotal)} à vista</p>
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/[0.08] pt-4 text-xs text-slate-300">
