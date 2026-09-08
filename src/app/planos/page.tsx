@@ -1,8 +1,6 @@
 import Link from "next/link"
 import { ArrowDown, Check } from "lucide-react"
-import { unstable_cache } from "next/cache"
 import { auth } from "@/lib/auth"
-import { db } from "@/lib/db"
 import { listPublicPlans } from "@/lib/checkout"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { PlanCheckoutButton } from "@/components/checkout/PlanCheckoutButton"
@@ -23,12 +21,6 @@ function buildLoginHref(planSlug: string, period: "annual" | "monthly") {
   return `/login?callbackUrl=${encodeURIComponent(buildCheckoutHref(planSlug, period))}`
 }
 
-const getCachedLessonCount = unstable_cache(
-  () => db.lesson.count(),
-  ["home-lesson-count"],
-  { revalidate: 60 }
-)
-
 const repairPaybackRows = [
   { service: "Troca / reparo de analógico", repairs: "5 reparos" },
   { service: "Manutenção preventiva de console", repairs: "3 reparos" },
@@ -41,12 +33,9 @@ export const dynamic = "force-dynamic"
 export default async function PlanosPage() {
   const session = await auth()
   const isLoggedIn = Boolean(session?.user?.id)
-  const [plans, lessonCount] = await Promise.all([
-    listPublicPlans(session?.user?.id ?? null),
-    getCachedLessonCount().catch(() => 0),
-  ])
+  const plans = await listPublicPlans(session?.user?.id ?? null)
   const canSeePrices = isLoggedIn
-  const includedContent = [
+  const includedContent = Array.from(new Set(plans.flatMap((plan) => plan.benefits))).filter(Boolean); /*
     `Mais de ${lessonCount.toLocaleString("pt-BR")} aulas disponíveis`,
     "Discussões com a comunidade",
     "Acesso ao professor",
@@ -56,7 +45,7 @@ export default async function PlanosPage() {
     "Lista de fornecedores",
     "Softwares",
     "Garantia de aprendizado",
-  ]
+  */
 
   return (
     <main className="min-h-screen bg-[#080b10] text-slate-100">

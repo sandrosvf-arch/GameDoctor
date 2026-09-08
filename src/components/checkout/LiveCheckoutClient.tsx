@@ -287,9 +287,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote:
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(circle_at_20%_0%,rgba(6,182,212,0.16),transparent_36%),radial-gradient(circle_at_80%_10%,rgba(245,158,11,0.10),transparent_30%)]" />
       <div className="relative mx-auto max-w-3xl">
         <div className="mb-8 max-w-3xl">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-300">Oferta especial da live</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">Seu acesso profissional começa agora.</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">Complete seus dados, escolha como pagar e receba seu acesso por e-mail após a aprovação.</p>
+          <p className="text-xl text-center font-black uppercase tracking-[0.20em] text-cyan-300 sm:text-2xl">Oferta especial de lançamento</p>
         </div>
 
         <div className="block">
@@ -297,9 +295,8 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote:
             <section className="rounded-2xl border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(8,25,34,.98),rgba(9,13,20,.98))] p-5 shadow-2xl shadow-cyan-950/20 sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300">Acesso anual completo</p>
-                  <h2 className="mt-2 truncate text-xl font-semibold text-white sm:text-2xl">{quote.plan.name}</h2>
-                  <p className="mt-1 text-sm text-slate-400">12 meses de acesso a todo o conteúdo.</p>
+                  <h2 className="text-xl font-semibold text-white sm:text-2xl">Acesso completo à plataforma</h2>
+                  <h2 className="mt-1 text-sm text-slate-400">{quote.plan.name}</h2>
                 </div>
                 <div className="shrink-0 sm:text-right">
                   <p className="text-xs text-slate-500">No cartão</p>
@@ -308,7 +305,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote:
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/[0.08] pt-4 text-xs text-slate-300">
-                {quote.plan.benefits.slice(0, 4).map((benefit) => <span key={benefit} className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-cyan-300" />{benefit}</span>)}
+                {quote.plan.benefits.map((benefit) => <span key={benefit} className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-cyan-300" />{benefit}</span>)}
               </div>
             </section>
 

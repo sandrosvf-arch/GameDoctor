@@ -90,6 +90,7 @@ function PlatformAssistantContent({
 
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
   const isLessonPage = pathname.startsWith("/aula/")
+  const hideFloatingAssistant = pathname.startsWith("/checkout/live")
   const isAboutUsPage = pathname.startsWith("/quem-somos")
   const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
   const loginHref = `/login?callbackUrl=${encodeURIComponent(currentUrl)}`
@@ -211,7 +212,7 @@ function PlatformAssistantContent({
         ? `fixed bottom-[calc(${isLessonPage ? '6.25rem' : '4.25rem'}+env(safe-area-inset-bottom))] right-3 z-[70] flex flex-col items-end gap-3 md:bottom-5 md:right-5`
         : "fixed bottom-5 right-5 z-[70] flex flex-col items-end gap-3"
     }>
-      {(page || open) && (
+      {(page || (open && !hideFloatingAssistant)) && (
         <section className={page
           ? "flex min-h-[calc(100vh-9rem)] w-full flex-col overflow-hidden rounded-2xl border border-white/[0.12] bg-[#15151d] shadow-2xl shadow-black/30"
           : isLessonPage
@@ -328,10 +329,10 @@ function PlatformAssistantContent({
         >
           <WhatsAppIcon className="h-5 w-5" />
         </a>
-        <button type="button" onClick={() => setOpen((value) => !value)} className={`flex items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-950/30 transition hover:bg-cyan-300 ${isLessonPage ? "h-11 w-11 px-0 md:h-12 md:w-auto md:px-4" : "h-12 px-4"}`} title="Abrir assistente">
+        {!hideFloatingAssistant && <button type="button" onClick={() => setOpen((value) => !value)} className={`flex items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-950/30 transition hover:bg-cyan-300 ${isLessonPage ? "h-11 w-11 px-0 md:h-12 md:w-auto md:px-4" : "h-12 px-4"}`} title="Abrir assistente">
           {open ? <X className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
           <span className={isLessonPage ? "sr-only md:not-sr-only" : undefined}>Fale com nossa IA</span>
-        </button>
+        </button>}
       </div>}
     </div>
   )

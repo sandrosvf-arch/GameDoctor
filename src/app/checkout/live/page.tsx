@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getLiveCheckoutQuote } from "@/lib/live-checkout"
-import { Header } from "@/components/layout/Header"
 import { LiveCheckoutClient } from "@/components/checkout/LiveCheckoutClient"
 
 export const dynamic = "force-dynamic"
@@ -14,7 +13,7 @@ export default async function LiveCheckoutPage({ searchParams }: { searchParams:
   const params = await searchParams
   const planSlug = single(params.plan)?.trim() ?? ""
   if (!planSlug) {
-    return <div className="min-h-screen bg-[#05080d] text-white"><Header /><main className="mx-auto flex min-h-[60vh] max-w-xl items-center justify-center px-4 text-center"><div><h1 className="text-2xl font-semibold">Oferta não encontrada</h1><p className="mt-3 text-sm text-slate-400">O link desta live não informou um plano válido.</p></div></main></div>
+    return <div className="min-h-screen bg-[#05080d] text-white"><main className="mx-auto flex min-h-[60vh] max-w-xl items-center justify-center px-4 text-center"><div><h1 className="text-2xl font-semibold">Oferta não encontrada</h1><p className="mt-3 text-sm text-slate-400">O link desta live não informou um plano válido.</p></div></main></div>
   }
   const session = await auth()
   const [quote, profile] = await Promise.all([
@@ -35,7 +34,6 @@ export default async function LiveCheckoutPage({ searchParams }: { searchParams:
 
   return (
     <div className="min-h-screen bg-[#05080d] text-white">
-      <Header />
       <LiveCheckoutClient
         quote={quote}
         planSlug={planSlug}
