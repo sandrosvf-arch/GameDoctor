@@ -1,4 +1,4 @@
-import OpenAI from "openai"
+import { getAiProvider } from "../src/lib/ai/provider"
 import { db } from "../src/lib/db"
 import { AI_NO_CONTENT_MESSAGE, buildAiQuestionDirective, buildAiSystemPrompt, finalizeAiAnswer } from "../src/lib/ai/prompt"
 import { routeAiConversation, type AiRoutingHistoryItem } from "../src/lib/ai/router"
@@ -6,11 +6,13 @@ import { classifyAiFaq, searchAiContext } from "../src/lib/ai/search"
 import { getAiSystemPrompts } from "../src/lib/ai/settings"
 import type { AiContextItem } from "../src/lib/ai/search"
 
-const model = process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini"
-const apiKey = process.env.OPENAI_API_KEY?.trim()
-if (!apiKey) throw new Error("OPENAI_API_KEY não configurada.")
+function requireAiProvider() {
+  const provider = getAiProvider()
+  if (!provider) throw new Error("Provider de IA não configurado.")
+  return provider
+}
 
-const openai = new OpenAI({ apiKey })
+const provider = requireAiProvider()
 
 type TestCase = {
   name: string
@@ -215,6 +217,13 @@ function isSocialMessage(message: string) {
     || /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|tchau|at[eé] mais)\b/i.test(normalized)
 }
 
+function getSocialResponse(message: string) {
+  const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase()
+  if (/^(obrigad|valeu)\b/.test(normalized)) return "De nada! Se precisar de mais ajuda, é só avisar."
+  if (/^(tchau|ate mais)\b/.test(normalized)) return "Até mais! Se precisar, estou por aqui."
+  return "Olá! Como posso ajudar você hoje?"
+}
+
 function isCommunityQuestion(message: string) {
   const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
   return /\b(comunidade|forum|topico|relato|outros alunos|alguem comentou)\b/.test(normalized)
@@ -239,14 +248,13 @@ async function main() {
     const systemPrompt = testCase.tier === "free" ? prompts.free : prompts.paid
     const faqContext = isSocialMessage(testCase.message)
       ? null
-      : await classifyAiFaq(testCase.message, openai, model)
+      : await classifyAiFaq(testCase.message, provider)
     const routing = faqContext
       ? { action: "search" as const, query: testCase.message, answer: null, inputTokens: null, outputTokens: null }
       : isSocialMessage(testCase.message)
-        ? { action: "respond" as const, query: null, answer: "De nada! Se precisar de mais ajuda, é só avisar.", inputTokens: null, outputTokens: null }
+        ? { action: "respond" as const, query: null, answer: getSocialResponse(testCase.message), inputTokens: null, outputTokens: null }
       : await routeAiConversation({
-      openai,
-      model,
+      provider,
       promptText: systemPrompt,
       history: testCase.history ?? [],
       message: testCase.message,
@@ -270,20 +278,19 @@ async function main() {
     if (faqContext) {
       answer = faqContext.text
     } else if (effectiveAction === "search" && context.length > 0) {
-      const completion = await openai.chat.completions.create({
-        model,
+      const completion = await provider.complete({
+        system: [
+          buildAiSystemPrompt(systemPrompt, context),
+          buildAiQuestionDirective(testCase.message),
+        ].filter(Boolean).join("\n\n"),
         messages: [
-          { role: "system", content: buildAiSystemPrompt(systemPrompt, context) },
-          ...(buildAiQuestionDirective(testCase.message)
-            ? [{ role: "system" as const, content: buildAiQuestionDirective(testCase.message)! }]
-            : []),
           ...(testCase.history ?? []),
           { role: "user", content: testCase.message },
         ],
         temperature: 0,
-        max_tokens: 450,
+        maxTokens: 450,
       })
-      answer = completion.choices[0]?.message?.content?.trim() || "SEM RESPOSTA"
+      answer = completion.content?.trim() || "SEM RESPOSTA"
     }
     answer = faqContext ? answer : finalizeAiAnswer(answer, context).answer
 

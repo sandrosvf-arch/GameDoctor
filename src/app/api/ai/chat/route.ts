@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import OpenAI from "openai"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
@@ -8,13 +7,12 @@ import { AI_NO_CONTENT_MESSAGE, buildAiQuestionDirective, buildAiSystemPrompt, f
 import { getAiSystemPrompts } from "@/lib/ai/settings"
 import { classifyAiFaq, searchAiContext } from "@/lib/ai/search"
 import { routeAiConversation } from "@/lib/ai/router"
+import { getAiProvider } from "@/lib/ai/provider"
 
 const bodySchema = z.object({
   message: z.string().trim().min(1).max(4_000),
   conversationId: z.string().cuid().nullable().optional(),
 })
-
-const model = process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini"
 
 function isKnowledgeQuestion(message: string) {
   const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase()
@@ -23,24 +21,19 @@ function isKnowledgeQuestion(message: string) {
   const social = /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|obrigad|valeu|tchau|at[eé] mais)\b/i.test(normalized)
   if (social) return false
   if (/^como fa[cç]o isso funcionar\b/i.test(normalized)) return false
-  return /\b(ps[345]|xbox|nintendo|controle|aula|curso|trilha|defeito|erro|reparo|assist[eê]ncia|plano|pre[cç]o|pagar|comprar|cart[aã]o|pix|login|senha|cadastro|email|cpf|acesso|conta|comunidade|ferramenta|ajuda|suporte|progresso|download|assinatura|conversar|perguntar|d[uú]vida)\b/i.test(message)
+  return /\b(ps[345]|xbox|nintendo|controle|aula|curso|trilha|defeito|erro|repar\w*|assist[eê]ncia|plano|pre[cç]o|pagar|comprar|cart[aã]o|pix|login|senha|cadastro|email|cpf|acesso|conta|comunidade|ferramenta|ajuda|suporte|progresso|download|assinatura|conversar|perguntar|d[uú]vida)\b/i.test(message)
 }
 
 function isTechnicalQuestion(message: string) {
   const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
   return /\b(?:su|ce|e)[-_]?\d{2,6}(?:[-_]\d{1,4})?\b/.test(message.toLowerCase())
-    || /\b(ps[345]|xbox|nintendo|controle|reparo|defeito|erro|falha|liga|desliga|reinicia|imagem|som|hdmi|fonte|bga|solda|drift|hdd|drive|firmware|update)\b/.test(normalized)
+    || /\b(ps[345]|xbox|nintendo|controle|repar\w*|defeito|erro|falha|liga|desliga|reinicia|imagem|som|hdmi|fonte|bga|solda|drift|hdd|drive|firmware|update)\b/.test(normalized)
 }
 
 function isOutsidePlatformQuestion(message: string) {
   const normalized = message.trim().toLowerCase()
   if (/^(n[aã]o est[aá] funcionando|como fa[cç]o isso funcionar|n[aã]o entendi|me ajuda|pode me ajudar)\b/i.test(normalized)) return false
   return !isSocialMessage(message) && !isKnowledgeQuestion(message)
-}
-
-function getOpenAiClient() {
-  const apiKey = process.env.OPENAI_API_KEY?.trim()
-  return apiKey ? new OpenAI({ apiKey }) : null
 }
 
 function shouldCheckFaq(message: string) {
@@ -54,6 +47,13 @@ function isSocialMessage(message: string) {
   const normalized = message.trim().toLowerCase()
   return normalized.startsWith("obrigad") || normalized.startsWith("valeu")
     || /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|tchau|at[eé] mais)\b/i.test(normalized)
+}
+
+function getSocialResponse(message: string) {
+  const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase()
+  if (/^(obrigad|valeu)\b/.test(normalized)) return "De nada! Se precisar de mais ajuda, é só avisar."
+  if (/^(tchau|ate mais)\b/.test(normalized)) return "Até mais! Se precisar, estou por aqui."
+  return "Olá! Como posso ajudar você hoje?"
 }
 
 function isCommunityQuestion(message: string) {
@@ -72,8 +72,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Envie uma mensagem válida de até 4.000 caracteres." }, { status: 400 })
   }
 
-  const openai = getOpenAiClient()
-  if (!openai) {
+  const provider = getAiProvider()
+  if (!provider) {
     return NextResponse.json({ error: "O assistente ainda não está configurado." }, { status: 503 })
   }
 
@@ -120,14 +120,13 @@ export async function POST(request: Request) {
     role: item.role === "USER" ? "user" as const : "assistant" as const,
     content: item.content,
   }))
-  const faqContext = isSocialMessage(parsed.data.message) || isTechnicalQuestion(parsed.data.message)
+  const faqContext = isSocialMessage(parsed.data.message)
     ? null
-    : await classifyAiFaq(parsed.data.message, openai, model)
+    : await classifyAiFaq(parsed.data.message, provider)
   const routing = faqContext ? null : isSocialMessage(parsed.data.message)
-    ? { action: "respond" as const, query: null, answer: "De nada! Se precisar de mais ajuda, é só avisar.", inputTokens: null, outputTokens: null }
+    ? { action: "respond" as const, query: null, answer: getSocialResponse(parsed.data.message), inputTokens: null, outputTokens: null }
     : await routeAiConversation({
-    openai,
-    model,
+    provider,
     promptText: systemPrompt,
     history: conversationHistory,
     message: parsed.data.message,
@@ -147,7 +146,7 @@ export async function POST(request: Request) {
     ?? (outsidePlatform ? "Posso ajudar somente com a GameDoctor, seus cursos, aulas, comunidade e recursos da plataforma." : null)
     ?? (shouldSearch ? `${AI_NO_CONTENT_MESSAGE} VocÃª pode [solicitar uma aula](${suggestionHref}) para nossa equipe.` : routing?.answer)
     ?? `${AI_NO_CONTENT_MESSAGE} Você pode [solicitar uma aula](${suggestionHref}) para nossa equipe.`
-  let responseModel: string | null = model
+  let responseModel: string | null = provider.model
   let inputTokens: number | null = routing?.inputTokens ?? null
   let outputTokens: number | null = routing?.outputTokens ?? null
   let credits = 0
@@ -160,29 +159,28 @@ export async function POST(request: Request) {
     credits = 1
     usage = await consumeAiCredit(session.user.id, access)
   } else if (context.length > 0) {
-    const completion = await openai.chat.completions.create({
-      model,
+    const completion = await provider.complete({
+      system: [
+        buildAiSystemPrompt(systemPrompt, context),
+        buildAiQuestionDirective(parsed.data.message),
+      ].filter(Boolean).join("\n\n"),
       messages: [
-        { role: "system", content: buildAiSystemPrompt(systemPrompt, context) },
-        ...(buildAiQuestionDirective(parsed.data.message)
-          ? [{ role: "system" as const, content: buildAiQuestionDirective(parsed.data.message)! }]
-          : []),
         ...conversationHistory,
         { role: "user", content: parsed.data.message },
       ],
       temperature: 0.2,
-      max_tokens: Math.max(200, Math.ceil(responseLimit / 3)),
+      maxTokens: Math.max(200, Math.ceil(responseLimit / 3)),
     })
 
-    const completionAnswer = completion.choices[0]?.message?.content?.trim()
+    const completionAnswer = completion.content?.trim()
     if (!completionAnswer) {
       return NextResponse.json({ error: "O assistente não retornou uma resposta." }, { status: 502 })
     }
 
     answer = completionAnswer
-    responseModel = model
-    inputTokens = (inputTokens ?? 0) + (completion.usage?.prompt_tokens ?? 0)
-    outputTokens = (outputTokens ?? 0) + (completion.usage?.completion_tokens ?? 0)
+    responseModel = provider.model
+    inputTokens = (inputTokens ?? 0) + (completion.inputTokens ?? 0)
+    outputTokens = (outputTokens ?? 0) + (completion.outputTokens ?? 0)
     credits = 1
     usage = await consumeAiCredit(session.user.id, access)
   }

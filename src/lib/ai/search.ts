@@ -1,5 +1,6 @@
 import OpenAI from "openai"
 import { db } from "@/lib/db"
+import type { AiProvider } from "./provider"
 
 export interface AiContextItem {
   source: "course" | "lesson" | "knowledge" | "help" | "platform" | "community"
@@ -42,8 +43,12 @@ function getSearchTerms(question: string) {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .split(/[^a-z0-9]+/)
-      .filter((term) => term.length >= 3 && !stopWords.has(term)),
+    .filter((term) => term.length >= 3 && !stopWords.has(term)),
   )).slice(0, 8)
+
+  for (const term of [...terms]) {
+    if (term.endsWith("s") && term.length > 4) terms.push(term.slice(0, -1))
+  }
 
   const normalizedQuestion = normalizeText(question)
   if (/\bps4\b/.test(normalizedQuestion) && !terms.includes("playstation")) terms.unshift("playstation")
@@ -65,7 +70,7 @@ function getDiagnosticCodes(question: string) {
 function isTechnicalQuestion(question: string) {
   const normalized = normalizeText(question)
   return getDiagnosticCodes(question).length > 0
-    || /\b(ps[345]|xbox|nintendo|controle|reparo|defeito|erro|falha|liga|desliga|reinicia|imagem|som|hdmi|fonte|bga|solda|drift|hdd|drive|firmware|update)\b/.test(normalized)
+    || /\b(ps[345]|xbox|nintendo|controle|repar\w*|defeito|erro|falha|liga|desliga|reinicia|imagem|som|hdmi|fonte|bga|solda|drift|hdd|drive|firmware|update)\b/.test(normalized)
 }
 
 function containsTerms(terms: string[], fields: string[]) {
@@ -286,7 +291,11 @@ async function searchFaqContext(question: string, embedding: number[] | null) {
   return ranked.length > 0 ? [ranked[0]] : []
 }
 
-export async function classifyAiFaq(question: string, openai: OpenAI, model: string) {
+export async function classifyAiFaq(
+  question: string,
+  providerOrOpenAi: AiProvider | OpenAI,
+  model = process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini",
+) {
   const articles = await db.helpArticle.findMany({
     where: {
       status: "ACTIVE",
@@ -318,6 +327,53 @@ export async function classifyAiFaq(question: string, openai: OpenAI, model: str
   const catalog = articles.map((article, index) => (
     `[${index}] ${article.title}`
   )).join("\n")
+
+  if ("name" in providerOrOpenAi) {
+    try {
+      const completion = await providerOrOpenAi.complete({
+        system: `Voce classifica perguntas para o assistente da GameDoctor.
+
+Analise a mensagem do usuario contra os titulos de todos os FAQs abaixo. Marque isFaq=true somente quando a mensagem perguntar claramente a mesma coisa que um FAQ, mesmo com erro de digitacao, abreviacao ou parafrase. Compare a intencao principal, nao apenas palavras em comum. Nao force uma correspondencia: se houver duvida, use isFaq=false.
+
+Retorne somente JSON no formato informado. faqIndex deve ser o indice do FAQ escolhido ou null quando nao houver correspondencia segura.
+
+FAQs ativos:
+${catalog}`,
+        messages: [{ role: "user", content: question }],
+        temperature: 0,
+        maxTokens: 80,
+        jsonSchema: {
+          name: "gamedoctor_faq_classification",
+          schema: {
+            type: "object",
+            properties: {
+              isFaq: { type: "boolean" },
+              faqIndex: { type: ["integer", "null"] },
+            },
+            required: ["isFaq", "faqIndex"],
+            additionalProperties: false,
+          },
+        },
+      })
+      const raw = completion.content
+      const decision = raw ? JSON.parse(raw) as { isFaq?: unknown; faqIndex?: unknown } : null
+      const index = decision?.faqIndex
+      if (decision?.isFaq !== true || !Number.isInteger(index) || Number(index) < 0 || Number(index) >= articles.length) return null
+      const article = articles[Number(index)]
+      return {
+        source: "help" as const,
+        title: article.title,
+        text: stripHtml(article.content),
+        href: `/suporte/topico/${article.slug}`,
+        score: 1,
+      }
+    } catch (error) {
+      console.error("[ai/search] Classificacao do FAQ indisponivel; seguindo para as demais fontes.", error)
+      return null
+    }
+  }
+
+  const openai = providerOrOpenAi
 
   try {
     const completion = await openai.chat.completions.create({

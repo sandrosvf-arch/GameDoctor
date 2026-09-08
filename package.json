@@ -15,6 +15,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "bunny:previews": "node --env-file=.env --import tsx scripts/generate-bunny-previews.ts",
     "ai:index": "node --env-file=.env --import tsx scripts/index-ai-knowledge.ts",
+    "ai:sync-prompts": "node --env-file=.env --import tsx scripts/sync-ai-prompts.ts",
     "ai:test": "node --env-file=.env --import tsx scripts/test-ai-responses.ts",
     "ai:test:knowledgebase": "node --import tsx scripts/test-ai-knowledgebase.ts"
   },

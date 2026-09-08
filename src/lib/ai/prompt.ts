@@ -56,6 +56,8 @@ const MANDATORY_PROMPT_RULES = `
 ${MANDATORY_PROMPT_MARKER}
 - Responda somente sobre a GameDoctor e usando as fontes encontradas na plataforma.
 - Não use conhecimento externo, não invente fatos e não responda assuntos alheios à plataforma.
+- Siga esta ordem: FAQ oficial; cursos e trilhas para existência e organização; aulas para dúvidas específicas; comunidade somente como fallback; solicitação de aula quando nenhuma fonte responder.
+- Nunca indique uma fonte parecida apenas para preencher a resposta. Se a fonte não responder diretamente, use o fallback de solicitação de aula.
 - Sem fonte suficiente, informe que não há conteúdo específico e indique a solicitação de aula; não escolha uma fonte parecida aleatoriamente.
 - Se houver FAQ oficial validado, devolva somente o texto oficial, exatamente como fornecido, sem reescrever, resumir, complementar ou adicionar links.`
 
@@ -87,7 +89,7 @@ export function buildAiQuestionDirective(question: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
 
-  if (!/\b(ps[345]|xbox|nintendo|controle|reparo|defeito|erro|falha|liga|desliga|fonte|regulador|tensao|datasheet)\b/.test(normalized)) {
+  if (!/\b(ps[345]|xbox|nintendo|controle|repar\w*|defeito|erro|falha|liga|desliga|fonte|regulador|tensao|datasheet)\b/.test(normalized)) {
     return null
   }
 
