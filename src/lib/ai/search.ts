@@ -2,7 +2,7 @@ import OpenAI from "openai"
 import { db } from "@/lib/db"
 
 export interface AiContextItem {
-  source: "course" | "lesson" | "help" | "platform" | "community"
+  source: "course" | "lesson" | "knowledge" | "help" | "platform" | "community"
   title: string
   text: string
   href: string
@@ -16,6 +16,10 @@ interface SemanticRow {
   text: string
   href: string
   score: number
+}
+
+function getKnowledgeSource(source: AiContextItem["source"], href: string): AiContextItem["source"] {
+  return source === "lesson" && href === "/cursos" ? "knowledge" : source
 }
 
 const EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL?.trim() || "text-embedding-3-small"
@@ -44,11 +48,24 @@ function getSearchTerms(question: string) {
   const normalizedQuestion = normalizeText(question)
   if (/\bps4\b/.test(normalizedQuestion) && !terms.includes("playstation")) terms.unshift("playstation")
   if (/\b(conclu|assistir|continuar)/.test(normalizedQuestion) && !terms.includes("progresso")) terms.unshift("progresso")
+  if (/\b(modul|trilha|organiza|separad|inicio|comec)/.test(normalizedQuestion) && !terms.includes("trilhas")) terms.unshift("trilhas")
   if (/(convers|pergunt|duvid|forum)/.test(normalizedQuestion) && !terms.includes("comunidade")) {
     terms.unshift("comunidade")
   }
 
   return terms.slice(0, 8)
+}
+
+function getDiagnosticCodes(question: string) {
+  return Array.from(new Set(
+    question.toUpperCase().match(/\b(?:SU|CE|E)[-_]?\d{2,6}(?:[-_]\d{1,4})?\b/g) ?? [],
+  ))
+}
+
+function isTechnicalQuestion(question: string) {
+  const normalized = normalizeText(question)
+  return getDiagnosticCodes(question).length > 0
+    || /\b(ps[345]|xbox|nintendo|controle|reparo|defeito|erro|falha|liga|desliga|reinicia|imagem|som|hdmi|fonte|bga|solda|drift|hdd|drive|firmware|update)\b/.test(normalized)
 }
 
 function containsTerms(terms: string[], fields: string[]) {
@@ -77,6 +94,8 @@ function lexicalScore(terms: string[], fields: string[]) {
 
 function isPlatformQuestion(question: string) {
   const normalized = normalizeText(question)
+  if (/\b(modul|trilha|organiza|separad|inicio|comec|progresso|download|suporte|comunidade)\b/.test(normalized)
+    && !/\b(ps[345]|xbox|nintendo|controle|reparo|defeito|erro|bga|drift|hdmi|fonte)\b/.test(normalized)) return true
   const hasTechnicalSubject = /\b(ps[345]|xbox|nintendo|controle|reparo|defeito|erro|bga|drift|hdmi|fonte|anal[oó]gico)\b/.test(normalized)
   return !hasTechnicalSubject && /\b(planos?|progresso|downloads?|materia(?:l|is)|comunidade|suporte|ajuda|trilhas?|cursos?|m[oó]dulos?|organiza|conversar|perguntar|d[uú]vida)\b/.test(normalized)
 }
@@ -169,7 +188,7 @@ async function searchSemanticContext(
           )
         )
     ), deduplicated AS (
-      SELECT *, ROW_NUMBER() OVER (PARTITION BY "href" ORDER BY "score" DESC) AS "position"
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY "source", "sourceId" ORDER BY "score" DESC) AS "position"
       FROM scored
     )
     SELECT "source", "sourceId", "title", "text", "href", "score"
@@ -187,6 +206,7 @@ async function searchSemanticContext(
 
   return rows.map((row) => ({
     ...row,
+    source: getKnowledgeSource(row.source, row.href),
     text: row.source === "help" ? faqContent.get(row.sourceId) ?? stripHtml(row.text) : stripHtml(row.text),
   }))
 }
@@ -362,7 +382,8 @@ async function searchLexicalContext(question: string, technicalMode: boolean): P
   if (terms.length === 0) return []
   const platformQuestion = isPlatformQuestion(question)
 
-  const [platformChunks, courses, lessons] = await Promise.all([
+  const diagnosticCodes = getDiagnosticCodes(question)
+  const [platformChunks, courses, lessons, knowledgeChunks] = await Promise.all([
     db.aiKnowledgeChunk.findMany({
       where: { sourceType: "platform", OR: containsTerms(terms, ["title", "content"]) },
       take: 20,
@@ -388,6 +409,20 @@ async function searchLexicalContext(question: string, technicalMode: boolean): P
         course: { select: { title: true } },
       },
     }),
+    db.aiKnowledgeChunk.findMany({
+      where: {
+        sourceType: "lesson",
+        OR: [
+          ...containsTerms(terms, ["title", "content"]),
+          ...diagnosticCodes.flatMap((code) => [
+            { title: { contains: code, mode: "insensitive" as const } },
+            { content: { contains: code, mode: "insensitive" as const } },
+          ]),
+        ],
+      },
+      take: 100,
+      select: { title: true, content: true, href: true },
+    }),
   ])
 
   const rankedPlatform = platformChunks
@@ -408,7 +443,23 @@ async function searchLexicalContext(question: string, technicalMode: boolean): P
     .sort((left, right) => right.match.score - left.match.score)
     .map(({ lesson }) => lesson)
 
+  const rankedKnowledge = knowledgeChunks
+    .map((chunk) => ({ chunk, match: lexicalScore([...terms, ...diagnosticCodes], [chunk.title, chunk.content]) }))
+    .filter(({ chunk, match }) => {
+      const text = normalizeText(`${chunk.title} ${chunk.content}`)
+      const hasCode = diagnosticCodes.some((code) => text.includes(normalizeText(code)))
+      return diagnosticCodes.length > 0 ? hasCode : match.matchedTerms.length >= Math.min(2, terms.length)
+    })
+    .sort((left, right) => {
+      const leftCodes = diagnosticCodes.filter((code) => normalizeText(`${left.chunk.title} ${left.chunk.content}`).includes(normalizeText(code))).length
+      const rightCodes = diagnosticCodes.filter((code) => normalizeText(`${right.chunk.title} ${right.chunk.content}`).includes(normalizeText(code))).length
+      return rightCodes - leftCodes || right.match.score - left.match.score
+    })
+    .map(({ chunk }) => chunk)
+
   const relevantCourses = !platformQuestion && !isCatalogQuestion(question) && rankedLessons.length > 0 ? [] : rankedCourses
+  const knowledgeFirst = rankedKnowledge.length > 0 && isTechnicalQuestion(question)
+  const knowledgeSource = (chunk: { href: string }) => chunk.href === "/cursos" ? "knowledge" as const : "lesson" as const
 
   return [
     ...(platformQuestion || (rankedCourses.length === 0 && rankedLessons.length === 0) ? rankedPlatform : []).map((chunk) => ({
@@ -417,11 +468,23 @@ async function searchLexicalContext(question: string, technicalMode: boolean): P
       text: stripHtml(chunk.content).slice(0, 1_200),
       href: chunk.href,
     })),
+    ...(knowledgeFirst ? rankedKnowledge.slice(0, 3) : []).map((chunk) => ({
+      source: knowledgeSource(chunk),
+      title: chunk.title,
+      text: technicalMode ? stripHtml(chunk.content).slice(0, 1_200) : "ConteÃºdo tÃ©cnico disponÃ­vel para alunos com plano ativo.",
+      href: chunk.href,
+    })),
     ...relevantCourses.map((course) => ({
       source: "course" as const,
       title: course.title,
       text: stripHtml([course.shortDescription, course.description].filter(Boolean).join(" ")).slice(0, 1_200),
       href: `/trilhas/${course.slug}`,
+    })),
+    ...(!knowledgeFirst ? rankedKnowledge.slice(0, 3) : []).map((chunk) => ({
+      source: knowledgeSource(chunk),
+      title: chunk.title,
+      text: technicalMode ? stripHtml(chunk.content).slice(0, 1_200) : "ConteÃºdo tÃ©cnico disponÃ­vel para alunos com plano ativo.",
+      href: chunk.href,
     })),
     ...rankedLessons.map((lesson) => ({
       source: "lesson" as const,
@@ -483,7 +546,7 @@ export async function searchAiContext(
     embedding = options?.embedding === undefined
       ? await createQuestionEmbedding(question)
       : options.embedding
-    if (!options?.skipFaq) {
+    if (!options?.skipFaq && !isTechnicalQuestion(question)) {
       const faq = await searchFaqContext(question, embedding)
       if (faq.length > 0) return faq
     }
@@ -502,7 +565,15 @@ export async function searchAiContext(
         .filter((item) => hasSpecificLearning && !isPlatformQuestion(question) && !isCatalogQuestion(question)
           ? item.source !== "platform" && item.source !== "course"
           : true)
-      if ((relevantSemantic[0]?.score ?? 0) >= MIN_LEARNING_SCORE) return relevantSemantic
+      const diagnosticCodes = getDiagnosticCodes(question)
+      const exactLesson = diagnosticCodes.length > 0
+        ? relevantSemantic.find((item) => item.source === "lesson"
+          && diagnosticCodes.some((code) => normalizeText(item.title).includes(normalizeText(code))))
+        : undefined
+      const orderedSemantic = exactLesson
+        ? [exactLesson, ...relevantSemantic.filter((item) => item !== exactLesson)]
+        : relevantSemantic
+      if ((orderedSemantic[0]?.score ?? 0) >= MIN_LEARNING_SCORE) return orderedSemantic
 
       const community = await searchSemanticContext(question, embedding, technicalMode, "community")
       if ((community[0]?.score ?? 0) >= MIN_LEARNING_SCORE) return community

@@ -79,6 +79,14 @@ export function TrailRowView({ row }: TrailRowViewProps) {
 
                 {/* Top-left badge */}
                 <div className="absolute left-2.5 top-2.5 z-20 flex gap-1.5">
+                  {card.isFree ? (
+                    <span
+                      className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
+                      style={{ backgroundColor: "#10b981", color: "#ffffff" }}
+                    >
+                      GRÁTIS
+                    </span>
+                  ) : null}
                   {badgeLabel ? (
                     <span
                       className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
@@ -86,7 +94,7 @@ export function TrailRowView({ row }: TrailRowViewProps) {
                     >
                       {badgeLabel}
                     </span>
-                  ) : platformBadge && (platformBadge !== "GRÁTIS" || card.isFree) ? (
+                  ) : platformBadge && platformBadge !== "GRÁTIS" ? (
                     <span
                       className="rounded px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.18em]"
                       style={{ backgroundColor: brandColor, color: badgeTextColor }}

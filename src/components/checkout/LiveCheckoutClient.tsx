@@ -85,10 +85,10 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote:
   const [submitting, setSubmitting] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pix, setPix] = useState<{ orderId: string; qrCodeBase64: string; copyPaste: string; expiresAt: string | null } | null>(null)
-  const [copied, setCopied] = useState(false)
   const [loadingCep, setLoadingCep] = useState(false)
   const [cepError, setCepError] = useState<string | null>(null)
+  const [pix, setPix] = useState<{ orderId: string; qrCodeBase64: string; copyPaste: string; expiresAt: string | null } | null>(null)
+  const [copied, setCopied] = useState(false)
   const attemptRef = useRef(newAttempt())
   const submittingRef = useRef(false)
   const cardContainerRef = useRef<HTMLDivElement>(null)
@@ -337,7 +337,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote:
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-300 text-sm font-bold text-slate-950">2</span>
                 <div><h2 className="font-semibold">Escolha como pagar</h2><p className="text-xs text-slate-500">Pagamento seguro e acesso liberado após confirmação.</p></div>
               </div>
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
+              <div className="mt-5 grid gap-3 md:grid-cols-2 [&>button:nth-child(3)]:hidden">
                 <MethodButton active={method === "card"} icon={<CreditCard className="h-5 w-5" />} title="Cartão" description="Parcele em até 12x" onClick={() => chooseMethod("card")} />
                 <MethodButton active={method === "pix"} icon={<QrCode className="h-5 w-5" />} title="Pix" description={`${currency(quote.finalTotal)} à vista`} onClick={() => chooseMethod("pix")} />
                 <MethodButton active={method === "pagaleve"} icon={<Wallet className="h-5 w-5" />} title="Parcelamento via Pix" description={`${currency(quote.installmentTotal)} no total, pela Pagaleve`} onClick={() => chooseMethod("pagaleve")} />

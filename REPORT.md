@@ -113,3 +113,21 @@ As demandas do `.todo` foram processadas com alterações localizadas em navega�
 - O prompt pago recebeu um adendo de compatibilidade para impedir conhecimento externo, fontes inventadas e reescrita de FAQ.
 - Os dois prompts foram gravados via HTTPS nas chaves `ai.system_prompt_paid` e `ai.system_prompt_free` do Supabase.
 - Validacao: pago com 10.260 caracteres, gratuito com 3.154; teste direcionado do prompt e TypeScript aprovados.
+
+## Validacao adicional - 07/09/2026
+
+- Home e cards: aulas gratuitas agora exibem o selo `GRATIS` nos cards da home e nos cards reutilizados pela plataforma, sem duplicar o selo de plataforma.
+- Header mobile: busca recebeu borda azul e o menu passou a expor os mesmos destinos de conta do desktop, incluindo Dashboard, Perfil e painel administrativo quando aplicavel.
+- Smart Checkout: a abertura visual foi alinhada ao arquivo `LiveCheckoutClient_ATUALIZADO.txt`, com oferta direta, beneficios vindos do plano e somente Cartao/Pix visiveis na experiencia.
+- Assistente: links curtos ou malformados agora apontam para a primeira fonte validada; perguntas sobre comunidade preservam essa intencao na consulta; perguntas sobre progresso e conclusao acionam busca.
+- Bateria online final: `npm run ai:test` aprovou `110/110` cenarios usando FAQs, aulas, trilhas, comunidade, conversas encadeadas, usuario gratuito e perguntas sem conteudo.
+- Validacoes locais: `npx tsc --noEmit --incremental false` e `git diff --check` aprovados.
+
+## Correcao de grounding tecnico - 07/09/2026
+
+- Trechos JSON importados com link `/cursos` agora sao expostos ao modelo como fonte `knowledge`, e nao como aula navegavel.
+- A busca preserva a fonte tecnica importada e promove a aula real quando o mesmo codigo de erro aparece no titulo da aula.
+- Perguntas tecnicas amplas agora pedem modelo, fonte conhecida, sinais de vida, tensoes de standby e reguladores antes de sugerir procedimento.
+- Perguntas especificas sobre reguladores, tensoes ou componentes usam os passos recuperados do RAG, sem substituir o conteudo por uma resposta generica.
+- O finalizador nao cria mais link `/aula/...` por titulo nem transforma material sem aula especifica em recomendacao de aula.
+- Bateria focada: `4/4` cenarios de Xbox/PS4 aprovados; bateria completa: `113/113` cenarios aprovados.

@@ -4,7 +4,7 @@ import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { consumeAiCredit, getAiUsageStatus, resolveAiAccess } from "@/lib/ai/access"
-import { AI_NO_CONTENT_MESSAGE, buildAiSystemPrompt, finalizeAiAnswer } from "@/lib/ai/prompt"
+import { AI_NO_CONTENT_MESSAGE, buildAiQuestionDirective, buildAiSystemPrompt, finalizeAiAnswer } from "@/lib/ai/prompt"
 import { getAiSystemPrompts } from "@/lib/ai/settings"
 import { classifyAiFaq, searchAiContext } from "@/lib/ai/search"
 import { routeAiConversation } from "@/lib/ai/router"
@@ -17,12 +17,19 @@ const bodySchema = z.object({
 const model = process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini"
 
 function isKnowledgeQuestion(message: string) {
-  const normalized = message.trim().toLowerCase()
+  const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase()
+  if (/\b(modulo|modulos|trilha|trilhas|organiza|separad|progresso|conclu\w*|assist\w*|continuar|download|suporte|comunidade)\b/.test(normalized)) return true
   if (normalized.startsWith("obrigad") || normalized.startsWith("valeu")) return false
   const social = /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|obrigad|valeu|tchau|at[eé] mais)\b/i.test(normalized)
   if (social) return false
   if (/^como fa[cç]o isso funcionar\b/i.test(normalized)) return false
   return /\b(ps[345]|xbox|nintendo|controle|aula|curso|trilha|defeito|erro|reparo|assist[eê]ncia|plano|pre[cç]o|pagar|comprar|cart[aã]o|pix|login|senha|cadastro|email|cpf|acesso|conta|comunidade|ferramenta|ajuda|suporte|progresso|download|assinatura|conversar|perguntar|d[uú]vida)\b/i.test(message)
+}
+
+function isTechnicalQuestion(message: string) {
+  const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  return /\b(?:su|ce|e)[-_]?\d{2,6}(?:[-_]\d{1,4})?\b/.test(message.toLowerCase())
+    || /\b(ps[345]|xbox|nintendo|controle|reparo|defeito|erro|falha|liga|desliga|reinicia|imagem|som|hdmi|fonte|bga|solda|drift|hdd|drive|firmware|update)\b/.test(normalized)
 }
 
 function isOutsidePlatformQuestion(message: string) {
@@ -47,6 +54,11 @@ function isSocialMessage(message: string) {
   const normalized = message.trim().toLowerCase()
   return normalized.startsWith("obrigad") || normalized.startsWith("valeu")
     || /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|tchau|at[eé] mais)\b/i.test(normalized)
+}
+
+function isCommunityQuestion(message: string) {
+  const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  return /\b(comunidade|forum|topico|relato|outros alunos|alguem comentou)\b/.test(normalized)
 }
 
 export async function POST(request: Request) {
@@ -108,7 +120,7 @@ export async function POST(request: Request) {
     role: item.role === "USER" ? "user" as const : "assistant" as const,
     content: item.content,
   }))
-  const faqContext = isSocialMessage(parsed.data.message)
+  const faqContext = isSocialMessage(parsed.data.message) || isTechnicalQuestion(parsed.data.message)
     ? null
     : await classifyAiFaq(parsed.data.message, openai, model)
   const routing = faqContext ? null : isSocialMessage(parsed.data.message)
@@ -122,7 +134,9 @@ export async function POST(request: Request) {
   })
   const outsidePlatform = !faqContext && routing?.action === "respond" && isOutsidePlatformQuestion(parsed.data.message)
   const shouldSearch = Boolean(faqContext) || routing?.action === "search" || isKnowledgeQuestion(parsed.data.message)
-  const searchQuery = routing?.query ?? parsed.data.message
+  const searchQuery = isCommunityQuestion(parsed.data.message)
+    ? parsed.data.message
+    : routing?.query ?? parsed.data.message
   const context = faqContext
     ? [faqContext]
     : shouldSearch
@@ -150,6 +164,9 @@ export async function POST(request: Request) {
       model,
       messages: [
         { role: "system", content: buildAiSystemPrompt(systemPrompt, context) },
+        ...(buildAiQuestionDirective(parsed.data.message)
+          ? [{ role: "system" as const, content: buildAiQuestionDirective(parsed.data.message)! }]
+          : []),
         ...conversationHistory,
         { role: "user", content: parsed.data.message },
       ],

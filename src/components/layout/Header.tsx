@@ -520,7 +520,7 @@ export function Header() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="O que você procura?"
-                    className="h-10 min-w-0 flex-1 rounded-lg border border-border/60 bg-muted/40 pl-8 pr-3 text-base placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    className="h-10 min-w-0 flex-1 rounded-lg border border-cyan-500/70 bg-muted/40 pl-8 pr-3 text-base placeholder:text-muted-foreground/60 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
                   />
                   <Button type="submit" size="icon" className="h-10 w-10 shrink-0" aria-label="Buscar">
                     <Search className="h-4 w-4" />
@@ -605,11 +605,18 @@ export function Header() {
                       </Link>
                     ) : null}
                     <Link
-                      href="/minha-conta"
+                      href="/dashboard"
                       onClick={() => setMobileOpen(false)}
                       className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
                     >
                       Minha conta
+                    </Link>
+                    <Link
+                      href="/minha-conta"
+                      onClick={() => setMobileOpen(false)}
+                      className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary"
+                    >
+                      Perfil
                     </Link>
                     {isAdminUser ? (
                       <Link

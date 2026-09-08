@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 import { db } from "../src/lib/db"
-import { AI_NO_CONTENT_MESSAGE, buildAiSystemPrompt, finalizeAiAnswer } from "../src/lib/ai/prompt"
+import { AI_NO_CONTENT_MESSAGE, buildAiQuestionDirective, buildAiSystemPrompt, finalizeAiAnswer } from "../src/lib/ai/prompt"
 import { routeAiConversation, type AiRoutingHistoryItem } from "../src/lib/ai/router"
 import { classifyAiFaq, searchAiContext } from "../src/lib/ai/search"
 import { getAiSystemPrompts } from "../src/lib/ai/settings"
@@ -25,6 +25,8 @@ type TestCase = {
   expectedFaqAnswer?: string
   tier?: "paid" | "free"
   expectedRestricted?: boolean
+  answerMustInclude?: string[]
+  answerMustNotInclude?: string[]
 }
 
 const cases: TestCase[] = [
@@ -75,7 +77,7 @@ const cases: TestCase[] = [
     name: "fallback da comunidade",
     message: "Na comunidade alguém comentou sobre um PS5 que liga, fica poucos segundos ligado e desliga sozinho?",
     expectedAction: "search",
-    expectedHref: "51654ca9-9b4e-47ed-9c37-5972f4c024c9",
+    expectedHref: "ps5-liga-e-desliga-apos-alguns-segundos",
   },
   {
     name: "funcionamento da comunidade",
@@ -97,6 +99,30 @@ const cases: TestCase[] = [
 ]
 
 const additionalCases: TestCase[] = [
+  {
+    name: "Xbox sem ligar exige triagem",
+    category: "diagnostico-rag",
+    message: "Meu Xbox nao liga, por onde comeco?",
+    expectedAction: "search",
+    answerMustInclude: ["fonte", "regul"],
+    answerMustNotInclude: ["comece pela fonte", "a causa e"],
+  },
+  {
+    name: "Xbox 360 regulador do RAG",
+    category: "diagnostico-rag",
+    message: "Meu Xbox 360 nao liga e preciso entender o teste do regulador de tensao.",
+    expectedAction: "search",
+    expectedHref: "1ae3c747-b533-4b41-99db-843f7b56aaea",
+    answerMustInclude: ["regul", "tens"],
+  },
+  {
+    name: "Xbox original tensoes e componentes",
+    category: "diagnostico-rag",
+    message: "Xbox original 1.6 nao liga. Quero saber quais tensoes e componentes devo investigar.",
+    expectedAction: "search",
+    expectedHref: "1834de4e-0317-4bd0-a480-3d8d6faa5214",
+    answerMustInclude: ["tens", "regul"],
+  },
   { name: "PS4 abreviado", category: "aulas", message: "ps4 n liga, tem aula?", expectedAction: "search" },
   { name: "Xbox com erro de escrita", category: "aulas", message: "xbox one nao liga e fica piscano", expectedAction: "search" },
   { name: "Nintendo resumido", category: "aulas", message: "switch n carrega", expectedAction: "search" },
@@ -167,7 +193,8 @@ async function loadFaqCases(): Promise<TestCase[]> {
 }
 
 function isKnowledgeQuestion(message: string) {
-  const normalized = message.trim().toLowerCase()
+  const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase()
+  if (/\b(modulo|modulos|trilha|trilhas|organiza|separad|progresso|conclu\w*|assist\w*|continuar|download|suporte|comunidade)\b/.test(normalized)) return true
   if (normalized.startsWith("obrigad") || normalized.startsWith("valeu")) return false
   const social = /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|obrigad|valeu|tchau|at[eé] mais)\b/i.test(normalized)
   if (social) return false
@@ -188,9 +215,18 @@ function isSocialMessage(message: string) {
     || /^(oi|ol[aá]|opa|bom dia|boa tarde|boa noite|tudo bem|tchau|at[eé] mais)\b/i.test(normalized)
 }
 
+function isCommunityQuestion(message: string) {
+  const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  return /\b(comunidade|forum|topico|relato|outros alunos|alguem comentou)\b/.test(normalized)
+}
+
 async function main() {
   const prompts = await getAiSystemPrompts()
   const allCases = [...await loadFaqCases(), ...cases, ...additionalCases]
+    .filter((testCase) => {
+      const filter = process.env.AI_TEST_FILTER?.trim()
+      return !filter || new RegExp(filter, "i").test(`${testCase.name} ${testCase.category ?? ""}`)
+    })
   let passed = 0
   const categoryTotals = new Map<string, { passed: number; total: number }>()
   const failures: string[] = []
@@ -217,7 +253,9 @@ async function main() {
     })
     const forceSearch = isKnowledgeQuestion(testCase.message)
     const effectiveAction = faqContext || forceSearch ? "search" : routing?.action
-    const searchQuery = routing?.query ?? testCase.message
+    const searchQuery = isCommunityQuestion(testCase.message)
+      ? testCase.message
+      : routing?.query ?? testCase.message
     const context = faqContext
       ? [faqContext]
       : (routing?.action === "search" || forceSearch)
@@ -236,6 +274,9 @@ async function main() {
         model,
         messages: [
           { role: "system", content: buildAiSystemPrompt(systemPrompt, context) },
+          ...(buildAiQuestionDirective(testCase.message)
+            ? [{ role: "system" as const, content: buildAiQuestionDirective(testCase.message)! }]
+            : []),
           ...(testCase.history ?? []),
           { role: "user", content: testCase.message },
         ],
@@ -262,7 +303,12 @@ async function main() {
     const restrictedOk = !testCase.expectedRestricted || context
       .filter((item) => item.source === "lesson" || item.source === "community")
       .every((item) => item.text.includes("plano ativo"))
-    const ok = actionOk && hrefOk && sourceOk && noContentOk && queryOk && noUnexpectedRetrieval && primaryLinkOk && answerOk && faqAnswerOk && restrictedOk
+    const normalizedAnswer = normalize(answer)
+    const answerIncludesOk = !testCase.answerMustInclude
+      || testCase.answerMustInclude.every((term) => normalizedAnswer.includes(normalize(term)))
+    const answerExcludesOk = !testCase.answerMustNotInclude
+      || testCase.answerMustNotInclude.every((term) => !normalizedAnswer.includes(normalize(term)))
+    const ok = actionOk && hrefOk && sourceOk && noContentOk && queryOk && noUnexpectedRetrieval && primaryLinkOk && answerOk && faqAnswerOk && restrictedOk && answerIncludesOk && answerExcludesOk
     if (ok) {
       passed += 1
       categoryResult.passed += 1
@@ -278,6 +324,8 @@ async function main() {
         !answerOk && "resposta",
         !faqAnswerOk && "FAQ nÃ£o literal",
         !restrictedOk && "vazamento gratuito",
+        !answerIncludesOk && "conteudo RAG ausente",
+        !answerExcludesOk && "orientacao generica",
       ].filter(Boolean).join(", ")}`)
     }
 
