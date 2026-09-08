@@ -20,6 +20,7 @@ export interface CheckoutQuote {
   subtotal: number
   discountTotal: number
   finalTotal: number
+  pixTotal: number
   installmentTotal: number
   installments: {
     max: number
@@ -303,6 +304,9 @@ export async function buildCheckoutQuote(input: {
   ])
 
   const finalTotal = Math.max(0, Number((offer.subtotal - couponResult.discountTotal).toFixed(2)))
+  const pixTotal = plan.slug === "plano-anual" && offer.period === "annual"
+    ? Math.max(0, Number((697 - couponResult.discountTotal).toFixed(2)))
+    : finalTotal
   const cardEstimate = getCardEstimate(
     finalTotal,
     plan.maxInstallments,
@@ -325,6 +329,7 @@ export async function buildCheckoutQuote(input: {
     subtotal: offer.subtotal,
     discountTotal: couponResult.discountTotal,
     finalTotal,
+    pixTotal,
     installmentTotal: cardEstimate.total,
     installments: {
       max: plan.maxInstallments,

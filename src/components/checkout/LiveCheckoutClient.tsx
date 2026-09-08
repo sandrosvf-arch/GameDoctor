@@ -303,7 +303,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 <div className="shrink-0 sm:text-right">
                   <p className="text-xs">No cartão</p>
                   <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">12x de {currency(quote.cardEstimate.installmentAmount)}</p>
-                  <p className="mt-1 text-xs">ou {currency(quote.finalTotal)} à vista</p>
+                  <p className="mt-1 text-xs">ou {currency(quote.pixTotal)} à vista</p>
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/[0.08] pt-4 text-xs text-slate-300">
@@ -338,7 +338,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <MethodButton active={method === "card"} icon={<CreditCard className="h-5 w-5" />} title="Cartão" description="Parcele em até 12x" onClick={() => chooseMethod("card")} />
-                <MethodButton active={method === "pix"} icon={<QrCode className="h-5 w-5" />} title="Pix" description={`${currency(quote.finalTotal)} à vista`} onClick={() => chooseMethod("pix")} />
+                <MethodButton active={method === "pix"} icon={<QrCode className="h-5 w-5" />} title="Pix" description={`${currency(quote.pixTotal)} à vista`} onClick={() => chooseMethod("pix")} />
                 {pagaleveEnabled && <MethodButton active={method === "pagaleve"} icon={<Wallet className="h-5 w-5" />} title="Parcelamento via Pix" description={`${currency(quote.installmentTotal)} no total, pela Pagaleve`} onClick={() => chooseMethod("pagaleve")} />}
               </div>
 
@@ -355,7 +355,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                   <div className="space-y-4">
                     {!pix ? <>
                       <Field label="CPF do pagador" value={cpf} onChange={(value) => setCpf(value.replace(/\D/g, "").slice(0, 11))} inputMode="numeric" placeholder="00000000000" />
-                      <button type="button" onClick={() => void submitPix()} disabled={submitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 font-semibold text-slate-950 disabled:opacity-50">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}Gerar Pix de {currency(quote.finalTotal)}</button>
+                      <button type="button" onClick={() => void submitPix()} disabled={submitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 font-semibold text-slate-950 disabled:opacity-50">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}Gerar Pix de {currency(quote.pixTotal)}</button>
                     </> : <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.04] p-4">
                       <div className="grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
                         <img src={`data:image/png;base64,${pix.qrCodeBase64}`} alt="QR Code Pix" className="mx-auto aspect-square w-44 rounded-lg bg-white p-2" />
@@ -396,7 +396,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
             <div className="my-5 border-y border-white/[0.08] py-5">
               <p className="text-sm text-slate-400">No cartão</p>
               <p className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-white">12x de {currency(quote.cardEstimate.installmentAmount)}</p>
-              <p className="mt-2 text-xs text-slate-500">ou {currency(quote.finalTotal)} à vista no Pix</p>
+              <p className="mt-2 text-xs text-slate-500">ou {currency(quote.pixTotal)} à vista no Pix</p>
             </div>
             <ul className="space-y-3">{quote.plan.benefits.map((benefit) => <li key={benefit} className="flex gap-2 text-sm text-slate-300"><Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />{benefit}</li>)}</ul>
             <div className="mt-6 flex items-center gap-3 rounded-xl border border-emerald-300/15 bg-emerald-300/[0.05] p-3"><ShieldCheck className="h-5 w-5 shrink-0 text-emerald-300" /><p className="text-xs leading-5 text-slate-400">Pagamento protegido. O acesso é enviado após a confirmação.</p></div>

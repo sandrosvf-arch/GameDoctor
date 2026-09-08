@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       idempotencyKey,
     })
 
-    if (checkout.quote.finalTotal <= 0) {
+    if (checkout.quote.pixTotal <= 0) {
       return NextResponse.json({ error: "O valor final do pedido precisa ser maior que zero." }, { status: 400 })
     }
 
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
 
     const payment = await createMercadoPagoPixPayment({
       externalReference: checkout.orderId,
-      amount: checkout.quote.finalTotal,
+      amount: checkout.quote.pixTotal,
       description: checkout.quote.plan.name + " - " + checkout.quote.periodLabel,
       payer: {
         email: getMercadoPagoPayerEmail(user.email),
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
           paymentMethod,
           paymentStatus,
           installments: 1,
-          amount: checkout.quote.finalTotal,
+          amount: checkout.quote.pixTotal,
           pixQrCode: qrCodeBase64,
           pixCopyPaste: copyPaste,
           expiresAt,

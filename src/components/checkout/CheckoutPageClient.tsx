@@ -63,6 +63,7 @@ interface CheckoutQuote {
   subtotal: number
   discountTotal: number
   finalTotal: number
+  pixTotal: number
   installmentTotal: number
   installments: { max: number; noInterest: number }
   cardEstimate: { total: number; installmentAmount: number }
@@ -562,7 +563,7 @@ export function CheckoutPageClient({
     : null
   const showCardEstimate = selectedPaymentMethod === null || selectedPaymentMethod === "card"
   const checkoutTotal = selectedCardInstallment?.totalAmount
-    ?? (showCardEstimate ? quote.cardEstimate.total : quote.finalTotal)
+    ?? (showCardEstimate ? quote.cardEstimate.total : selectedPaymentMethod === "pix" ? quote.pixTotal : quote.finalTotal)
   const checkoutSubtotal = selectedCardInstallment
     ? checkoutTotal + quote.discountTotal
     : showCardEstimate
@@ -893,7 +894,7 @@ export function CheckoutPageClient({
                           disabled={submittingPayment || cpf.replace(/\D/g, "").length !== 11}
                           className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {submittingPayment ? <><Loader2 className="h-4 w-4 animate-spin" />Gerando Pix...</> : <><QrCode className="h-4 w-4" />Gerar Pix de {formatCurrency(quote.finalTotal)}</>}
+                          {submittingPayment ? <><Loader2 className="h-4 w-4 animate-spin" />Gerando Pix...</> : <><QrCode className="h-4 w-4" />Gerar Pix de {formatCurrency(quote.pixTotal)}</>}
                         </button>
                       </>
                     ) : pixPayment.status === "APPROVED" ? (

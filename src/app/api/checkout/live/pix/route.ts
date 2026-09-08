@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     }
     const payment = await createMercadoPagoPixPayment({
       externalReference: checkout.orderId,
-      amount: checkout.quote.finalTotal,
+      amount: checkout.quote.pixTotal,
       description: `${checkout.quote.plan.name} - ${checkout.quote.periodLabel}`,
       payer: {
         email: getMercadoPagoPayerEmail(user.email),
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
           gatewayPaymentId: String(payment.id),
           paymentMethod: "PIX",
           paymentStatus: status,
-          amount: checkout.quote.finalTotal,
+          amount: checkout.quote.pixTotal,
           installments: 1,
           pixQrCode: qrCodeBase64,
           pixCopyPaste: copyPaste,
