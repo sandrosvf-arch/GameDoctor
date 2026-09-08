@@ -30,8 +30,15 @@ async function main() {
   const uploadData = await readJson<{ signedUrl?: string; path?: string; error?: string }>(uploadUrlResponse)
   if (!uploadUrlResponse.ok || !uploadData.signedUrl || !uploadData.path) throw new Error(uploadData.error || `Falha ao preparar publicação (${uploadUrlResponse.status}).`)
 
-  const uploadResponse = await fetch(uploadData.signedUrl, { method: "PUT", headers: { "content-type": "application/zip" }, body: file })
-  if (!uploadResponse.ok) throw new Error(`Falha ao enviar o arquivo (${uploadResponse.status}).`)
+  const uploadResponse = await fetch(uploadData.signedUrl, {
+    method: "PUT",
+    headers: { "cache-control": "max-age=3600", "content-type": "application/zip", "x-upsert": "false" },
+    body: file,
+  })
+  if (!uploadResponse.ok) {
+    const details = (await uploadResponse.text().catch(() => "")).slice(0, 300).replace(/\s+/g, " ")
+    throw new Error(`Falha ao enviar o arquivo (${uploadResponse.status}): ${details}`)
+  }
 
   const releaseResponse = await fetch(`${apiUrl}/api/software/releases`, {
     method: "POST",
