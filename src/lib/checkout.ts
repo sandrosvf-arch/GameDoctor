@@ -513,7 +513,7 @@ export async function listPublicPlans(userId?: string | null) {
       {
         period: "annual" as const,
         label: "Anual",
-        price: toNumber(plan.annualPrice),
+        price: plan.slug === "plano-anual" ? 697 : toNumber(plan.annualPrice),
         cardEstimate: getCardEstimate(
           toNumber(plan.annualPrice),
           plan.maxInstallments,
