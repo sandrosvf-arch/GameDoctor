@@ -71,7 +71,7 @@ function MethodButton({ active, icon, title, description, onClick }: {
   )
 }
 
-export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote: CheckoutQuote; planSlug: string; initialProfile: Profile | null }) {
+export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEnabled }: { quote: CheckoutQuote; planSlug: string; initialProfile: Profile | null; pagaleveEnabled: boolean }) {
   const [customer, setCustomer] = useState({
     name: initialProfile?.name ?? "",
     email: initialProfile?.email ?? "",
@@ -336,10 +336,10 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile }: { quote:
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-300 text-sm font-bold text-slate-950">2</span>
                 <div><h2 className="font-semibold">Escolha como pagar</h2><p className="text-xs text-slate-500">Pagamento seguro e acesso liberado após confirmação.</p></div>
               </div>
-              <div className="mt-5 grid gap-3 md:grid-cols-2 [&>button:nth-child(3)]:hidden">
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <MethodButton active={method === "card"} icon={<CreditCard className="h-5 w-5" />} title="Cartão" description="Parcele em até 12x" onClick={() => chooseMethod("card")} />
                 <MethodButton active={method === "pix"} icon={<QrCode className="h-5 w-5" />} title="Pix" description={`${currency(quote.finalTotal)} à vista`} onClick={() => chooseMethod("pix")} />
-                <MethodButton active={method === "pagaleve"} icon={<Wallet className="h-5 w-5" />} title="Parcelamento via Pix" description={`${currency(quote.installmentTotal)} no total, pela Pagaleve`} onClick={() => chooseMethod("pagaleve")} />
+                {pagaleveEnabled && <MethodButton active={method === "pagaleve"} icon={<Wallet className="h-5 w-5" />} title="Parcelamento via Pix" description={`${currency(quote.installmentTotal)} no total, pela Pagaleve`} onClick={() => chooseMethod("pagaleve")} />}
               </div>
 
               <div className="mt-5 border-t border-white/[0.07] pt-5">

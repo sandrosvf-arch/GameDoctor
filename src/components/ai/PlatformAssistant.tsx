@@ -90,6 +90,7 @@ function PlatformAssistantContent({
 
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
   const isLessonPage = pathname.startsWith("/aula/")
+  const showLessonAssistantBadge = pathname === "/aula/bunny/c145f9b5-8176-414b-89c1-92666d551ce5"
   const hideFloatingAssistant = pathname.startsWith("/checkout/live")
   const isAboutUsPage = pathname.startsWith("/quem-somos")
   const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
@@ -329,9 +330,9 @@ function PlatformAssistantContent({
         >
           <WhatsAppIcon className="h-5 w-5" />
         </a>
-        {!hideFloatingAssistant && <button type="button" onClick={() => setOpen((value) => !value)} className={`flex items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-950/30 transition hover:bg-cyan-300 ${isLessonPage ? "h-11 w-11 px-0 md:h-12 md:w-auto md:px-4" : "h-12 px-4"}`} title="Abrir assistente">
+        {!hideFloatingAssistant && <button type="button" onClick={() => setOpen((value) => !value)} className={`flex items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-950/30 transition hover:bg-cyan-300 ${isLessonPage && !showLessonAssistantBadge ? "h-11 w-11 px-0 md:h-12 md:w-auto md:px-4" : "h-11 px-4 md:h-12"}`} title="Abrir assistente">
           {open ? <X className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-          <span className={isLessonPage ? "sr-only md:not-sr-only" : undefined}>Fale com nossa IA</span>
+          <span className={isLessonPage && !showLessonAssistantBadge ? "sr-only md:not-sr-only" : undefined}>Fale com nossa IA</span>
         </button>}
       </div>}
     </div>

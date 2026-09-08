@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getLiveCheckoutQuote } from "@/lib/live-checkout"
 import { LiveCheckoutClient } from "@/components/checkout/LiveCheckoutClient"
+import { isPagaleveEnabled } from "@/lib/payment/providers/pagaleve"
 
 export const dynamic = "force-dynamic"
 
@@ -37,6 +38,7 @@ export default async function LiveCheckoutPage({ searchParams }: { searchParams:
       <LiveCheckoutClient
         quote={quote}
         planSlug={planSlug}
+        pagaleveEnabled={isPagaleveEnabled()}
         initialProfile={profile ? {
           name: profile.name,
           email: profile.email,

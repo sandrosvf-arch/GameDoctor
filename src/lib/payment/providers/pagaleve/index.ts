@@ -51,6 +51,10 @@ export type PagalevePayment = {
 
 let tokenCache: { value: string; expiresAt: number } | null = null
 
+export function isPagaleveEnabled() {
+  return ["1", "true", "yes", "on"].includes(process.env.PAGALEVE_ENABLED?.trim().toLowerCase() ?? "")
+}
+
 function getPagaleveBaseUrl() {
   const environment = process.env.PAGALEVE_ENVIRONMENT?.trim().toLowerCase()
   return environment === "production" || environment === "prod"

@@ -7,6 +7,7 @@ import {
   createPagaleveCheckout,
   getPagaleveCheckoutId,
   getPagaleveCheckoutUrl,
+  isPagaleveEnabled,
 } from "@/lib/payment/providers/pagaleve"
 
 function normalizeText(value: unknown, maxLength: number) {
@@ -46,6 +47,10 @@ function getPagaleveCallbackBaseUrl() {
 }
 
 export async function POST(request: Request) {
+  if (!isPagaleveEnabled()) {
+    return NextResponse.json({ error: "O Parcelamento via Pix está temporariamente indisponível." }, { status: 404 })
+  }
+
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Faça login para continuar." }, { status: 401 })

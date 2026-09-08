@@ -54,7 +54,7 @@ export function MemberMobileNav() {
 
   return (
     <nav className="border-b border-border/40 bg-zinc-950/95 lg:hidden" aria-label="Navegação da área do aluno">
-      <div className="grid grid-cols-3 gap-1 px-3 py-2">
+      <div className="flex gap-1 overflow-x-auto px-3 py-2 scrollbar-none">
         {items.map((item) => {
           const Icon = item.icon
           const isActive =
@@ -67,14 +67,14 @@ export function MemberMobileNav() {
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center text-[11px] font-medium leading-tight transition-colors",
+                "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
                 isActive
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
               )}
             >
               <Icon className="h-4 w-4" />
-              <span className="text-[14px]">{item.label}</span>
+              <span>{item.label}</span>
             </Link>
           )
         })}

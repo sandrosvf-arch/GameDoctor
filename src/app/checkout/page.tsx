@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { areCheckoutCouponsEnabled, buildCheckoutQuote, normalizeCheckoutPeriod } from "@/lib/checkout"
 import { CheckoutPageClient } from "@/components/checkout/CheckoutPageClient"
 import { getMercadoPagoPayerEmail } from "@/lib/payment/providers/mercadopago"
+import { isPagaleveEnabled } from "@/lib/payment/providers/pagaleve"
 
 type CheckoutPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
@@ -80,6 +81,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
         <CheckoutPageClient
           initialQuote={quote}
           couponsEnabled={areCheckoutCouponsEnabled()}
+          pagaleveEnabled={isPagaleveEnabled()}
           profile={{
             name: profile.name ?? "Aluno",
             email: getMercadoPagoPayerEmail(profile.email),

@@ -7,6 +7,7 @@ import {
   createPagaleveCheckout,
   getPagaleveCheckoutId,
   getPagaleveCheckoutUrl,
+  isPagaleveEnabled,
 } from "@/lib/payment/providers/pagaleve"
 
 function normalizeText(value: unknown, maxLength: number) {
@@ -36,6 +37,10 @@ function getPublicBaseUrl() {
 }
 
 export async function POST(request: Request) {
+  if (!isPagaleveEnabled()) {
+    return NextResponse.json({ error: "O Parcelamento via Pix está temporariamente indisponível." }, { status: 404 })
+  }
+
   const body = await request.json().catch(() => null)
   const cpf = String(body?.cpf ?? "").replace(/\D/g, "").slice(0, 11)
   const planSlug = normalizeText(body?.planSlug, 120)

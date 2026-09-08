@@ -89,6 +89,7 @@ export function CheckoutPageClient({
   initialQuote,
   profile,
   couponsEnabled,
+  pagaleveEnabled,
 }: {
   initialQuote: CheckoutQuote
   profile: {
@@ -99,6 +100,7 @@ export function CheckoutPageClient({
     billingAddress: BillingAddress | null
   }
   couponsEnabled: boolean
+  pagaleveEnabled: boolean
 }) {
   const [quote, setQuote] = useState(initialQuote)
   const [couponCode, setCouponCode] = useState(initialQuote.coupon.code ?? "")
@@ -679,7 +681,7 @@ export function CheckoutPageClient({
                   badge="Instantâneo"
                   onClick={() => choosePaymentMethod("pix")}
                 />
-                {quote.period === "annual" && (
+                {pagaleveEnabled && quote.period === "annual" && (
                   <PaymentMethodOption
                     title="Parcelamento via Pix - Pagaleve"
                     description="Confira as parcelas disponíveis e pague sem cartão"
