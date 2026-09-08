@@ -1,0 +1,73 @@
+<!-- [BOARDVIEWER_FEATURE] -->
+<div id="v-bview" class="view" data-tema="dark" style="display:none;">
+  <div class="bv-tb">
+    <button class="bv-btn" id="bv-voltar-galeria" style="display:none;"
+            title="Voltar para a lista de placas">← Placas</button>
+    <button class="bv-btn pri" id="bv-btn-abrir" onclick="bviewAbrir()">📂 Abrir boardview</button>
+    <span class="bv-arq" id="bv-arq">nenhum arquivo</span>
+    <input id="bv-busca" class="bv-in" placeholder="Buscar componente ou net…">
+    <div class="bv-seg">
+      <button class="bv-btn bv-face on" data-f="TOP">TOP</button>
+      <button class="bv-btn bv-face" data-f="BOT">BOTTOM</button>
+      <button class="bv-btn bv-face" data-f="ALL">AMBOS</button>
+    </div>
+    <button class="bv-btn" id="bv-separar" onclick="bviewModoSeparar()"
+            title="Separar faces: clique e arraste na tela para afastar/aproximar">↔ Separar</button>
+    <button class="bv-btn" id="bv-ajuste-faces" onclick="bviewAjusteFaces()"
+            title="Ajustar faces: mover, girar e espelhar TOP e BOTTOM separadamente">⚙ Ajustar faces</button>
+    <!-- painel da ferramenta de ajuste de faces (aparece so no modo) -->
+    <div id="bv-ajuste-painel" style="display:none;gap:4px;align-items:center;flex-wrap:wrap;">
+      <span style="color:#00e5ff;font-size:11px;font-weight:600;">FACE:</span>
+      <button class="bv-btn" id="bv-ajf-TOP" onclick="bviewAjusteSelFace('TOP')">TOP</button>
+      <button class="bv-btn" id="bv-ajf-BOT" onclick="bviewAjusteSelFace('BOT')">BOTTOM</button>
+      <span style="color:#00e5ff;font-size:10px;opacity:.5;">│</span>
+      <button class="bv-btn" onclick="bviewAjusteGirar(90)" title="Girar 90° horário">↻ 90°</button>
+      <button class="bv-btn" onclick="bviewAjusteGirar(180)" title="Girar 180°">↻ 180°</button>
+      <button class="bv-btn" onclick="bviewAjusteGirar(-90)" title="Girar 90° anti-horário">↺ 90°</button>
+      <button class="bv-btn" id="bv-ajf-flip" onclick="bviewAjusteEspelhar()" title="Espelhar (virar ao contrário)">⇋ Espelhar</button>
+      <span style="color:#00e5ff;font-size:10px;opacity:.5;">│ arraste = mover</span>
+      <button class="bv-btn" onclick="bviewAjusteReset()" title="Voltar ao original">⟲ Reset</button>
+      <button class="bv-btn" style="background:rgba(0,230,118,.15);border-color:#00e676;color:#00e676;font-weight:600;"
+              onclick="bviewAjusteSalvar()" title="Salvar como padrão desta placa">✓ Salvar</button>
+    </div>
+    <button class="bv-btn" onclick="bviewDesmarcar()"
+            title="Desmarcar net/componente (ESC)">✕ Desmarcar</button>
+    <button class="bv-btn" onclick="bviewAjustar()">⤢ Ajustar</button>
+    <button class="bv-btn" id="bv-foto" onclick="bviewFoto()"
+            style="display:none;">🖼 Foto</button>
+    <input type="range" id="bv-alpha" class="bv-rng" min="10" max="100" value="65"
+           style="display:none;" oninput="bviewAlpha(this.value)">
+    <span id="bv-net-atual" title="Net/componente selecionado" style="display:none;
+          background:rgba(0,229,255,.14);border:1px solid #00e5ff;color:#00e5ff;
+          padding:5px 12px;border-radius:6px;font-weight:600;font-size:12px;
+          font-family:Consolas,monospace;"></span>
+    <button class="bv-btn sch" onclick="bviewSchematic()">⧉ Schematic (PDF)</button>
+    
+    <button class="bv-btn" id="bv-cor-placa" onclick="bviewCorPlacaCiclar()"
+            title="Cor de preenchimento da placa (clique para mudar)">🎨 Cor</button>
+    <button class="bv-btn ico" id="bv-tema" onclick="bviewTema()"
+            title="Modo claro/escuro">☀️</button>
+  </div>
+  <div class="bv-main">
+    <div class="bv-side">
+      <div class="bv-tabs">
+        <div id="bv-tab-p" class="on">Componentes</div>
+        <div id="bv-tab-n">Nets</div>
+      </div>
+      <input id="bv-filtro" class="bv-in" placeholder="Filtrar…">
+      <div id="bv-lista" class="bv-lista"></div>
+      <div id="bv-recentes-wrap">
+        <div class="bv-rec-ttl">Recentes</div>
+        <div id="bv-recentes" class="bv-recentes"></div>
+      </div>
+    </div>
+    <div class="bv-cwrap"><canvas id="bv-canvas"></canvas></div>
+  </div>
+  <div class="bv-bar">
+    <span id="bv-status">Abra um boardview (.bvr ou .pcb) para comecar.</span>
+    <span>Net: <b id="bv-net">—</b></span>
+    <span>Zoom: <span id="bv-zoom">100%</span></span>
+  </div>
+</div>
+
+<!-- [/BOARDVIEWER_FEATURE] -->

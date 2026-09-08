@@ -49,6 +49,19 @@ venv/
 
 # Software
 software/
+!software/
+software/*
+!software/*.py
+!software/*.ico
+!software/*.md
+!software/*.txt
+!software/build_release.ps1
+!software/ui/
+!software/ui/**
+!software/boardview_feature/
+!software/boardview_feature/**
+!software/_tools/
+!software/_tools/**
 !src/app/api/auth/software/
 !src/app/api/auth/software/**
 !src/app/api/software/

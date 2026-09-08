@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Game Doctor</title>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="boardview.css">
+</head>
+<body>
+<div id="top">
+  <div class="logo"><img src="img/gamedoctor_128.png" draggable="false"><span>Game Doctor</span><small id="ver"></small></div>
+  <input id="busca" placeholder="🔍 Buscar material (ex.: PS5, EDM-010, Switch Lite…)" spellcheck="false">
+  <div id="sync-chip"><span class="dot"></span><span id="sync-txt">Aguardando…</span></div>
+  <button class="btn" onclick="GD.sincronizar()" title="Consultar agora se há material novo">⟳ Verificar novidades</button>
+  <button class="btn pri" id="btn-importar" style="display:none" onclick="GD.importarPasta()">Importar pastas</button>
+  <span id="import-status" class="import-status" style="display:none"></span>
+  <div id="user">
+    <div><div class="nm" id="u-nome">—</div><div class="sub" id="u-sub"></div></div>
+    <button class="btn ghost" onclick="appBridge.minimizarBandeja()" title="Continua rodando na bandeja e avisa quando houver novidade">Minimizar</button>
+    <button class="btn ghost" onclick="GD.sair()">Sair</button>
+  </div>
+</div>
+
+<div id="body">
+  <div id="side">
+    <div class="sec">Consoles</div>
+    <div id="tree"><div class="side-vazio" id="side-vazio">Carregando biblioteca…</div></div>
+  </div>
+  <div id="main">
+    <div id="v-lib" class="view on">
+      <div id="loading"><span class="spin"></span><span>Carregando biblioteca...</span></div>
+      <div id="lib-head"><h2 id="lib-ttl">Início</h2><span class="cnt" id="lib-cnt"></span></div>
+      <div id="sync-banner"><div class="sb-row"><span class="spin"></span><b id="sb-ttl">Sincronizando biblioteca…</b><span id="sb-sub"></span></div><div class="sb-bar"><i id="sb-i"></i></div></div>
+      <div id="grid"></div>
+      <div id="vazio"><b>Nada por aqui ainda</b><span id="vazio-sub">Assim que a sincronização terminar, os materiais aparecem nesta lista.</span></div>
+    </div>
+    <div id="v-bview-wrap" class="view">
+      <button class="btn" id="bv-voltar-lib" onclick="GD.voltarLib()">← Biblioteca</button>
+      <!-- [BOARDVIEW_VIEW] -->
+<!-- [BOARDVIEWER_FEATURE] -->
+<div id="v-bview" class="view" data-tema="dark" style="display:none;">
+  <div class="bv-tb">
+    <button class="bv-btn" id="bv-voltar-galeria" style="display:none;"
+            title="Voltar para a lista de placas">← Placas</button>
+    <button class="bv-btn pri" id="bv-btn-abrir" onclick="bviewAbrir()">📂 Abrir boardview</button>
+    <span class="bv-arq" id="bv-arq">nenhum arquivo</span>
+    <input id="bv-busca" class="bv-in" placeholder="Buscar componente ou net…">
+    <div class="bv-seg">
+      <button class="bv-btn bv-face on" data-f="TOP">TOP</button>
+      <button class="bv-btn bv-face" data-f="BOT">BOTTOM</button>
+      <button class="bv-btn bv-face" data-f="ALL">AMBOS</button>
+    </div>
+        <button class="bv-btn" onclick="bviewDesmarcar()"
+            title="Desmarcar net/componente (ESC)">✕ Desmarcar</button>
+    <button class="bv-btn" onclick="bviewAjustar()">⤢ Ajustar</button>
+    <span id="bv-net-atual" title="Net/componente selecionado" style="display:none;
+          background:rgba(0,229,255,.14);border:1px solid #00e5ff;color:#00e5ff;
+          padding:5px 12px;border-radius:6px;font-weight:600;font-size:12px;
+          font-family:Consolas,monospace;"></span>
+    <button class="bv-btn sch" onclick="bviewSchematic()">⧉ Schematic (PDF)</button>
+    
+    <button class="bv-btn" id="bv-cor-placa" onclick="bviewCorPlacaCiclar()"
+            title="Cor de preenchimento da placa (clique para mudar)">🎨 Cor</button>
+    <button class="bv-btn ico" id="bv-tema" onclick="bviewTema()"
+            title="Modo claro/escuro">☀️</button>
+  </div>
+  <div class="bv-main">
+    <div class="bv-side">
+      <div class="bv-tabs">
+        <div id="bv-tab-p" class="on">Componentes</div>
+        <div id="bv-tab-n">Nets</div>
+      </div>
+      <input id="bv-filtro" class="bv-in" placeholder="Filtrar…">
+      <div id="bv-lista" class="bv-lista"></div>
+      <div id="bv-recentes-wrap">
+        <div class="bv-rec-ttl">Recentes</div>
+        <div id="bv-recentes" class="bv-recentes"></div>
+      </div>
+    </div>
+    <div class="bv-cwrap"><canvas id="bv-canvas"></canvas></div>
+  </div>
+  <div class="bv-bar">
+    <span id="bv-status">Abra um boardview (.bvr ou .pcb) para comecar.</span>
+    <span>Net: <b id="bv-net">—</b></span>
+    <span>Zoom: <span id="bv-zoom">100%</span></span>
+  </div>
+</div>
+
+<!-- [/BOARDVIEWER_FEATURE] -->
+<!-- [/BOARDVIEW_VIEW] -->
+    </div>
+    <div id="prog"><i id="prog-i"></i></div>
+  </div>
+</div>
+
+<div class="modal" id="m-cpf">
+  <div class="mbox">
+    <h3>Confirme seu CPF</h3>
+    <p>Os materiais do Game Doctor são personalizados para você: cada PDF e imagem recebe uma marca d'água com seu nome e CPF. Informe o CPF do titular da assinatura para continuar.</p>
+    <input id="cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric">
+    <div class="err" id="cpf-err"></div>
+    <div class="acts"><button class="btn pri" id="cpf-ok" onclick="GD.salvarCpf()">Confirmar</button></div>
+  </div>
+</div>
+
+<div id="toast"><b id="toast-t"></b><span id="toast-m"></span></div>
+
+<script src="boardview_ui.js"></script>
+<script src="app.js"></script>
+</body></html>

@@ -31,7 +31,7 @@ const mainNavItems = [
   { label: "Trilhas de aprendizado", href: "/progresso", icon: TrendingUp },
   // { label: "Minhas Trilhas", href: "/meus-cursos", icon: BookMarked },
   { label: "Continuar Assistindo", href: "/dashboard#continuar", icon: Play },
-  // { label: "Downloads", href: "/downloads", icon: Download },
+  { label: "Software GameDoctor", href: "/software", icon: Download },
   { label: "Certificados", href: "/certificados", icon: Award },
   { label: "Meu plano", href: "/dashboard#plano", icon: CreditCard },
   // { label: "Favoritos", href: "/favoritos", icon: Heart },

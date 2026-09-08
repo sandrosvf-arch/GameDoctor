@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--ac:#1fb6ff;--fn:'Segoe UI',system-ui,sans-serif;}
+body{font-family:var(--fn);background:#0e1116;height:100vh;display:flex;align-items:center;justify-content:center;-webkit-font-smoothing:antialiased;color:#e6edf3;}
+.card{background:#161b22;border:1px solid #262d38;border-radius:16px;padding:2rem;width:100%;max-width:380px;}
+.logo-area{text-align:center;margin-bottom:1.5rem;}
+.logo-area img{width:110px;height:110px;display:block;margin:0 auto .8rem;user-select:none;}
+.h1{font-size:22px;font-weight:600;letter-spacing:.3px;}
+.sub{font-size:12.5px;color:#8b949e;margin-top:4px;}
+.field{margin-bottom:1rem;}
+.field label{display:block;font-size:12.5px;color:#8b949e;margin-bottom:6px;}
+.field input{width:100%;padding:0 12px;height:40px;border-radius:8px;border:1px solid #262d38;background:#0e1116;color:#e6edf3;font-size:14px;font-family:var(--fn);outline:none;transition:border-color .15s;}
+.field input:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(31,182,255,.15);}
+.btn{width:100%;height:42px;border-radius:8px;background:var(--ac);color:#04121c;font-size:14px;font-weight:600;font-family:var(--fn);border:none;cursor:pointer;transition:background .15s;margin-top:.25rem;}
+.btn:hover{background:#4cc6ff;}
+.btn:disabled{opacity:.6;cursor:default;}
+.err{font-size:12px;color:#f87171;margin-top:5px;min-height:16px;}
+.chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#8b949e;cursor:pointer;margin:-4px 0 12px;user-select:none;}
+.chk input{accent-color:var(--ac);width:15px;height:15px;cursor:pointer;}
+.ver{text-align:center;font-size:11px;color:#57606a;margin-top:14px;}
+</style></head>
+<body>
+<div class="card">
+  <div class="logo-area">
+    <img src="img/gamedoctor_256.png" alt="Game Doctor" draggable="false">
+    <div class="h1">Game Doctor</div>
+    <div class="sub">Acesso exclusivo para assinantes</div>
+  </div>
+  <div class="field">
+    <label>E-mail</label>
+    <input type="email" id="email" placeholder="seu@email.com" autocomplete="off" spellcheck="false"/>
+    <div class="err" id="email-err"></div>
+  </div>
+  <div class="field">
+    <label>Senha</label>
+    <input type="password" id="senha" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"/>
+    <div class="err" id="senha-err"></div>
+  </div>
+  <label class="chk"><input type="checkbox" id="lembrar"/> Lembrar e-mail e senha</label>
+  <button class="btn" id="btn-entrar" onclick="entrar()">Entrar</button>
+  <div class="ver" id="ver"></div>
+</div>
+<script>
+document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+document.getElementById('email').addEventListener('keydown',function(e){ if(e.key==='Enter') document.getElementById('senha').focus(); });
+document.getElementById('senha').addEventListener('keydown',function(e){ if(e.key==='Enter') entrar(); });
+
+var _lgTimers=[];
+function setLoading(on){
+  var btn=document.getElementById('btn-entrar');
+  btn.disabled=on; btn.textContent=on?'Verificando...':'Entrar';
+  _lgTimers.forEach(clearTimeout); _lgTimers=[];
+  if(on){
+    _lgTimers.push(setTimeout(function(){ if(btn.disabled) btn.textContent='Servidor demorando... aguarde'; },12000));
+    _lgTimers.push(setTimeout(function(){ if(btn.disabled) btn.textContent='Ainda tentando (até 1 min)...'; },32000));
+  }
+}
+function loginError(msg){
+  setLoading(false);
+  document.getElementById('senha-err').textContent=msg;
+  document.getElementById('senha').focus(); document.getElementById('senha').select();
+}
+function entrar(){
+  var email=document.getElementById('email').value.trim();
+  var senha=document.getElementById('senha').value.trim();
+  var ok=true;
+  document.getElementById('email-err').textContent='';
+  document.getElementById('senha-err').textContent='';
+  if(!/^\S+@\S+\.\S+$/.test(email) && email!=='dev@local'){ document.getElementById('email-err').textContent='Informe um e-mail válido'; ok=false; }
+  if(!senha){ document.getElementById('senha-err').textContent='Informe sua senha'; ok=false; }
+  if(!ok)return;
+  if(window.bridge){ setLoading(true); window.bridge.login(email,senha,document.getElementById('lembrar').checked); }
+  else document.getElementById('senha-err').textContent='Conectando... tente novamente em instantes.';
+}
+new QWebChannel(qt.webChannelTransport, function(ch){
+  window.bridge = ch.objects.bridge;
+  bridge.versao(function(v){ document.getElementById('ver').textContent='versão '+v; });
+  bridge.credenciais_salvas(function(res){
+    try{ var c=JSON.parse(res||'{}');
+      if(c.email){ document.getElementById('email').value=c.email; document.getElementById('senha').value=c.senha||'';
+        document.getElementById('lembrar').checked=true; document.getElementById('btn-entrar').focus(); }
+      else document.getElementById('email').focus();
+    }catch(e){}
+  });
+});
+</script></body></html>
