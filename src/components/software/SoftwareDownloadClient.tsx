@@ -48,14 +48,12 @@ export function SoftwareDownloadClient({
               </div>
               {release.description && <p className="mt-7 text-sm leading-7 text-muted-foreground">{release.description}</p>}
               <a href={`/api/downloads/${release.id}`} className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"><Download className="h-4 w-4" /> Baixar aplicativo</a>
-              <p className="mt-3 text-center text-xs text-muted-foreground">O download é protegido e requer um plano ativo.</p>
             </div>
             <div className="rounded-2xl border border-border bg-card/35 p-7 md:p-9">
               <ShieldCheck className="h-6 w-6 text-emerald-300" />
               <h2 className="mt-4 text-lg font-semibold">O que você encontra no app</h2>
-              <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground"><li>Materiais organizados por marca e console.</li><li>Diagramas, documentos, boardviews e softwares das aulas.</li><li>Sincronização para receber materiais novos.</li><li>Arquivos identificados com os dados da sua conta.</li></ul>
+              <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground"><li>Todo o material didático da plataforma reunido em um só lugar.</li><li>Apostilas, diagramas, esquemas elétricos, boardviews e softwares usados nas aulas.</li><li>Atualizações automáticas sempre que novos materiais forem disponibilizados.</li><li>Conteúdo preparado para acompanhar seus estudos e acelerar sua evolução prática.</li></ul>
               {release.version && <p className="mt-6 border-t border-border pt-5 text-xs text-muted-foreground">Versão {release.version}{release.releaseNotes ? ` · ${release.releaseNotes}` : ""}</p>}
-              <Link href="/downloads" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 hover:text-cyan-200">Ver todos os materiais <ExternalLink className="h-3.5 w-3.5" /></Link>
             </div>
           </section>
         ) : (
