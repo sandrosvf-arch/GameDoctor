@@ -19,6 +19,29 @@ ICONE = os.path.join(BASE, "gamedoctor.ico")
 CATEGORIAS_COFRE = ("documento", "imagem", "boardview")
 CATEGORIA_SOFTWARE = "software"
 
+# Classificação por extensão — é o CLIENTE quem decide a categoria (o catálogo
+# do servidor só conhece PDF/IMAGE/ARCHIVE). Tudo que não abre dentro do app
+# vai para a pasta do aluno (Documentos\Game Doctor\marca\console\...).
+EXT_DOC = {".pdf"}
+EXT_IMG = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+EXT_BV = {".pcb", ".bvr", ".cad", ".brd", ".bdv", ".xzz", ".fz", ".tvw"}
+EXT_PACOTE = {".zip", ".rar", ".7z", ".exe", ".msi"}
+
+
+def categoria_por_extensao(nome):
+    ext = os.path.splitext(str(nome or ""))[1].lower()
+    if ext in EXT_DOC: return "documento"
+    if ext in EXT_IMG: return "imagem"
+    if ext in EXT_BV: return "boardview"
+    return CATEGORIA_SOFTWARE
+
+
+def rotulo_categoria(categoria, nome):
+    """Texto do badge do card."""
+    ext = os.path.splitext(str(nome or ""))[1].lower()
+    return {"documento": "PDF", "imagem": "Imagem", "boardview": "Boardview"}.get(
+        categoria, "Software" if ext in EXT_PACOTE else "Arquivo")
+
 # O build distribuído nunca deve ter login offline habilitado.
 DEV_LOGIN_OFFLINE = False
 DEV_SENHA = ""

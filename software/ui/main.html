@@ -52,6 +52,10 @@
         <button class="bv-btn" onclick="bviewDesmarcar()"
             title="Desmarcar net/componente (ESC)">✕ Desmarcar</button>
     <button class="bv-btn" onclick="bviewAjustar()">⤢ Ajustar</button>
+    <button class="bv-btn" id="bv-foto" onclick="bviewFoto()"
+            style="display:none;">🖼 Foto</button>
+    <input type="range" id="bv-alpha" class="bv-rng" min="10" max="100" value="65"
+           style="display:none;" oninput="bviewAlpha(this.value)">
     <span id="bv-net-atual" title="Net/componente selecionado" style="display:none;
           background:rgba(0,229,255,.14);border:1px solid #00e5ff;color:#00e5ff;
           padding:5px 12px;border-radius:6px;font-weight:600;font-size:12px;
@@ -99,6 +103,16 @@
     <input id="cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric">
     <div class="err" id="cpf-err"></div>
     <div class="acts"><button class="btn pri" id="cpf-ok" onclick="GD.salvarCpf()">Confirmar</button></div>
+  </div>
+</div>
+
+<div class="modal" id="m-dl">
+  <div class="mbox">
+    <h3>Download concluído</h3>
+    <p><b id="dl-ttl"></b> foi salvo no seu computador em:</p>
+    <div class="path" id="dl-path"></div>
+    <p>Abrir o diretório?</p>
+    <div class="acts"><button class="btn ghost" id="dl-fechar">Agora não</button><button class="btn pri" id="dl-abrir">📂 Abrir diretório</button></div>
   </div>
 </div>
 

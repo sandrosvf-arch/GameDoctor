@@ -77,8 +77,20 @@ button{font-family:var(--fn)}
 .card.imagem .ico{background:rgba(63,185,80,.1);color:#3fb950}
 .card.boardview .ico{background:rgba(0,229,255,.1);color:#00e5ff}
 .card.software .ico{background:rgba(171,130,255,.12);color:#ab82ff}
-.card .ttl{font-weight:600;font-size:13.5px;line-height:1.3;word-break:break-word}
-.card .sub{font-size:11.5px;color:var(--dim)}
+.card .ttl{font-weight:600;font-size:13.5px;line-height:1.3;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .card-head{display:flex;align-items:center;gap:10px;padding-right:66px}
+.card .card-txt{flex:1;min-width:0}
+.card .tipo{position:absolute;top:10px;right:10px;font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-radius:6px;padding:2px 7px;border:1px solid var(--bd);color:var(--dim);background:rgba(255,255,255,.03)}
+.card .tipo.documento{color:#f1c40f;border-color:rgba(241,196,15,.35)}
+.card .tipo.imagem{color:#3fb950;border-color:rgba(63,185,80,.35)}
+.card .tipo.boardview{color:#00e5ff;border-color:rgba(0,229,255,.35)}
+.card .tipo.software{color:#ab82ff;border-color:rgba(171,130,255,.35)}
+.card.baixando{border-color:var(--ac)}
+.card.baixando .foot::before{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--ac),transparent);animation:gd-bar 1.1s linear infinite}
+@keyframes gd-bar{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.card{overflow:hidden}
+#m-dl .path{font-family:Consolas,monospace;font-size:11.5px;color:var(--dim);word-break:break-all;background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;margin:10px 0}
+.card .sub{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card .desc{font-size:12px;color:#a9b3bf;line-height:1.35;max-height:48px;overflow:hidden}
 .card .foot{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:6px}
 .card .foot .sz{font-size:11px;color:var(--dim);margin-left:auto}

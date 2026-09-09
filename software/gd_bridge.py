@@ -10,7 +10,7 @@ gd_bridge.py — bridges QWebChannel do Game Doctor.
 Nada decifrado toca o disco de forma duradoura: PDF/imagem vao em base64
 para o viewer; boardview usa um temporario apagado logo apos o parse.
 """
-import os, sys, json, base64, threading, traceback, time, mimetypes, urllib.request
+import os, sys, io, re, json, base64, threading, traceback, time, mimetypes, zipfile, unicodedata, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, QUrl, QTimer
 from PyQt6.QtWidgets import QFileDialog, QApplication, QAbstractItemView
@@ -21,18 +21,167 @@ from PyQt6.QtGui import QIcon
 import gd_auth, gd_cred, gd_marca
 from gd_auth import SESSAO
 from gd_config import (UI, ICONE, APP_NOME, APP_VERSAO, CATEGORIA_SOFTWARE,
-                       CATEGORIAS_COFRE, PASTA_CFG, PASTA_SOFTWARES, DEV_LOGIN_OFFLINE, DEV_SENHA)
+                       CATEGORIAS_COFRE, PASTA_CFG, PASTA_SOFTWARES, DEV_LOGIN_OFFLINE, DEV_SENHA,
+                       EXT_DOC, EXT_IMG, EXT_BV, EXT_PACOTE, categoria_por_extensao, rotulo_categoria)
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 _IMPORT_QUEUE = os.path.join(PASTA_CFG, "import-queue.json")
 if _BASE not in sys.path:
     sys.path.insert(0, _BASE)
 
-def _tipo_importacao(ext):
-    if ext == ".pdf": return "documento", "PDF"
-    if ext in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"): return "imagem", "IMAGE"
-    if ext in (".zip", ".rar", ".7z"): return "software", "ARCHIVE"
-    return "documento", "OTHER"
+# ── classificação da importação (mesmas regras do acervo do Thiago) ──────────
+# Pasta que contém arquivo de PROGRAMA vira UM pacote (zip da subárvore inteira);
+# imagens/PDFs de dentro NÃO viram material. Fora de pacotes: pdf → documento,
+# imagem → imagem, boardview → boardview, zip/rar/7z/exe/msi soltos → software,
+# demais soltos (txt, md, uf2, bin, hex…) → arquivo individual para o disco.
+EXT_PROGRAMA = {".exe", ".dll", ".py", ".pyd", ".pyo", ".pyc", ".bat", ".cmd", ".ps1", ".msi",
+                ".sys", ".inf", ".xbe", ".xex", ".elf", ".so", ".jar", ".xip", ".xbx", ".xbg",
+                ".xpr", ".nfo", ".acl", ".po", ".ttf", ".wav", ".xtf", ".xmv", ".dds", ".tga",
+                ".vcproj", ".cpp", ".c", ".h"}
+# caches do OpenBoardView/FlexBV (.obdlocal/.sqlite3/.obdq/.jrl/imgui.ini/localfbv.log) e lixo do Windows nunca sobem
+EXT_IGNORAR = {".obdlocal", ".sqlite3", ".obdq", ".jrl", ".log", ".pf", ".db", ".lnk", ".tmp", ".bak", ".gamedoctor-import"}
+NOMES_IGNORAR = {"thumbs.db", "desktop.ini", ".ds_store", ".gamedoctor-import.json", "imgui.ini", "localfbv.log"}
+NOMES_GENERICOS = {"bin", "lib", "libs", "app", "src", "files", "common", "x64", "x86", "win",
+                   "win32", "win64", "windows", "release", "debug", "dist", "build", "data",
+                   "assets", "tools", "portable", "program", "programa", "arquivos"}
+
+
+def _lp(p):
+    return ("\\\\?\\" + os.path.abspath(p)) if (os.name == "nt" and not str(p).startswith("\\\\?\\")) else p
+
+
+def _slug(s):
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+    s = re.sub(r"[^A-Za-z0-9._-]+", "-", s).strip("-").lower()
+    return re.sub(r"-{2,}", "-", s) or "arquivo"
+
+
+def _tipo_api(categoria, ext):
+    if categoria == "documento": return "PDF"
+    if categoria == "imagem": return "IMAGE"
+    if ext in EXT_PACOTE or ext == ".zip": return "ARCHIVE"
+    return "OTHER"
+
+
+# arquivos que, soltos, viram um material individual para o disco (firmware, imagens de sistema…)
+EXT_SOLTO = EXT_PACOTE | {".uf2", ".bin", ".hex", ".rom", ".img", ".iso", ".firm", ".cia", ".3dsx",
+                          ".nro", ".nsp", ".xci", ".elf", ".xex", ".xbe", ".srm", ".sav", ".cab", ".deb",
+                          ".gz", ".tar", ".apk", ".ipa", ".dol", ".wad", ".pup", ".pkg"}
+EXT_MATERIAL = EXT_DOC | EXT_IMG | EXT_BV
+
+
+def _e_pacote(nomes):
+    """Pasta é um pacote de software? Contém arquivo forte de programa (dll, py, xbe…),
+    ou um executável/instalador acompanhado de outros arquivos de apoio (xml, ini, dat…)."""
+    exts = {os.path.splitext(f)[1].lower() for f in nomes}
+    if exts & (EXT_PROGRAMA - {".exe", ".msi"}):
+        return True
+    if exts & {".exe", ".msi"} and (exts - EXT_MATERIAL - EXT_PACOTE - EXT_SOLTO):
+        return True
+    return False
+
+
+def planejar_importacao(pasta):
+    """Devolve a lista de itens a enviar. A pasta selecionada é uma MARCA (Sony, Microsoft…):
+    marca = nome da pasta, console = 1º nível, subpasta = níveis seguintes — a mesma árvore
+    de H:\PARA UPAR NO DRIVE. Se a pasta for a raiz do acervo, cada filha vira uma marca."""
+    pasta = os.path.abspath(pasta)
+    raiz_nome = os.path.basename(pasta)
+    itens = []
+
+    def rel_de(p):
+        return os.path.relpath(p, pasta).replace("\\", "/")
+
+    def meta_de(rel_dir):
+        parts = [x for x in rel_dir.split("/") if x and x != "."]
+        marca = raiz_nome
+        console = parts[0] if parts else "Geral"
+        sub = "/".join(parts[1:])
+        return marca, console, sub
+
+    def varrer(d):
+        try:
+            nomes = sorted(os.listdir(_lp(d)))
+        except OSError:
+            return
+        arquivos = [f for f in nomes if os.path.isfile(_lp(os.path.join(d, f)))
+                    and os.path.splitext(f)[1].lower() not in EXT_IGNORAR
+                    and f.lower() not in NOMES_IGNORAR and not f.startswith("~$") and not f.startswith(".")]
+        dirs = [x for x in nomes if os.path.isdir(_lp(os.path.join(d, x)))]
+        rel_dir = rel_de(d) if d != pasta else ""
+        nivel = len([x for x in rel_dir.split("/") if x]) if rel_dir else 0
+        if nivel >= 2 and _e_pacote(arquivos):          # abaixo do console (marca=0, console=1): pacote
+            arqs = []
+            for r, _, fs in os.walk(_lp(d)):
+                r = r[len(_lp(d)) - len(d):] if r.startswith("\\\\?\\") else r
+                for f in fs:
+                    if os.path.splitext(f)[1].lower() in EXT_IGNORAR or f.lower() in NOMES_IGNORAR:
+                        continue
+                    arqs.append(os.path.join(r, f))
+            if arqs:
+                nome = os.path.basename(d)
+                if nome.lower() in NOMES_GENERICOS:
+                    nome = os.path.basename(os.path.dirname(d)) + " - " + nome
+                marca, console, sub = meta_de(os.path.dirname(rel_dir))
+                itens.append({"rel": rel_dir + ".zip", "source_key": f"{raiz_nome}/{rel_dir}.zip",
+                              "nome_arquivo": _slug(os.path.basename(d)) + ".zip", "titulo": nome,
+                              "categoria": "software", "tipo": "ARCHIVE", "marca": marca, "console": console,
+                              "subpasta": sub, "zip": arqs, "raiz": d,
+                              "tamanho": sum(os.path.getsize(_lp(a)) for a in arqs), "extrair": True})
+            return
+        marca, console, sub = meta_de(rel_dir)
+        avulsos = []
+        for f in arquivos:
+            p = os.path.join(d, f)
+            ext = os.path.splitext(f)[1].lower()
+            if ext not in EXT_MATERIAL and ext not in EXT_SOLTO:
+                avulsos.append(p)               # txt, md, html, xml, ini…: vão juntos num zip
+                continue
+            cat = categoria_por_extensao(f)
+            rel = rel_de(p)
+            itens.append({"rel": rel, "source_key": f"{raiz_nome}/{rel}", "nome_arquivo": f,
+                          "titulo": os.path.splitext(f)[0], "categoria": cat, "tipo": _tipo_api(cat, ext),
+                          "marca": marca, "console": console, "subpasta": sub, "fonte": p,
+                          "tamanho": os.path.getsize(_lp(p)), "extrair": ext == ".zip"})
+        if avulsos and nivel >= 1:
+            nome = (os.path.basename(d) if nivel >= 2 else console) + " - arquivos"
+            rel = (rel_dir + "/" if rel_dir else "") + "_arquivos.zip"
+            itens.append({"rel": rel, "source_key": f"{raiz_nome}/{rel}", "nome_arquivo": _slug(nome) + ".zip",
+                          "titulo": nome, "categoria": "software", "tipo": "ARCHIVE", "marca": marca,
+                          "console": console, "subpasta": sub, "zip": avulsos, "raiz": d,
+                          "tamanho": sum(os.path.getsize(_lp(a)) for a in avulsos), "extrair": True})
+        for x in dirs:
+            varrer(os.path.join(d, x))
+
+    varrer(pasta)
+    return itens
+
+
+def _zipar(arqs, raiz):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+        for a in arqs:
+            z.write(_lp(a), os.path.relpath(a, raiz))
+    return buf.getvalue()
+
+
+def _e_foto_de_placa(nome):
+    n = os.path.splitext(str(nome))[0].lower()
+    return bool(re.search(r"(^|[\s_-])(image|imagem|foto|photo)([\s_-]|$)", n))
+
+
+def titulo_exibicao(nome, arquivo, pasta_nome=""):
+    """Título curto para o card: sem extensão, sem repetir o nome da pasta, sem _ ."""
+    t = str(nome or arquivo or "")
+    t = os.path.splitext(t)[0] if os.path.splitext(t)[1].lower() in (EXT_DOC | EXT_IMG | EXT_BV | EXT_PACOTE | {".uf2", ".bin", ".hex", ".txt", ".md"}) else t
+    t = re.sub(r"[_]+", " ", t)
+    if pasta_nome:
+        pn = re.escape(pasta_nome.strip())
+        t2 = re.sub(r"^\s*" + pn + r"\s*[-–—:_]*\s*", "", t, flags=re.I)
+        if len(t2) >= 3:
+            t = t2
+    t = re.sub(r"\s{2,}", " ", t).strip(" -–—_.")
+    return t or str(nome or arquivo)
 
 class _ProgressReader:
     def __init__(self, source, total, callback):
@@ -177,21 +326,30 @@ class AppBridge(QObject):
     def listarMateriais(self):
         """Catalogo remoto (ultimo baixado) + estado local de cada item."""
         itens = []
+        pastas_com_bv = {(m.get("marca"), m.get("console"), m.get("pasta") or "")
+                         for m in self.sync.catalogo if m.get("categoria") == "boardview"}
         for m in self.sync.catalogo:
             mid = str(m["id"])
             loc = self.cofre.item(mid) or {}
             cofre = m.get("categoria") in CATEGORIAS_COFRE
+            oculto = (m.get("categoria") in ("documento", "imagem")
+                      and (m.get("marca"), m.get("console"), m.get("pasta") or "") in pastas_com_bv
+                      and _e_foto_de_placa(m.get("arquivo") or m.get("nome") or ""))
+            pasta_nome = (m.get("pasta") or "").split("/")[-1] or (m.get("console") or "")
             itens.append({
                 "id": mid, "nome": m.get("nome"), "arquivo": m.get("arquivo"),
+                "titulo": titulo_exibicao(m.get("nome"), m.get("arquivo"), pasta_nome),
+                "rotulo": rotulo_categoria(m.get("categoria"), m.get("arquivo") or m.get("nome")),
                 "categoria": m.get("categoria"), "marca": m.get("marca") or "Outros",
                 "console": m.get("console") or "Geral", "descricao": m.get("descricao") or "",
                 "pasta": (m.get("pasta") or "").strip("/"),
                 "tamanho": m.get("tamanho") or 0, "versao": m.get("versao") or 1,
                 "criado_em": m.get("criado_em"), "atualizado_em": m.get("atualizado_em"),
-                "disponivel": (self.cofre.tem(mid, m.get("sha256"), m.get("versao"))
-                               if cofre else True),
+                "disponivel": (self.sync.tem_pronto(m) if cofre else True),
+                "download_available": m.get("download_available", True),
+                "download_available_at": m.get("download_available_at"),
                 "visto": bool(loc.get("visto")) if cofre else True,
-                "cofre": cofre,
+                "cofre": cofre, "oculto": oculto,
             })
         return json.dumps({"itens": itens, "sync": json.loads(self.sync.estado_json())},
                           ensure_ascii=False)
@@ -253,62 +411,60 @@ class AppBridge(QObject):
                 manifest = json.load(f)
         except Exception:
             manifest = {}
-        files = []
-        for root, _, names in os.walk(pasta):
-            for name in names:
-                if name.startswith(".") or name == os.path.basename(manifest_path):
-                    continue
-                path = os.path.join(root, name)
-                if os.path.isfile(path): files.append(path)
-        total = len(files)
-        pasta_raiz = os.path.basename(os.path.abspath(pasta))
-        for index, path in enumerate(files, 1):
-            rel = os.path.relpath(path, pasta).replace("\\", "/")
-            source_key = f"{pasta_raiz}/{rel}"
+
+        def salvar():
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+        try:
+            itens = planejar_importacao(pasta)
+        except Exception as error:
+            self._import_progress(0, 0, os.path.basename(pasta), "erro ao varrer: " + str(error), 0, 0)
+            return
+        total = len(itens)
+        for index, it in enumerate(itens, 1):
+            rel = it["rel"]
             if retomar and manifest.get(rel, {}).get("status") == "done":
-                self._import_progress(index, total, rel, "já processado", 0, os.path.getsize(path))
+                self._import_progress(index, total, rel, "já processado", 0, it["tamanho"])
                 continue
             try:
-                parts = rel.split("/")
-                marca = parts[0] if len(parts) > 1 else os.path.basename(os.path.abspath(pasta))
-                console = parts[1] if len(parts) > 2 else "Geral"
-                subpasta = "/".join(parts[2:-1]) if len(parts) > 2 else ""
-                ext = os.path.splitext(path)[1].lower()
-                categoria, tipo = _tipo_importacao(ext)
-                mime = mimetypes.guess_type(path)[0] or "application/octet-stream"
-                size = os.path.getsize(path)
-                file_name = os.path.basename(path)
+                if "zip" in it:
+                    self._import_progress(index, total, rel, "compactando pacote", 0, it["tamanho"])
+                    dados = _zipar(it["zip"], it["raiz"])
+                    size, mime = len(dados), "application/zip"
+                    fonte = io.BytesIO(dados)
+                else:
+                    size = it["tamanho"]
+                    mime = mimetypes.guess_type(it["fonte"])[0] or "application/octet-stream"
+                    fonte = open(_lp(it["fonte"]), "rb")
                 status, prepared = gd_auth._req("POST", "/api/software/admin/upload-url", token=SESSAO.get("token"), body={
-                    "fileName": file_name,
-                    "mimeType": mime, "sizeBytes": size, "category": marca, "sourceKey": source_key,
-                }, timeout=30)
+                    "fileName": it["nome_arquivo"], "mimeType": mime, "sizeBytes": size,
+                    "category": it["marca"], "sourceKey": it["source_key"]}, timeout=30)
                 if status != 200: raise RuntimeError((prepared or {}).get("error", f"HTTP {status}"))
                 if prepared.get("skipped"):
                     manifest[rel] = {"status": "done", "updated": time.time(), "server": "already_exists"}
-                    with open(manifest_path, "w", encoding="utf-8") as f: json.dump(manifest, f, ensure_ascii=False, indent=2)
-                    self._import_progress(index, total, rel, "ignorado", 0, size)
+                    salvar(); self._import_progress(index, total, rel, "ignorado", 0, size)
                     continue
-                with open(path, "rb") as source:
+                with fonte as source:
                     reader = _ProgressReader(source, size, lambda sent, total_bytes: self._import_progress(
                         index, total, rel, "enviando", sent, total_bytes))
                     request = urllib.request.Request(prepared["signedUrl"], data=reader, method="PUT", headers={
                         "Content-Type": mime, "Content-Length": str(size)})
-                    with urllib.request.urlopen(request, timeout=1800) as response:
+                    with urllib.request.urlopen(request, timeout=3600) as response:
                         if response.status not in (200, 201): raise RuntimeError(f"upload HTTP {response.status}")
                 status, created = gd_auth._req("POST", "/api/software/admin/material", token=SESSAO.get("token"), body={
-                    "title": os.path.splitext(os.path.basename(path))[0], "fileName": os.path.basename(path),
+                    "title": it["titulo"], "fileName": it["nome_arquivo"],
                     "storagePath": prepared["path"], "mimeType": mime, "sizeBytes": size,
-                    "type": tipo, "category": categoria, "sourceKey": source_key,
-                    "metadata": {"marca": marca, "console": console, "pasta": subpasta, "extrair": ext == ".zip"},
+                    "type": it["tipo"], "category": it["categoria"], "sourceKey": it["source_key"],
+                    "metadata": {"marca": it["marca"], "console": it["console"], "pasta": it["subpasta"],
+                                 "extrair": bool(it.get("extrair")), "pacote": "zip" in it},
                 }, timeout=30)
                 if status not in (200, 201): raise RuntimeError((created or {}).get("error", f"HTTP {status}"))
                 manifest[rel] = {"status": "done", "updated": time.time()}
-                with open(manifest_path, "w", encoding="utf-8") as f: json.dump(manifest, f, ensure_ascii=False, indent=2)
-                self._import_progress(index, total, rel, "processado", size, size)
+                salvar(); self._import_progress(index, total, rel, "processado", size, size)
             except Exception as error:
                 manifest[rel] = {"status": "error", "error": str(error), "updated": time.time()}
-                with open(manifest_path, "w", encoding="utf-8") as f: json.dump(manifest, f, ensure_ascii=False, indent=2)
-                self._import_progress(index, total, rel, "erro: " + str(error), 0, size if "size" in locals() else 0)
+                salvar(); self._import_progress(index, total, rel, "erro: " + str(error), 0, it.get("tamanho", 0))
     def _import_progress(self, current, total, name, status, sent=0, size=0):
         self.import_progress.emit(current, total, name, status, sent, size)
 
@@ -324,7 +480,7 @@ class AppBridge(QObject):
         m = self._meta(mid)
         if not m or m.get("categoria") not in CATEGORIAS_COFRE:
             return json.dumps({"ok": False, "erro": "Material não encontrado."})
-        if self.cofre.tem(mid, m.get("sha256"), m.get("versao")):
+        if self.sync.tem_pronto(m):
             return json.dumps({"ok": True, "ja_baixado": True})
 
         def run():
@@ -383,7 +539,8 @@ class AppBridge(QObject):
             with self.cofre.temporario(mid, nome) as p:
                 d = BL.carregar(p)
             d["caminho"] = "gd://" + mid
-            d["foto"] = None
+            foto = self._foto_irma(m)
+            d["foto"] = ("gdfoto://" + str(foto["id"])) if foto else None
             d["schematic"] = self._esquema_irmao(m)
             d["ok"] = True
             self._board_atual = mid
@@ -399,6 +556,40 @@ class AppBridge(QObject):
         except Exception as e:
             traceback.print_exc()
             return json.dumps({"ok": False, "erro": str(e)})
+
+    def _foto_irma(self, m):
+        """Arquivo '... image.pdf/.png' na mesma pasta do boardview = foto da placa."""
+        chave = (m.get("marca"), m.get("console"), m.get("pasta") or "")
+        for o in self.sync.catalogo:
+            if (o.get("marca"), o.get("console"), o.get("pasta") or "") != chave:
+                continue
+            if o.get("categoria") not in ("documento", "imagem"):
+                continue
+            if _e_foto_de_placa(o.get("arquivo") or o.get("nome") or ""):
+                return o
+        return None
+
+    def _foto_data_url(self, mid):
+        """Foto da placa como data URL (PDF: 1ª página renderizada; imagem: como está)."""
+        m = self._meta(mid)
+        if not m:
+            return ""
+        if not self.sync.tem_pronto(m):
+            ok, _ = self.sync.baixar_material(m)          # pequena; baixa na hora
+            if not ok:
+                return ""
+        dados = self.cofre.ler(mid)
+        nome = (m.get("arquivo") or "").lower()
+        if nome.endswith(".pdf"):
+            import fitz
+            doc = fitz.open(stream=dados, filetype="pdf")
+            pg = doc[0]
+            escala = min(3.0, 2400 / max(pg.rect.width, 1))
+            png = pg.get_pixmap(matrix=fitz.Matrix(escala, escala), alpha=False).tobytes("png")
+            doc.close()
+            return "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+        mime = "image/jpeg" if nome.endswith((".jpg", ".jpeg")) else "image/png"
+        return f"data:{mime};base64," + base64.b64encode(dados).decode("ascii")
 
     def _esquema_irmao(self, m):
         """PDF do mesmo console cujo nome pareca com o da placa -> gd://id"""
@@ -489,6 +680,11 @@ class BoardBridge(QObject):
 
     @pyqtSlot(str, result=str)
     def fotoDataUrl(self, path):
+        if path and path.startswith("gdfoto://"):
+            try:
+                return self.app._foto_data_url(path[9:])
+            except Exception as e:
+                print(f"[BV] foto: {e}")
         return ""
 
     @pyqtSlot(str, result=str)

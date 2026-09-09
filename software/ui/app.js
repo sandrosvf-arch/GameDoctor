@@ -97,6 +97,7 @@
   function renderTree() {
     var arv = {};
     GD.itens.forEach(function (i) {
+      if (i.oculto) return;
       arv[i.marca] = arv[i.marca] || {};
       arv[i.marca][i.console] = (arv[i.marca][i.console] || 0) + 1;
     });
@@ -137,6 +138,7 @@
   }
   function filtrados() {
     return GD.itens.filter(function (i) {
+      if (i.oculto) return false;   /* foto de placa: vive dentro do boardview */
       if (!GD.busca && !dentro(i)) return false;
       if (GD.busca) {
         var t = (i.nome + ' ' + i.console + ' ' + i.marca + ' ' + (i.pasta || '') + ' ' + (i.descricao || '') + ' ' + (i.arquivo || '')).toLowerCase();
@@ -179,24 +181,30 @@
     aqui.forEach(function (i) {
       var novo = i.disponivel && !i.visto;
       var pend = i.cofre && !i.disponivel;
-      var cls = 'card ' + i.categoria + (pend ? ' pend' : '');
-      var badge = novo ? '<span class="badge novo">NOVO</span>' :
-                  pend ? '<span class="badge pend">AGUARDANDO DOWNLOAD</span>' : '';
-      var acao;
+      var baixando = !!(GD.baixando[i.id] || GD.swBaixando[i.id]);
+      var cls = 'card ' + i.categoria + (pend ? ' pend' : '') + (baixando ? ' baixando' : '');
+      var tipo = '<span class="tipo ' + i.categoria + '">' + esc(i.rotulo || i.categoria) + '</span>';
+      var estado = novo ? '<span class="badge novo">NOVO</span>' : '';
+      var acao, cancel = '<button class="abrir cancelar" onclick="event.stopPropagation();GD.cancelar(\'' + i.id + '\')">✕ Cancelar</button>';
       if (i.download_available === false) {
         acao = '<span class="abrir pend">' + esc(unlockLabel(i)) + '</span>';
+      } else if (baixando) {
+        acao = cancel;
       } else if (i.categoria === 'software') {
-        acao = GD.swBaixando[i.id] ? '<button class="abrir cancelar" onclick="event.stopPropagation();GD.cancelarSoftware(\'' + i.id + '\')">Cancelar</button>' :
-               GD.swPronto[i.id] ? '<span class="abrir" data-sw="' + esc(i.id) + '">📂 Abrir pasta</span> <span class="sub" style="margin-left:6px">· baixar de novo</span>' :
-               '<span class="abrir">⬇ Baixar para o computador</span>';
-       } else if (i.categoria === 'boardview') acao = GD.baixando[i.id] ? '<button class="abrir cancelar" onclick="event.stopPropagation();GD.cancelarMaterial(\'' + i.id + '\')">Cancelar</button>' :
-         '<span class="abrir">' + (i.disponivel ? 'Abrir no Boardviewer →' : '↓ Baixar para abrir') + '</span>';
-       else acao = GD.baixando[i.id] ? '<button class="abrir cancelar" onclick="event.stopPropagation();GD.cancelarMaterial(\'' + i.id + '\')">Cancelar</button>' :
-         '<span class="abrir">' + (i.disponivel ? 'Abrir →' : '↓ Baixar para abrir') + '</span>';
-      h += '<div class="' + cls + '" onclick="GD.abrir(\'' + i.id + '\')">' +
-           '<div style="display:flex;align-items:center;gap:10px"><div class="ico">' + (ICO[i.categoria] || ICO.documento) + '</div>' +
-           '<div style="flex:1;min-width:0"><div class="ttl">' + esc(i.nome) + '</div>' +
-           '<div class="sub">' + esc(camItem(i).join(' › ')) + '</div></div>' + badge + '</div>' +
+        acao = GD.swPronto[i.id]
+          ? '<span class="abrir" data-sw="' + esc(i.id) + '">📂 Abrir pasta</span><span class="sub" style="margin-left:6px">· baixar de novo</span>'
+          : '<span class="abrir">⬇ Baixar ' + (i.rotulo === 'Software' ? 'software' : 'arquivo') + '</span>';
+      } else if (i.categoria === 'boardview') {
+        acao = '<span class="abrir">' + (i.disponivel ? 'Abrir no Boardviewer →' : '↓ Baixar para abrir') + '</span>';
+      } else {
+        acao = '<span class="abrir">' + (i.disponivel ? 'Abrir →' : '↓ Baixar para abrir') + '</span>';
+      }
+      var titulo = i.titulo || i.nome;
+      h += '<div class="' + cls + '" onclick="GD.abrir(\'' + i.id + '\')" title="' + esc(i.nome) + (i.arquivo && i.arquivo !== i.nome ? '\n' + esc(i.arquivo) : '') + '">' +
+           tipo +
+           '<div class="card-head"><div class="ico">' + (ICO[i.categoria] || ICO.documento) + '</div>' +
+           '<div class="card-txt"><div class="ttl">' + esc(titulo) + '</div>' +
+           '<div class="sub">' + esc(camItem(i).slice(1).join(' › ')) + '</div></div>' + estado + '</div>' +
            (i.descricao ? '<div class="desc">' + esc(i.descricao) + '</div>' : '') +
            '<div class="foot">' + acao + '<span class="sz">' + fmtSz(i.tamanho) + '</span></div></div>';
     });
@@ -238,6 +246,7 @@
   GD.cancelarMaterial = function (id) {
     appBridge.cancelarDownload(id);
   };
+  GD.cancelar = function (id) { appBridge.cancelarDownload(id); };
 
   GD.abrirBoard = function (i) {
     $('v-lib').classList.remove('on');
@@ -281,9 +290,18 @@
     delete GD.swBaixando[id];
     if (ok) {
       GD.swPronto[id] = caminho;
-      toast('Download concluído', caminho + ' — <a href="#" data-sw="' + esc(id) + '" class="tlink">abrir pasta</a>', true);
+      GD.perguntarAbrir(id, caminho);
     } else toast('Falha no download', caminho);
     render();
+  };
+  /* modal: "Download concluído. Abrir diretório?" */
+  GD.perguntarAbrir = function (id, caminho) {
+    var i = GD.itens.filter(function (x) { return x.id === id; })[0] || {};
+    $('dl-ttl').textContent = i.titulo || i.nome || 'Download concluído';
+    $('dl-path').textContent = caminho;
+    $('dl-abrir').onclick = function () { $('m-dl').classList.remove('on'); appBridge.abrirPasta(caminho); };
+    $('dl-fechar').onclick = function () { $('m-dl').classList.remove('on'); };
+    $('m-dl').classList.add('on');
   };
   GD.abrirPastaSw = function (id) {
     var c = GD.swPronto[id];

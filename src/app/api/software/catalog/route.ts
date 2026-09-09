@@ -3,11 +3,16 @@ import { db } from "@/lib/db"
 import { getSoftwareBearer } from "@/lib/software-auth"
 import { getSoftwareDownloadAvailability } from "@/lib/access"
 
-function mapCategory(type: string) {
-  if (type === "PDF") return "documento"
-  if (type === "IMAGE") return "imagem"
-  if (type === "ARCHIVE") return "software"
-  return "documento"
+// Categoria pela EXTENSÃO do arquivo (o tipo do banco só conhece PDF/IMAGE/ARCHIVE).
+// documento/imagem/boardview abrem dentro do app; o resto vai para o disco do aluno.
+const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "webp", "bmp", "gif"])
+const BOARDVIEW_EXT = new Set(["pcb", "bvr", "cad", "brd", "bdv", "xzz", "fz", "tvw"])
+function mapCategory(type: string, fileName: string) {
+  const ext = (fileName.split(".").pop() || "").toLowerCase()
+  if (ext === "pdf" || type === "PDF") return "documento"
+  if (IMAGE_EXT.has(ext) || type === "IMAGE") return "imagem"
+  if (BOARDVIEW_EXT.has(ext)) return "boardview"
+  return "software"
 }
 
 export async function GET(request: Request) {
@@ -51,7 +56,7 @@ export async function GET(request: Request) {
       id: material.id,
       nome: material.title,
       arquivo: material.fileName,
-      categoria: mapCategory(material.type),
+      categoria: mapCategory(material.type, material.fileName),
       marca: typeof material.metadata === "object" && material.metadata && "marca" in material.metadata ? String(material.metadata.marca) : "GameDoctor",
       console: typeof material.metadata === "object" && material.metadata && "console" in material.metadata ? String(material.metadata.console) : "Geral",
       pasta: typeof material.metadata === "object" && material.metadata && "pasta" in material.metadata ? String(material.metadata.pasta) : "",
@@ -59,7 +64,7 @@ export async function GET(request: Request) {
       tamanho: material.sizeBytes,
       versao: material.updatedAt.getTime(),
       sha256: "",
-      aplicar_marca: false,
+      aplicar_marca: true,
       extrair: typeof material.metadata === "object" && material.metadata && "extrair" in material.metadata
         ? Boolean(material.metadata.extrair)
         : material.fileName.toLowerCase().endsWith(".zip"),

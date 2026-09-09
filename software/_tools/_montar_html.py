@@ -5,13 +5,13 @@ import os, re
 UI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui")
 main = open(os.path.join(UI, "main.html"), encoding="utf-8").read()
 frag = open(os.path.join(UI, "boardview_view.html"), encoding="utf-8").read()
-# Game Doctor: sem ferramentas de ajuste/foto (exclusivas do Bancada PRO)
-for _id in ("bv-separar", "bv-ajuste-faces", "bv-foto"):
+# Game Doctor: sem ferramentas de AJUSTE (exclusivas do Bancada PRO).
+# O botão Foto + transparência ficam: a foto da placa vem do acervo (arquivo "... image").
+for _id in ("bv-separar", "bv-ajuste-faces"):
     frag = re.sub(r'<button[^>]*id="%s"[^>]*>.*?</button>\s*' % _id, "", frag, flags=re.S)
 frag = re.sub(r'<div id="bv-ajuste-painel".*?</div>\s*', "", frag, flags=re.S)
-frag = re.sub(r'<input type="range" id="bv-alpha".*?>\s*', "", frag, flags=re.S)
 frag = re.sub(r'<!-- painel da ferramenta de ajuste[^\n]*\n', "", frag)
-assert 'bv-ajuste-painel' not in frag and 'bv-foto"' not in frag
+assert 'bv-ajuste-painel' not in frag
 ini, fim = "<!-- [BOARDVIEW_VIEW] -->", "<!-- [/BOARDVIEW_VIEW] -->"
 bloco = ini + "\n" + frag + "\n" + fim
 if fim in main:
