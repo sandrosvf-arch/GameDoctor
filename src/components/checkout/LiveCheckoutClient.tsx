@@ -280,7 +280,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
     return () => window.clearInterval(interval)
   }, [pix?.orderId])
 
-  const cardInitialization = useMemo(() => ({ amount: quote.installmentTotal, payer: { email: customer.email.trim() } }), [customer.email, quote.installmentTotal])
+  const cardInitialization = useMemo(() => ({ amount: quote.cardTotal, payer: { email: customer.email.trim() } }), [customer.email, quote.cardTotal])
   const cardCustomization = useMemo(() => ({ paymentMethods: { minInstallments: 1, maxInstallments: Math.min(12, quote.installments.max) }, visual: { hideFormTitle: true } }), [quote.installments.max])
 
   return (
@@ -339,7 +339,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <MethodButton active={method === "card"} icon={<CreditCard className="h-5 w-5" />} title="Cartão" description="Parcele em até 12x" onClick={() => chooseMethod("card")} />
                 <MethodButton active={method === "pix"} icon={<QrCode className="h-5 w-5" />} title="Pix" description={`${currency(quote.pixTotal)} à vista`} onClick={() => chooseMethod("pix")} />
-                {pagaleveEnabled && <MethodButton active={method === "pagaleve"} icon={<Wallet className="h-5 w-5" />} title="Parcelamento via Pix" description={`${currency(quote.installmentTotal)} no total, pela Pagaleve`} onClick={() => chooseMethod("pagaleve")} />}
+                {pagaleveEnabled && <MethodButton active={method === "pagaleve"} icon={<Wallet className="h-5 w-5" />} title="Parcelamento via Pix" description={`${currency(quote.pixInstallmentTotal)} no total, pela Pagaleve`} onClick={() => chooseMethod("pagaleve")} />}
               </div>
 
               <div className="mt-5 border-t border-white/[0.07] pt-5">
@@ -378,7 +378,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                       <Field label="Cidade" value={address.city} onChange={(city) => setAddress((current) => ({ ...current, city }))} />
                       <Field label="Estado" value={address.state} onChange={(state) => setAddress((current) => ({ ...current, state: state.replace(/[^a-z]/gi, "").slice(0, 2).toUpperCase() }))} />
                     </div>
-                    <button type="button" onClick={() => void submitPagaleve()} disabled={submitting || redirecting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ff0a8a] font-semibold text-white disabled:opacity-50">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}{redirecting ? "Abrindo ambiente seguro..." : `Ver condições de parcelamento (${currency(quote.installmentTotal)})`}</button>
+                    <button type="button" onClick={() => void submitPagaleve()} disabled={submitting || redirecting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ff0a8a] font-semibold text-white disabled:opacity-50">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}{redirecting ? "Abrindo ambiente seguro..." : `Ver condições de parcelamento (${currency(quote.pixInstallmentTotal)})`}</button>
                   </div>
                 )}
 

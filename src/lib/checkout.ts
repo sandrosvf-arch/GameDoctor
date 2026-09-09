@@ -21,6 +21,9 @@ export interface CheckoutQuote {
   discountTotal: number
   finalTotal: number
   pixTotal: number
+  cardTotal: number
+  boletoTotal: number
+  pixInstallmentTotal: number
   installmentTotal: number
   installments: {
     max: number
@@ -53,6 +56,10 @@ type QuotePlan = {
   highlighted: boolean
   status: string
   annualPrice: Prisma.Decimal | null
+  annualPixPrice: Prisma.Decimal | null
+  annualCardPrice: Prisma.Decimal | null
+  annualBoletoPrice: Prisma.Decimal | null
+  annualPixInstallmentPrice: Prisma.Decimal | null
   cardInstallmentTotal: Prisma.Decimal | null
   monthlyPrice: Prisma.Decimal | null
   monthlyEnabled: boolean
@@ -266,6 +273,10 @@ async function getPlanForQuote(planSlug: string) {
       highlighted: true,
       status: true,
       annualPrice: true,
+      annualPixPrice: true,
+      annualCardPrice: true,
+      annualBoletoPrice: true,
+      annualPixInstallmentPrice: true,
       cardInstallmentTotal: true,
       monthlyPrice: true,
       monthlyEnabled: true,
@@ -304,15 +315,24 @@ export async function buildCheckoutQuote(input: {
   ])
 
   const finalTotal = Math.max(0, Number((offer.subtotal - couponResult.discountTotal).toFixed(2)))
-  const pixTotal = plan.slug === "plano-anual" && offer.period === "annual"
-    ? Math.max(0, Number((697 - couponResult.discountTotal).toFixed(2)))
-    : finalTotal
+  const configuredPixTotal = offer.period === "annual" ? toNumber(plan.annualPixPrice) : 0
+  const configuredCardTotal = offer.period === "annual" ? toNumber(plan.annualCardPrice) : 0
+  const configuredBoletoTotal = offer.period === "annual" ? toNumber(plan.annualBoletoPrice) : 0
+  const configuredPixInstallmentTotal = offer.period === "annual" ? toNumber(plan.annualPixInstallmentPrice) : 0
+  const pixTotal = Math.max(0, Number(((configuredPixTotal || (plan.slug === "plano-anual" ? 697 : finalTotal)) - couponResult.discountTotal).toFixed(2)))
+  const cardTotal = Math.max(0, Number(((configuredCardTotal || finalTotal) - couponResult.discountTotal).toFixed(2)))
+  const boletoTotal = Math.max(0, Number(((configuredBoletoTotal || finalTotal) - couponResult.discountTotal).toFixed(2)))
+  const pixInstallmentTotal = Math.max(0, Number(((configuredPixInstallmentTotal || toNumber(plan.cardInstallmentTotal) || finalTotal) - couponResult.discountTotal).toFixed(2)))
+  const cardDisplayTotal = offer.period === "annual"
+    ? toNumber(plan.cardInstallmentTotal) || configuredPixInstallmentTotal || cardTotal
+    : cardTotal
   const cardEstimate = getCardEstimate(
     finalTotal,
     plan.maxInstallments,
     offer.period === "annual" ? offer.subtotal : undefined,
-    offer.period === "annual" ? toNumber(plan.cardInstallmentTotal) || offer.subtotal : undefined,
+    offer.period === "annual" ? cardDisplayTotal || offer.subtotal : undefined,
   )
+  const installmentTotal = pixInstallmentTotal
 
   return {
     plan: {
@@ -330,7 +350,10 @@ export async function buildCheckoutQuote(input: {
     discountTotal: couponResult.discountTotal,
     finalTotal,
     pixTotal,
-    installmentTotal: cardEstimate.total,
+    cardTotal,
+    boletoTotal,
+    pixInstallmentTotal,
+    installmentTotal,
     installments: {
       max: plan.maxInstallments,
       noInterest: plan.maxInstallmentsNoInterest,
@@ -417,8 +440,10 @@ export async function createPendingPlanCheckout(input: {
           paymentMethod: input.paymentMethod ?? "CREDIT_CARD",
           paymentStatus: "PENDING",
           amount: input.paymentMethod === "CREDIT_CARD"
-            ? quote.installmentTotal
-            : quote.finalTotal,
+            ? quote.cardTotal
+            : input.paymentMethod === "PIX_INSTALLMENTS"
+              ? quote.pixInstallmentTotal
+              : quote.finalTotal,
           installments: 1,
         },
       },
@@ -456,6 +481,10 @@ export async function listPublicPlans(userId?: string | null) {
         benefits: true,
         highlighted: true,
         annualPrice: true,
+        annualPixPrice: true,
+        annualCardPrice: true,
+        annualBoletoPrice: true,
+        annualPixInstallmentPrice: true,
         cardInstallmentTotal: true,
         monthlyPrice: true,
         monthlyEnabled: true,
@@ -515,12 +544,14 @@ export async function listPublicPlans(userId?: string | null) {
       {
         period: "annual" as const,
         label: "Anual",
-        price: plan.slug === "plano-anual" ? 697 : toNumber(plan.annualPrice),
+        price: toNumber(plan.annualPixPrice) || (plan.slug === "plano-anual" ? 697 : toNumber(plan.annualPrice)),
         cardEstimate: getCardEstimate(
           toNumber(plan.annualPrice),
           plan.maxInstallments,
           toNumber(plan.annualPrice),
-          toNumber(plan.cardInstallmentTotal) || toNumber(plan.annualPrice),
+          toNumber(plan.cardInstallmentTotal)
+            || toNumber(plan.annualPixInstallmentPrice)
+            || toNumber(plan.annualPrice),
         ),
         accessDurationDays: plan.annualAccessDurationDays,
       },

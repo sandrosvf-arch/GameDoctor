@@ -64,6 +64,9 @@ interface CheckoutQuote {
   discountTotal: number
   finalTotal: number
   pixTotal: number
+  cardTotal: number
+  boletoTotal: number
+  pixInstallmentTotal: number
   installmentTotal: number
   installments: { max: number; noInterest: number }
   cardEstimate: { total: number; installmentAmount: number }
@@ -455,8 +458,8 @@ export function CheckoutPageClient({
     }
   }, [pixPayment?.orderId, pixPayment?.status])
   const cardInitialization = useMemo(
-    () => ({ amount: quote.installmentTotal, payer: { email: profile.email } }),
-    [profile.email, quote.installmentTotal],
+    () => ({ amount: quote.cardTotal, payer: { email: profile.email } }),
+    [profile.email, quote.cardTotal],
   )
 
   const cardCustomization = useMemo(
@@ -482,7 +485,7 @@ export function CheckoutPageClient({
 
     try {
       const result = await getInstallments({
-        amount: quote.installmentTotal.toFixed(2),
+        amount: quote.cardTotal.toFixed(2),
         bin: normalizedBin,
         locale: "pt-BR",
         processingMode: "aggregator",
@@ -507,7 +510,7 @@ export function CheckoutPageClient({
     } finally {
       if (requestId === installmentRequestRef.current) setLoadingCardInstallments(false)
     }
-  }, [maxInstallments, quote.installmentTotal])
+  }, [maxInstallments, quote.cardTotal])
 
   useEffect(() => {
     const container = cardBrickContainerRef.current
@@ -737,7 +740,7 @@ export function CheckoutPageClient({
 
                     <div className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#090d13]">
                       <div className="grid gap-px bg-white/[0.07] sm:grid-cols-3">
-                        <PagaleveSummaryItem label="Valor da compra" value={formatCurrency(quote.installmentTotal)} />
+                        <PagaleveSummaryItem label="Valor da compra" value={formatCurrency(quote.pixInstallmentTotal)} />
                         <PagaleveSummaryItem label="Primeira parcela" value="Pode ser ajustada" />
                         <PagaleveSummaryItem label="Valor total" value="Não será alterado" />
                       </div>
@@ -748,7 +751,7 @@ export function CheckoutPageClient({
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           Consulte no calculador oficial a quantidade e os valores disponíveis para esta compra.
                         </p>
-                          <PagaleveInstallmentCalculator amount={quote.installmentTotal} />
+                          <PagaleveInstallmentCalculator amount={quote.pixInstallmentTotal} />
                         <div className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-3">
                           <p className="text-xs font-semibold text-amber-100">Simulação sujeita à análise</p>
                           <p className="mt-1 text-xs leading-5 text-amber-100/70">

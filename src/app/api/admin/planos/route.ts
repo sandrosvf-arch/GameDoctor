@@ -39,6 +39,10 @@ function normalizePlanPayload(body: Record<string, unknown>) {
   const slug = slugify(String(body.slug ?? name))
   const description = String(body.description ?? "").trim() || null
   const annualPrice = parseDecimal(body.annualPrice)
+  const annualPixPrice = parseDecimal(body.annualPixPrice)
+  const annualCardPrice = parseDecimal(body.annualCardPrice)
+  const annualBoletoPrice = parseDecimal(body.annualBoletoPrice)
+  const annualPixInstallmentPrice = parseDecimal(body.annualPixInstallmentPrice)
   const cardInstallmentTotal = parseDecimal(body.cardInstallmentTotal)
   const monthlyPrice = parseDecimal(body.monthlyPrice)
   const monthlyEnabled = Boolean(body.monthlyEnabled)
@@ -71,6 +75,11 @@ function normalizePlanPayload(body: Record<string, unknown>) {
     return { error: "Informe um valor anual válido." }
   }
 
+  if ([annualPixPrice, annualCardPrice, annualBoletoPrice, annualPixInstallmentPrice]
+    .some((value) => value !== null && value < 0)) {
+    return { error: "Os valores por forma de pagamento devem ser vÃ¡lidos." }
+  }
+
   if (cardInstallmentTotal !== null && cardInstallmentTotal < annualPrice) {
     return { error: "O valor total parcelado deve ser igual ou maior que o valor anual." }
   }
@@ -85,7 +94,11 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       slug,
       description,
       annualPrice,
-      cardInstallmentTotal,
+      annualPixPrice: annualPixPrice ?? annualPrice,
+      annualCardPrice: annualCardPrice ?? annualPrice,
+      annualBoletoPrice: annualBoletoPrice ?? annualPrice,
+      annualPixInstallmentPrice: annualPixInstallmentPrice ?? cardInstallmentTotal ?? annualPrice,
+      cardInstallmentTotal: cardInstallmentTotal ?? annualPixInstallmentPrice ?? annualPrice,
       monthlyPrice: monthlyEnabled ? monthlyPrice : null,
       monthlyEnabled,
       annualAccessDurationDays,
@@ -117,6 +130,10 @@ export async function GET() {
       slug: true,
       description: true,
       annualPrice: true,
+      annualPixPrice: true,
+      annualCardPrice: true,
+      annualBoletoPrice: true,
+      annualPixInstallmentPrice: true,
       cardInstallmentTotal: true,
       monthlyPrice: true,
       monthlyEnabled: true,
@@ -145,6 +162,10 @@ export async function GET() {
       slug: plan.slug,
       description: plan.description,
       annualPrice: Number(plan.annualPrice ?? 0),
+      annualPixPrice: plan.annualPixPrice === null ? null : Number(plan.annualPixPrice),
+      annualCardPrice: plan.annualCardPrice === null ? null : Number(plan.annualCardPrice),
+      annualBoletoPrice: plan.annualBoletoPrice === null ? null : Number(plan.annualBoletoPrice),
+      annualPixInstallmentPrice: plan.annualPixInstallmentPrice === null ? null : Number(plan.annualPixInstallmentPrice),
       cardInstallmentTotal: plan.cardInstallmentTotal === null ? null : Number(plan.cardInstallmentTotal),
       monthlyPrice: plan.monthlyPrice === null ? null : Number(plan.monthlyPrice),
       monthlyEnabled: plan.monthlyEnabled,

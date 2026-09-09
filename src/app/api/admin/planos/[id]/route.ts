@@ -39,6 +39,10 @@ function normalizePlanPayload(body: Record<string, unknown>) {
   const slug = slugify(String(body.slug ?? name))
   const description = String(body.description ?? "").trim() || null
   const annualPrice = parseDecimal(body.annualPrice)
+  const annualPixPrice = parseDecimal(body.annualPixPrice)
+  const annualCardPrice = parseDecimal(body.annualCardPrice)
+  const annualBoletoPrice = parseDecimal(body.annualBoletoPrice)
+  const annualPixInstallmentPrice = parseDecimal(body.annualPixInstallmentPrice)
   const cardInstallmentTotal = parseDecimal(body.cardInstallmentTotal)
   const monthlyPrice = parseDecimal(body.monthlyPrice)
   const monthlyEnabled = Boolean(body.monthlyEnabled)
@@ -71,6 +75,11 @@ function normalizePlanPayload(body: Record<string, unknown>) {
     return { error: "Informe um valor anual válido." }
   }
 
+  if ([annualPixPrice, annualCardPrice, annualBoletoPrice, annualPixInstallmentPrice]
+    .some((value) => value !== null && value < 0)) {
+    return { error: "Os valores por forma de pagamento devem ser vÃ¡lidos." }
+  }
+
   if (cardInstallmentTotal !== null && cardInstallmentTotal < annualPrice) {
     return { error: "O valor total parcelado deve ser igual ou maior que o valor anual." }
   }
@@ -85,6 +94,10 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       slug,
       description,
       annualPrice,
+      annualPixPrice: annualPixPrice ?? annualPrice,
+      annualCardPrice: annualCardPrice ?? annualPrice,
+      annualBoletoPrice: annualBoletoPrice ?? annualPrice,
+      annualPixInstallmentPrice: annualPixInstallmentPrice ?? cardInstallmentTotal ?? annualPrice,
       cardInstallmentTotal,
       monthlyPrice: monthlyEnabled ? monthlyPrice : null,
       monthlyEnabled,
@@ -119,7 +132,7 @@ export async function PATCH(
 
   const target = await db.plan.findUnique({
     where: { id },
-    select: { id: true, name: true },
+    select: { id: true, name: true, cardInstallmentTotal: true },
   })
 
   if (!target) {
@@ -129,6 +142,12 @@ export async function PATCH(
   const payload = normalizePlanPayload(body)
   if ("error" in payload) {
     return NextResponse.json({ error: payload.error }, { status: 400 })
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(body, "cardInstallmentTotal")) {
+    payload.data.cardInstallmentTotal = target.cardInstallmentTotal === null
+      ? null
+      : Number(target.cardInstallmentTotal)
   }
 
   const conflict = await db.plan.findFirst({

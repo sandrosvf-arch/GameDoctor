@@ -72,6 +72,7 @@ export async function POST(request: Request) {
       period,
       couponCode,
       idempotencyKey,
+      paymentMethod: "CREDIT_CARD",
     })
 
     if (checkout.quote.finalTotal <= 0) {
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
 
     const mpOrder = await createMercadoPagoOrder({
       externalReference: checkout.orderId,
-      amount: checkout.quote.installmentTotal,
+      amount: checkout.quote.cardTotal,
       description: checkout.quote.plan.name + " - " + checkout.quote.periodLabel,
       cardToken,
       paymentMethodId,
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
     const gatewayPaidAmount = Number(mpPayment?.paid_amount ?? mpOrder.total_paid_amount)
     const paidAmount = Number.isFinite(gatewayPaidAmount) && gatewayPaidAmount > 0
       ? gatewayPaidAmount
-      : checkout.quote.installmentTotal
+      : checkout.quote.cardTotal
 
     await db.$transaction([
       db.order.update({

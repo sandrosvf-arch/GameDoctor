@@ -11,6 +11,10 @@ interface PlanItem {
   slug: string
   description: string | null
   annualPrice: number
+  annualPixPrice: number | null
+  annualCardPrice: number | null
+  annualBoletoPrice: number | null
+  annualPixInstallmentPrice: number | null
   cardInstallmentTotal: number | null
   monthlyPrice: number | null
   monthlyEnabled: boolean
@@ -37,7 +41,10 @@ interface FormState {
   name: string
   description: string
   annualPrice: string
-  cardInstallmentTotal: string
+  annualPixPrice: string
+  annualCardPrice: string
+  annualBoletoPrice: string
+  annualPixInstallmentPrice: string
   annualAccessDurationDays: string
   monthlyEnabled: boolean
   monthlyPrice: string
@@ -53,7 +60,10 @@ const emptyForm: FormState = {
   name: "",
   description: "",
   annualPrice: "",
-  cardInstallmentTotal: "",
+  annualPixPrice: "",
+  annualCardPrice: "",
+  annualBoletoPrice: "",
+  annualPixInstallmentPrice: "",
   annualAccessDurationDays: "365",
   monthlyEnabled: false,
   monthlyPrice: "",
@@ -68,6 +78,25 @@ const emptyForm: FormState = {
 function formatCurrency(value: number | null) {
   if (value === null) return "-"
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value)
+}
+
+function PriceInput({ label, value, onChange, placeholder }: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+}) {
+  return (
+    <label className="space-y-2">
+      <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
+        placeholder={placeholder}
+      />
+    </label>
+  )
 }
 
 function slugify(value: string) {
@@ -154,7 +183,10 @@ export default function AdminPlanosPage() {
       name: plan.name,
       description: plan.description ?? "",
       annualPrice: String(plan.annualPrice),
-      cardInstallmentTotal: plan.cardInstallmentTotal === null ? "" : String(plan.cardInstallmentTotal),
+      annualPixPrice: plan.annualPixPrice === null ? "" : String(plan.annualPixPrice),
+      annualCardPrice: plan.annualCardPrice === null ? "" : String(plan.annualCardPrice),
+      annualBoletoPrice: plan.annualBoletoPrice === null ? "" : String(plan.annualBoletoPrice),
+      annualPixInstallmentPrice: plan.annualPixInstallmentPrice === null ? "" : String(plan.annualPixInstallmentPrice),
       annualAccessDurationDays: String(plan.annualAccessDurationDays),
       monthlyEnabled: plan.monthlyEnabled,
       monthlyPrice: plan.monthlyPrice === null ? "" : String(plan.monthlyPrice),
@@ -177,7 +209,10 @@ export default function AdminPlanosPage() {
       slug: slugify(form.name),
       description: form.description,
       annualPrice: form.annualPrice,
-      cardInstallmentTotal: form.cardInstallmentTotal,
+      annualPixPrice: form.annualPixPrice,
+      annualCardPrice: form.annualCardPrice,
+      annualBoletoPrice: form.annualBoletoPrice,
+      annualPixInstallmentPrice: form.annualPixInstallmentPrice,
       annualAccessDurationDays: form.annualAccessDurationDays,
       monthlyEnabled: form.monthlyEnabled,
       monthlyPrice: form.monthlyPrice,
@@ -301,16 +336,14 @@ export default function AdminPlanosPage() {
                     </div>
 
                     <div className="space-y-2 text-sm">
-                      <div>
-                        <p className="font-semibold text-foreground">{formatCurrency(plan.annualPrice)} /ano</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">
-                          {plan.monthlyEnabled && plan.monthlyPrice !== null
-                            ? `${formatCurrency(plan.monthlyPrice)} /mes`
-                            : "Mensal desativado"}
-                        </p>
-                      </div>
+                      <p className="font-semibold text-foreground">Plano: {formatCurrency(plan.annualPrice)}</p>
+                      <p className="text-muted-foreground">Pix: {formatCurrency(plan.annualPixPrice)}</p>
+                      <p className="text-muted-foreground">Cartao: {formatCurrency(plan.annualCardPrice)}</p>
+                      <p className="text-muted-foreground">Boleto: {formatCurrency(plan.annualBoletoPrice)}</p>
+                      <p className="text-muted-foreground">Pix parcelado: {formatCurrency(plan.annualPixInstallmentPrice)}</p>
+                      {plan.monthlyEnabled && plan.monthlyPrice !== null ? (
+                        <p className="text-muted-foreground">Mensal: {formatCurrency(plan.monthlyPrice)}</p>
+                      ) : null}
                     </div>
 
                     <div className="space-y-2 text-sm">
@@ -436,15 +469,15 @@ export default function AdminPlanosPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Total no cartao parcelado</label>
-                  <input
-                    value={form.cardInstallmentTotal}
-                    onChange={(event) => setForm((current) => ({ ...current, cardInstallmentTotal: event.target.value }))}
-                    className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
-                    placeholder="750.00"
-                  />
-                  <p className="text-xs text-muted-foreground">Valor total de referencia para o parcelamento no cartao. Pix continua usando o valor anual.</p>
+                <div className="space-y-2 md:col-span-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Valores por forma de pagamento</p>
+                  <p className="text-xs text-muted-foreground">O valor do cartao e a base enviada ao gateway; o Mercado Pago calcula as condicoes de parcelas.</p>
+                  <div className="grid grid-cols-1 gap-4 pt-2 md:grid-cols-2">
+                    <PriceInput label="Valor no Pix" value={form.annualPixPrice} onChange={(value) => setForm((current) => ({ ...current, annualPixPrice: value }))} placeholder="697.00" />
+                    <PriceInput label="Valor no cartao" value={form.annualCardPrice} onChange={(value) => setForm((current) => ({ ...current, annualCardPrice: value }))} placeholder="614.40" />
+                    <PriceInput label="Valor no boleto" value={form.annualBoletoPrice} onChange={(value) => setForm((current) => ({ ...current, annualBoletoPrice: value }))} placeholder="614.38" />
+                    <PriceInput label="Valor no Pix parcelado" value={form.annualPixInstallmentPrice} onChange={(value) => setForm((current) => ({ ...current, annualPixInstallmentPrice: value }))} placeholder="750.00" />
+                  </div>
                 </div>
 
                 <div className="rounded-2xl border border-border/70 bg-background/40 p-4 md:col-span-2">

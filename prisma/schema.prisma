@@ -651,6 +651,10 @@ model Plan {
   description               String?
   price                     Decimal?    @db.Decimal(10, 2)
   annualPrice               Decimal?    @map("annual_price") @db.Decimal(10, 2)
+  annualPixPrice            Decimal?    @map("annual_pix_price") @db.Decimal(10, 2)
+  annualCardPrice           Decimal?    @map("annual_card_price") @db.Decimal(10, 2)
+  annualBoletoPrice         Decimal?    @map("annual_boleto_price") @db.Decimal(10, 2)
+  annualPixInstallmentPrice Decimal?    @map("annual_pix_installment_price") @db.Decimal(10, 2)
   cardInstallmentTotal      Decimal?    @map("card_installment_total") @db.Decimal(10, 2)
   monthlyPrice              Decimal?    @map("monthly_price") @db.Decimal(10, 2)
   billingType               BillingType @default(ONE_TIME) @map("billing_type")

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
     const mpOrder = await createMercadoPagoOrder({
       externalReference: checkout.orderId,
-      amount: checkout.quote.installmentTotal,
+      amount: checkout.quote.cardTotal,
       description: `${checkout.quote.plan.name} - ${checkout.quote.periodLabel}`,
       cardToken,
       paymentMethodId,
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     const providerAmount = Number(mpPayment?.paid_amount ?? mpOrder.total_paid_amount)
     const amount = Number.isFinite(providerAmount) && providerAmount > 0
       ? providerAmount
-      : checkout.quote.installmentTotal
+      : checkout.quote.cardTotal
 
     await db.$transaction([
       db.order.update({
