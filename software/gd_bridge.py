@@ -110,7 +110,10 @@ def planejar_importacao(pasta):
         dirs = [x for x in nomes if os.path.isdir(_lp(os.path.join(d, x)))]
         rel_dir = rel_de(d) if d != pasta else ""
         nivel = len([x for x in rel_dir.split("/") if x]) if rel_dir else 0
-        if nivel >= 2 and _e_pacote(arquivos):          # abaixo do console (marca=0, console=1): pacote
+        # abaixo do console (marca=0, console=1) uma pasta de programa vira pacote; numa "marca" de
+        # softwares gerais (#Softwares e Drivers uteis) nao ha console, entao ja no 1o nivel
+        nivel_pacote = 1 if raiz_nome.lstrip("#").strip().lower().startswith("software") else 2
+        if nivel >= nivel_pacote and _e_pacote(arquivos):
             arqs = []
             for r, _, fs in os.walk(_lp(d)):
                 r = r[len(_lp(d)) - len(d):] if r.startswith("\\\\?\\") else r
@@ -335,6 +338,9 @@ class AppBridge(QObject):
             oculto = (m.get("categoria") in ("documento", "imagem")
                       and (m.get("marca"), m.get("console"), m.get("pasta") or "") in pastas_com_bv
                       and _e_foto_de_placa(m.get("arquivo") or m.get("nome") or ""))
+            # o instalador do proprio Game Doctor (pagina "Baixar software" do site) nao e material
+            if (m.get("marca") or "GameDoctor") == "GameDoctor":
+                oculto = True
             pasta_nome = (m.get("pasta") or "").split("/")[-1] or (m.get("console") or "")
             itens.append({
                 "id": mid, "nome": m.get("nome"), "arquivo": m.get("arquivo"),

@@ -10,7 +10,7 @@ Uso (na pasta software\\):
 Credenciais: as lembradas pelo app (DPAPI) ou --email/--senha.
 API: GAME_DOCTOR_API_URL (padrao do gd_config).
 """
-import os, sys, io, json, time, mimetypes, argparse, urllib.request
+import os, sys, io, json, time, mimetypes, argparse, urllib.request, urllib.error
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -50,9 +50,12 @@ def enviar(it):
         reader = _ProgressReader(src, size, prog)
         req = urllib.request.Request(prep["signedUrl"], data=reader, method="PUT",
                                      headers={"Content-Type": mime, "Content-Length": str(size)})
-        with urllib.request.urlopen(req, timeout=3600) as r:
-            if r.status not in (200, 201):
-                raise RuntimeError(f"upload HTTP {r.status}")
+        try:
+            with urllib.request.urlopen(req, timeout=3600) as r:
+                if r.status not in (200, 201):
+                    raise RuntimeError(f"upload HTTP {r.status}")
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"upload HTTP {e.code}: {e.read(500).decode('utf-8', 'replace')}")
     print()
     st, created = gd_auth._req("POST", "/api/software/admin/material", token=SESSAO.get("token"), body={
         "title": it["titulo"], "fileName": it["nome_arquivo"], "storagePath": prep["path"],
@@ -71,6 +74,8 @@ def main():
     ap.add_argument("--raiz")
     ap.add_argument("--simular", action="store_true")
     ap.add_argument("--email"); ap.add_argument("--senha")
+    ap.add_argument("--pular", help="JSON com lista de sourceKeys ja existentes (pula sem consultar a API)")
+    ap.add_argument("--ignorar", action="append", default=[], help="trecho de sourceKey a nao enviar (repetivel)")
     a = ap.parse_args()
     pastas = list(a.pastas)
     if a.raiz:
@@ -81,6 +86,14 @@ def main():
     plano = []
     for p in pastas:
         plano += planejar_importacao(p)
+    if a.pular:
+        with open(a.pular, encoding="utf-8") as f:
+            ja = set(json.load(f))
+        antes = len(plano)
+        plano = [i for i in plano if i["source_key"] not in ja]
+        log(f"pulados por ja existirem no banco: {antes - len(plano)}")
+    if a.ignorar:
+        plano = [i for i in plano if not any(t.lower() in i["source_key"].lower() for t in a.ignorar)]
     tam = sum(i["tamanho"] for i in plano) / 1048576
     log(f"plano: {len(plano)} materiais em {len(pastas)} marca(s), {tam:.0f} MB (a API pula o que ja existe)")
     if a.simular:
