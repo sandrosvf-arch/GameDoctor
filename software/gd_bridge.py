@@ -545,8 +545,7 @@ class AppBridge(QObject):
             with self.cofre.temporario(mid, nome) as p:
                 d = BL.carregar(p)
             d["caminho"] = "gd://" + mid
-            foto = self._foto_irma(m)
-            d["foto"] = ("gdfoto://" + str(foto["id"])) if foto else None
+            d["foto"] = None      # foto da placa e recurso exclusivo do Bancada PRO
             d["schematic"] = self._esquema_irmao(m)
             d["ok"] = True
             self._board_atual = mid
