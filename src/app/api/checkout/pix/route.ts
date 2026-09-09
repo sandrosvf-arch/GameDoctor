@@ -122,6 +122,10 @@ export async function POST(request: Request) {
     }) ?? "PIX"
     const expiresAt = payment.date_of_expiration ? new Date(payment.date_of_expiration) : null
     const gatewayPaymentId = String(payment.id)
+    const gatewayAmount = Number(payment.transaction_amount)
+    const amount = Number.isFinite(gatewayAmount) && gatewayAmount > 0
+      ? gatewayAmount
+      : checkout.quote.pixTotal
 
     await db.$transaction([
       db.order.update({
@@ -130,6 +134,7 @@ export async function POST(request: Request) {
           gatewayReference: gatewayPaymentId,
           paymentMethod,
           paymentStatus,
+          finalTotal: amount,
         },
       }),
       db.payment.update({
@@ -139,7 +144,7 @@ export async function POST(request: Request) {
           paymentMethod,
           paymentStatus,
           installments: 1,
-          amount: checkout.quote.pixTotal,
+          amount,
           pixQrCode: qrCodeBase64,
           pixCopyPaste: copyPaste,
           expiresAt,

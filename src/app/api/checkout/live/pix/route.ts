@@ -65,10 +65,19 @@ export async function POST(request: Request) {
 
     const status = mapMercadoPagoStatusToInternal(payment.status)
     const expiresAt = payment.date_of_expiration ? new Date(payment.date_of_expiration) : null
+    const gatewayAmount = Number(payment.transaction_amount)
+    const amount = Number.isFinite(gatewayAmount) && gatewayAmount > 0
+      ? gatewayAmount
+      : checkout.quote.pixTotal
     await db.$transaction([
       db.order.update({
         where: { id: checkout.orderId },
-        data: { gatewayReference: String(payment.id), paymentMethod: "PIX", paymentStatus: status },
+        data: {
+          gatewayReference: String(payment.id),
+          paymentMethod: "PIX",
+          paymentStatus: status,
+          finalTotal: amount,
+        },
       }),
       db.payment.update({
         where: { id: checkout.paymentId! },
@@ -76,7 +85,7 @@ export async function POST(request: Request) {
           gatewayPaymentId: String(payment.id),
           paymentMethod: "PIX",
           paymentStatus: status,
-          amount: checkout.quote.pixTotal,
+          amount,
           installments: 1,
           pixQrCode: qrCodeBase64,
           pixCopyPaste: copyPaste,

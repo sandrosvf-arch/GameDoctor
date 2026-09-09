@@ -98,7 +98,7 @@ export async function POST(request: Request) {
 
     const mpOrder = await createMercadoPagoOrder({
       externalReference: checkout.orderId,
-      amount: checkout.quote.finalTotal,
+      amount: checkout.quote.installmentTotal,
       description: checkout.quote.plan.name + " - " + checkout.quote.periodLabel,
       cardToken,
       paymentMethodId,
@@ -120,10 +120,10 @@ export async function POST(request: Request) {
       paymentMethodId: mpPayment?.payment_method?.id ?? paymentMethodId,
     })
     const gatewayPaymentId = mpPayment?.id ? String(mpPayment.id) : null
-    const gatewayPaidAmount = Number(mpOrder.total_paid_amount)
+    const gatewayPaidAmount = Number(mpPayment?.paid_amount ?? mpOrder.total_paid_amount)
     const paidAmount = Number.isFinite(gatewayPaidAmount) && gatewayPaidAmount > 0
       ? gatewayPaidAmount
-      : checkout.quote.finalTotal
+      : checkout.quote.installmentTotal
 
     await db.$transaction([
       db.order.update({
@@ -132,6 +132,7 @@ export async function POST(request: Request) {
           gatewayReference: mpOrder.id,
           paymentMethod: paymentMethod ?? "CREDIT_CARD",
           paymentStatus: internalStatus,
+          finalTotal: paidAmount,
         },
       }),
       db.payment.update({

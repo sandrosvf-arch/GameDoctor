@@ -71,11 +71,11 @@ export async function GET(request: NextRequest) {
   const [totalItems, approvedRevenue, approvedOrders, pendingOrders, cancelledOrders, orders] =
     await Promise.all([
       db.order.count({ where }),
-      db.order.aggregate({
-        _sum: { finalTotal: true },
+      db.payment.aggregate({
+        _sum: { amount: true },
         where: {
-          ...baseWhere,
           paymentStatus: "APPROVED",
+          order: baseWhere,
         },
       }),
       db.order.count({ where: { ...baseWhere, paymentStatus: "APPROVED" } }),
@@ -166,13 +166,15 @@ export async function GET(request: NextRequest) {
       approvedOrders,
       pendingOrders,
       cancelledOrders,
-      approvedRevenue: Number(approvedRevenue._sum.finalTotal ?? 0),
+      approvedRevenue: Number(approvedRevenue._sum.amount ?? 0),
     },
     orders: orders.map((order) => ({
       id: order.id,
       total: Number(order.total),
       discountTotal: Number(order.discountTotal),
-      finalTotal: Number(order.finalTotal),
+      finalTotal: order.payments[0]
+        ? Number(order.payments[0].amount)
+        : Number(order.finalTotal),
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
       gateway: order.gateway,

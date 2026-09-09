@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getCardEstimate } from "@/lib/checkout"
 
 function normalizeStatusLabel(status: string) {
   if (status === "APPROVED") return "Pagamento aprovado"
@@ -81,12 +80,7 @@ export async function GET(request: NextRequest) {
   const item = order.orderItems[0] ?? null
   const payment = order.payments[0] ?? null
   const effectiveStatus = payment?.paymentStatus ?? order.paymentStatus
-  const storedPaymentAmount = payment ? Number(payment.amount) : Number(order.finalTotal)
-  const paymentAmount = payment?.paymentMethod === "CREDIT_CARD"
-    && payment.installments === 12
-    && storedPaymentAmount <= Number(order.finalTotal)
-    ? getCardEstimate(Number(order.finalTotal), payment.installments).total
-    : storedPaymentAmount
+  const paymentAmount = payment ? Number(payment.amount) : Number(order.finalTotal)
 
   return NextResponse.json({
     canView: true,
@@ -96,7 +90,7 @@ export async function GET(request: NextRequest) {
       paymentStatusLabel: normalizeStatusLabel(effectiveStatus),
       total: Number(order.total),
       discountTotal: Number(order.discountTotal),
-      finalTotal: Number(order.finalTotal),
+      finalTotal: paymentAmount,
       paymentMethod: payment?.paymentMethod ?? order.paymentMethod ?? null,
       gateway: order.gateway,
       gatewayReference: order.gatewayReference,

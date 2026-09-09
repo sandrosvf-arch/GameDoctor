@@ -455,8 +455,8 @@ export function CheckoutPageClient({
     }
   }, [pixPayment?.orderId, pixPayment?.status])
   const cardInitialization = useMemo(
-    () => ({ amount: quote.finalTotal, payer: { email: profile.email } }),
-    [profile.email, quote.finalTotal],
+    () => ({ amount: quote.installmentTotal, payer: { email: profile.email } }),
+    [profile.email, quote.installmentTotal],
   )
 
   const cardCustomization = useMemo(
@@ -482,7 +482,7 @@ export function CheckoutPageClient({
 
     try {
       const result = await getInstallments({
-        amount: quote.finalTotal.toFixed(2),
+        amount: quote.installmentTotal.toFixed(2),
         bin: normalizedBin,
         locale: "pt-BR",
         processingMode: "aggregator",
@@ -507,7 +507,7 @@ export function CheckoutPageClient({
     } finally {
       if (requestId === installmentRequestRef.current) setLoadingCardInstallments(false)
     }
-  }, [maxInstallments, quote.finalTotal])
+  }, [maxInstallments, quote.installmentTotal])
 
   useEffect(() => {
     const container = cardBrickContainerRef.current

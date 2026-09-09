@@ -280,7 +280,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
     return () => window.clearInterval(interval)
   }, [pix?.orderId])
 
-  const cardInitialization = useMemo(() => ({ amount: quote.finalTotal, payer: { email: customer.email.trim() } }), [customer.email, quote.finalTotal])
+  const cardInitialization = useMemo(() => ({ amount: quote.installmentTotal, payer: { email: customer.email.trim() } }), [customer.email, quote.installmentTotal])
   const cardCustomization = useMemo(() => ({ paymentMethods: { minInstallments: 1, maxInstallments: Math.min(12, quote.installments.max) }, visual: { hideFormTitle: true } }), [quote.installments.max])
 
   return (

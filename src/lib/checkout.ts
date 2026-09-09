@@ -416,7 +416,9 @@ export async function createPendingPlanCheckout(input: {
           gateway: input.gateway ?? "MERCADOPAGO",
           paymentMethod: input.paymentMethod ?? "CREDIT_CARD",
           paymentStatus: "PENDING",
-          amount: quote.finalTotal,
+          amount: input.paymentMethod === "CREDIT_CARD"
+            ? quote.installmentTotal
+            : quote.finalTotal,
           installments: 1,
         },
       },

@@ -78,6 +78,7 @@ async function processLocalOrder(input: {
     data: {
       paymentMethod: input.paymentMethod,
       paymentStatus: input.status as never,
+      finalTotal: input.amount,
     },
   })
 
@@ -126,7 +127,7 @@ async function processOrderNotification(gatewayOrderId: string) {
     gatewayPaymentId: gatewayPayment?.id ? String(gatewayPayment.id) : null,
     status,
     paymentMethod,
-    amount: Number(gatewayOrder.total_paid_amount ?? gatewayPayment?.amount ?? gatewayOrder.total_amount ?? 0),
+    amount: Number(gatewayPayment?.paid_amount ?? gatewayOrder.total_paid_amount ?? gatewayPayment?.amount ?? gatewayOrder.total_amount ?? 0),
     installments: gatewayPayment?.payment_method?.installments ?? 1,
   })
 }
