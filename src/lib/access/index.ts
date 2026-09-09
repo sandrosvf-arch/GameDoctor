@@ -7,6 +7,18 @@
 import { db } from "@/lib/db"
 import type { AccessOrigin, AccessType, BillingType } from "@prisma/client"
 
+type PlanScope = {
+  planCourses: Array<{ courseId: string }>
+  planLessons: Array<{ lessonId: string }>
+}
+
+function planIncludesLesson(plan: PlanScope | null, courseId: string, lessonId: string) {
+  if (!plan) return false
+  if (plan.planCourses.length === 0 && plan.planLessons.length === 0) return true
+  return plan.planCourses.some((item) => item.courseId === courseId)
+    || plan.planLessons.some((item) => item.lessonId === lessonId)
+}
+
 /**
  * Check if a user has active access to a specific course.
  * Access can come from:
@@ -19,30 +31,35 @@ export async function hasAccessToCourse(
 ): Promise<boolean> {
   const now = new Date()
 
-  const permission = await db.accessPermission.findFirst({
+  const permissions = await db.accessPermission.findMany({
     where: {
       userId,
       status: "ACTIVE",
       startsAt: { lte: now },
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      AND: [
-        {
-          OR: [
-            { courseId },
-            {
-              plan: {
-                planCourses: {
-                  some: { courseId },
-                },
-              },
-            },
-          ],
+    },
+    select: {
+      courseId: true,
+      plan: {
+        select: {
+          planCourses: { select: { courseId: true } },
+          planLessons: { select: { lesson: { select: { courseId: true } } } },
         },
-      ],
+      },
     },
   })
 
-  return !!permission
+  return permissions.some((permission) => {
+    if (permission.courseId === courseId) return true
+    const plan = permission.plan
+    return Boolean(
+      plan && (
+        (plan.planCourses.length === 0 && plan.planLessons.length === 0)
+        || plan.planCourses.some((item) => item.courseId === courseId)
+        || plan.planLessons.some((item) => item.lesson.courseId === courseId)
+      )
+    )
+  })
 }
 
 function getNonProductionReleaseMinutes() {
@@ -144,19 +161,17 @@ export async function hasAccessToLesson(
       status: "ACTIVE",
       startsAt: { lte: now },
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      AND: [
-        {
-          OR: [
-            { courseId: lesson.courseId },
-            { plan: { planCourses: { some: { courseId: lesson.courseId } } } },
-          ],
-        },
-      ],
     },
     select: {
       courseId: true,
       planId: true,
       startsAt: true,
+      plan: {
+        select: {
+          planCourses: { select: { courseId: true } },
+          planLessons: { select: { lessonId: true } },
+        },
+      },
     },
   })
 
@@ -171,7 +186,7 @@ export async function hasAccessToLesson(
   }
 
   const planReleaseDates = permissions
-    .filter((permission) => permission.planId)
+    .filter((permission) => permission.planId && planIncludesLesson(permission.plan, lesson.courseId, lessonId))
     .map((permission) => getLessonReleaseAt(permission.startsAt, lesson.releaseAfterDays))
 
   if (planReleaseDates.length > 0) {
@@ -228,38 +243,34 @@ export async function getCourseLessonReleaseAtMap(
       status: "ACTIVE",
       startsAt: { lte: now },
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      AND: [
-        {
-          OR: [
-            { courseId },
-            { plan: { planCourses: { some: { courseId } } } },
-          ],
-        },
-      ],
     },
     select: {
       courseId: true,
       planId: true,
       startsAt: true,
+      plan: {
+        select: {
+          planCourses: { select: { courseId: true } },
+          planLessons: { select: { lessonId: true } },
+        },
+      },
     },
   })
 
   if (permissions.some((permission) => permission.courseId === courseId)) return {}
 
-  const planStartsAt = permissions
-    .filter((permission) => permission.planId)
-    .map((permission) => permission.startsAt)
-
-  if (planStartsAt.length === 0) return {}
-
-  const earliestPlanStart = Math.min(...planStartsAt.map((date) => date.getTime()))
   const result: Record<string, string> = {}
 
   for (const lesson of lessons) {
     if (lesson.isFree || lesson.releaseAfterDays <= 0) continue
 
+    const planStartsAt = permissions
+      .filter((permission) => permission.planId && planIncludesLesson(permission.plan, courseId, lesson.id))
+      .map((permission) => permission.startsAt)
+    if (planStartsAt.length === 0) continue
+
     const releaseAt = getLessonReleaseAt(
-      new Date(earliestPlanStart),
+      new Date(Math.min(...planStartsAt.map((date) => date.getTime()))),
       lesson.releaseAfterDays
     )
 
