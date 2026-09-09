@@ -43,6 +43,7 @@ interface AccessPermissionRecord {
   courseId: string | null
   plan: {
     planCourses: Array<{ courseId: string }>
+    planLessons: Array<{ lesson: { courseId: string } }>
   } | null
 }
 
@@ -153,15 +154,39 @@ async function getAccessibleCourseIds(userId: string, role?: UserRole) {
           planCourses: {
             select: { courseId: true },
           },
+          planLessons: {
+            select: {
+              lesson: { select: { courseId: true } },
+            },
+          },
         },
       },
     },
   }) as AccessPermissionRecord[]
 
+  const hasGlobalPlan = accessPermissions.some((permission) => (
+    permission.plan
+    && permission.plan.planCourses.length === 0
+    && permission.plan.planLessons.length === 0
+  ))
+
+  if (hasGlobalPlan) {
+    const courses = await db.course.findMany({
+      where: {
+        status: "PUBLISHED",
+        lessons: { some: { status: "PUBLISHED" } },
+      },
+      select: { id: true },
+    })
+
+    return courses.map((course) => course.id)
+  }
+
   return Array.from(new Set(
     accessPermissions.flatMap((permission) => [
       ...(permission.courseId ? [permission.courseId] : []),
       ...(permission.plan?.planCourses.map((item) => item.courseId) ?? []),
+      ...(permission.plan?.planLessons.map((item) => item.lesson.courseId) ?? []),
     ])
   ))
 }
