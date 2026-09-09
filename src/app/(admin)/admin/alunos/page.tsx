@@ -474,18 +474,18 @@ export default function AdminAlunosPage() {
           </div>
         ) : (
           <>
-            <div className="rounded-xl border border-border">
-              <div className=" rounded-xl">
-                <table className="min-w-full divide-y divide-border text-sm">
+            <div className="max-w-full overflow-hidden rounded-xl border border-border">
+              <div className="max-w-full overflow-x-auto rounded-xl">
+                <table className="w-full table-fixed divide-y divide-border text-sm">
                 <thead className="bg-background/70">
                   <tr className="text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                    <th className="px-4 py-3">Aluno</th>
-                    <th className="px-4 py-3">WhatsApp</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Assinatura</th>
-                    <th className="px-4 py-3">Cadastro</th>
-                    <th className="px-4 py-3">Último login</th>
-                    <th className="px-4 py-3 text-right">Ações</th>
+                    <th className="w-[35%] px-2 py-3 sm:px-4 md:w-auto">Aluno</th>
+                    <th className="w-[32%] px-2 py-3 sm:px-4 md:w-auto">WhatsApp</th>
+                    <th className="w-[16%] px-2 py-3 sm:px-4 md:w-auto">Status</th>
+                    <th className="hidden px-4 py-3 md:table-cell">Assinatura</th>
+                    <th className="hidden px-4 py-3 lg:table-cell">Cadastro</th>
+                    <th className="hidden px-4 py-3 lg:table-cell">Último login</th>
+                    <th className="w-[17%] px-2 py-3 text-right sm:px-4 md:w-auto">Ações</th>
                   </tr>
                 </thead>
                   <tbody className="divide-y divide-border">
@@ -495,31 +495,34 @@ export default function AdminAlunosPage() {
 
                       return (
                         <tr key={student.id} className="bg-card/20 align-top">
-                          <td className="px-4 py-4">
-                            <p className="font-medium text-foreground">{student.name}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{student.email}</p>
+                          <td className="min-w-0 px-2 py-4 sm:px-4">
+                            <p className="truncate font-medium text-foreground" title={student.name}>{student.name}</p>
+                            <p className="mt-1 truncate text-xs text-muted-foreground" title={student.email}>{student.email}</p>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="min-w-0 px-2 py-4 sm:px-4">
                             {student.phone ? (
-                              <button
-                                type="button"
-                                onClick={() => void copyPhone(student)}
-                                className="inline-flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
-                                title="Copiar WhatsApp"
-                              >
-                                {copiedPhoneId === student.id ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                                {copiedPhoneId === student.id ? "Copiado" : formatPhone(student.phone)}
-                              </button>
+                              <div className="flex min-w-0 items-center gap-1">
+                                <span className="truncate text-xs text-foreground" title={formatPhone(student.phone)}>{formatPhone(student.phone)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => void copyPhone(student)}
+                                  className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                  title="Copiar WhatsApp"
+                                  aria-label={`Copiar WhatsApp de ${student.name}`}
+                                >
+                                  {copiedPhoneId === student.id ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                                </button>
+                              </div>
                             ) : (
                               <span className="text-xs text-muted-foreground">Não informado</span>
                             )}
                           </td>
-                          <td className="px-4 py-4">
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs ${statusTone(student.status)}`}>
+                          <td className="px-2 py-4 sm:px-4">
+                            <span className={`inline-flex max-w-full truncate whitespace-nowrap rounded-full border px-2 py-1 text-xs ${statusTone(student.status)}`}>
                               {statusLabel(student.status)}
                             </span>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="hidden px-4 py-4 md:table-cell">
                             <div className="space-y-1">
                               <span
                                 className={`inline-flex rounded-full border px-2.5 py-1 text-xs ${subscriptionTone(student)}`}
@@ -528,9 +531,9 @@ export default function AdminAlunosPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-4 text-xs text-muted-foreground">{formatDate(student.createdAt)}</td>
-                          <td className="px-4 py-4 text-xs text-muted-foreground">{formatDate(student.lastLoginAt)}</td>
-                          <td className="px-4 py-4">
+                          <td className="hidden px-4 py-4 text-xs text-muted-foreground lg:table-cell">{formatDate(student.createdAt)}</td>
+                          <td className="hidden px-4 py-4 text-xs text-muted-foreground lg:table-cell">{formatDate(student.lastLoginAt)}</td>
+                          <td className="px-2 py-4 sm:px-4">
                             <div className="flex justify-end">
                               <div className="relative">
                                 <button
@@ -538,11 +541,11 @@ export default function AdminAlunosPage() {
                                   onClick={() =>
                                     setOpenActionMenuId((current) => (current === student.id ? null : student.id))
                                   }
-                                  className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-accent disabled:opacity-60"
+                                  className="rounded-lg border border-border px-2 py-2 text-xs hover:bg-accent disabled:opacity-60 sm:px-3"
                                 >
                                   <span className="inline-flex items-center gap-1.5">
                                     <MoreHorizontal className="h-3.5 w-3.5" />
-                                    Ações
+                                    <span className="hidden sm:inline">Ações</span>
                                     <ChevronDown className="h-3.5 w-3.5" />
                                   </span>
                                 </button>
