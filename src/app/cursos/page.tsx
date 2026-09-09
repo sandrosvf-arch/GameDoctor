@@ -17,6 +17,7 @@ interface CourseWithFirstLesson {
   shortDescription: string | null
   isFree: boolean
   firstLessonId: string | null
+  firstLessonVideoProviderId: string | null
   lessonCount: number
   displayOrder: number
 }
@@ -64,7 +65,7 @@ function mapCourse(c: {
   coverImage: string | null
   shortDescription: string | null
   displayOrder: number
-  modules: { lessons: { id: string; isFree: boolean }[] }[]
+  modules: { lessons: { id: string; isFree: boolean; videoProviderId: string | null }[] }[]
   lessons: { id: string }[]
 }): CourseWithFirstLesson {
   const firstLesson = c.modules[0]?.lessons[0] ?? null
@@ -76,6 +77,7 @@ function mapCourse(c: {
     shortDescription: c.shortDescription,
     isFree: firstLesson?.isFree ?? false,
     firstLessonId: firstLesson?.id ?? null,
+    firstLessonVideoProviderId: firstLesson?.videoProviderId ?? null,
     lessonCount: c.lessons.length,
     displayOrder: c.displayOrder,
   }
@@ -131,7 +133,7 @@ async function getSections(categorySlug?: string): Promise<{
                         where: { status: "PUBLISHED" },
                         orderBy: { order: "asc" },
                         take: 1,
-                        select: { id: true, isFree: true },
+                        select: { id: true, isFree: true, videoProviderId: true },
                       },
                     },
                   },
@@ -168,7 +170,7 @@ async function getSections(categorySlug?: string): Promise<{
                     where: { status: "PUBLISHED" },
                     orderBy: { order: "asc" },
                     take: 1,
-                    select: { id: true, isFree: true },
+                    select: { id: true, isFree: true, videoProviderId: true },
                   },
                 },
               },
@@ -237,7 +239,7 @@ async function getSections(categorySlug?: string): Promise<{
               where: { status: "PUBLISHED" },
               orderBy: { order: "asc" },
               take: 1,
-              select: { id: true, isFree: true },
+              select: { id: true, isFree: true, videoProviderId: true },
             },
           },
         },
@@ -267,7 +269,11 @@ async function getSections(categorySlug?: string): Promise<{
 }
 
 function CourseCard({ course }: { course: CourseWithFirstLesson }) {
-  const href = course.firstLessonId ? `/aula/${course.firstLessonId}` : `/trilhas/${course.slug}`
+  const href = course.firstLessonId
+    ? course.firstLessonVideoProviderId
+      ? `/aula/bunny/${course.firstLessonVideoProviderId}`
+      : `/aula/${course.firstLessonId}`
+    : `/trilhas/${course.slug}`
 
   return (
     <Link href={href} className="group block h-full">
