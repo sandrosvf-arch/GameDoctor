@@ -64,13 +64,14 @@ const sections: LegalSection[] = [
     paragraphs: [
       "Adotamos medidas técnicas e administrativas para reduzir riscos de acesso indevido, alteração, perda ou divulgação dos dados. Nenhum serviço conectado à internet é completamente imune a incidentes.",
       "Mantemos os dados enquanto a conta estiver ativa, enquanto forem necessários para cumprir as finalidades descritas ou para atender obrigações legais, resolver disputas e preservar registros de segurança.",
+      "Solicitações de cancelamento, arrependimento, estorno e contestação podem ser registradas para confirmar a compra, atender ao pedido, comunicar o gateway de pagamento e cumprir obrigações legais.",
     ],
   },
   {
     title: "8. Seus direitos",
     paragraphs: [
       "Você pode solicitar confirmação de tratamento, acesso, correção, atualização, portabilidade quando aplicável, eliminação de dados tratados com base no consentimento e informações sobre o uso dos seus dados, observadas as limitações legais.",
-      "Para solicitar atendimento relacionado à privacidade, utilize a Central de Ajuda ou abra um ticket. Podemos pedir informações adicionais para confirmar a identidade antes de atender a solicitação.",
+      "Para solicitar atendimento relacionado à privacidade, utilize a Central de dúvidas ou abra um ticket. Podemos pedir informações adicionais para confirmar a identidade antes de atender a solicitação.",
     ],
   },
   {
@@ -83,7 +84,7 @@ const sections: LegalSection[] = [
     title: "10. Alterações e contato",
     paragraphs: [
       "Esta política pode ser atualizada para refletir mudanças na plataforma, nos serviços utilizados ou na legislação. A versão vigente estará sempre disponível nesta página.",
-      "Em caso de dúvidas, solicitações ou reclamações sobre privacidade, entre em contato pela Central de Ajuda em /suporte.",
+      "Em caso de dúvidas, solicitações ou reclamações sobre privacidade, entre em contato pela Central de dúvidas em /suporte.",
     ],
   },
 ]

@@ -15,6 +15,7 @@ const footerLinks = {
     { label: "Fale conosco", href: "/contato" },
     { label: "Termos de uso", href: "/termos-de-uso" },
     { label: "Privacidade", href: "/politica-privacidade" },
+    { label: "Cancelamento e reembolso", href: "/politica-cancelamento" },
   ],
 }
 

@@ -10,7 +10,7 @@ const sections: LegalSection[] = [
   {
     title: "1. Aceitação dos termos",
     paragraphs: [
-      "Estes Termos de Uso regulam o acesso e a utilização da plataforma GameDoctor, incluindo site, cursos, trilhas, aulas, comunidade, comentários, Central de Ajuda, tickets e recursos relacionados.",
+      "Estes Termos de Uso regulam o acesso e a utilização da plataforma GameDoctor, incluindo site, cursos, trilhas, aulas, comunidade, dúvidas, tickets e recursos relacionados.",
       "Ao criar uma conta, contratar um plano ou utilizar a plataforma, você concorda com estes termos e com a Política de Privacidade.",
     ],
   },
@@ -35,6 +35,7 @@ const sections: LegalSection[] = [
     paragraphs: [
       "O pagamento é concluído em ambiente de pagamento externo indicado pela GameDoctor. O pedido somente libera ou renova o acesso após a confirmação do pagamento.",
       "Cupons dependem das regras exibidas no checkout, incluindo validade, plano elegível, limite de usos e condições por usuário. Um cupom inválido, expirado ou esgotado não será aplicado.",
+      "As regras para exercer o direito de arrependimento, solicitar cancelamento e receber eventual estorno estão descritas na Política de cancelamento e reembolso.",
       "Em caso de recusa, cancelamento, estorno ou contestação confirmada, o pedido poderá ser marcado como não aprovado e os acessos vinculados poderão ser suspensos conforme o caso.",
     ],
   },
@@ -83,7 +84,7 @@ const sections: LegalSection[] = [
   {
     title: "10. Atendimento",
     paragraphs: [
-      "Para dúvidas sobre a plataforma, pagamentos, conta ou estes termos, acesse /suporte e utilize a Central de Ajuda ou abra um ticket.",
+      "Para dúvidas sobre a plataforma, pagamentos, conta ou estes termos, acesse /suporte e utilize a Central de dúvidas ou abra um ticket.",
     ],
   },
 ]

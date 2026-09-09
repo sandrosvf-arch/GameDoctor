@@ -1,11 +1,12 @@
 import Link from "next/link"
-import { ArrowLeft, FileText, ShieldCheck } from "lucide-react"
+import type { ReactNode } from "react"
+import { ArrowLeft, FileText, RotateCcw, ShieldCheck } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 
 export interface LegalSection {
   title: string
-  paragraphs: string[]
+  paragraphs: ReactNode[]
   bullets?: string[]
 }
 
@@ -79,6 +80,13 @@ export function LegalPage({
               <FileText className="h-4 w-4" />
               Termos de uso
             </Link>
+            <Link
+              href="/politica-cancelamento"
+              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-slate-300 transition hover:bg-white/[0.05] hover:text-cyan-300"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Cancelamento e reembolso
+            </Link>
           </nav>
         </aside>
 
@@ -91,8 +99,8 @@ export function LegalPage({
                 </h2>
 
                 <div className="mt-4 space-y-4 text-sm leading-7 text-slate-400 md:text-[15px]">
-                  {section.paragraphs.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
+                  {section.paragraphs.map((paragraph, index) => (
+                    <p key={typeof paragraph === "string" ? paragraph : index}>{paragraph}</p>
                   ))}
 
                   {section.bullets && section.bullets.length > 0 && (
@@ -110,7 +118,7 @@ export function LegalPage({
           <div className="mt-12 border-t border-white/[0.08] pt-6 text-sm leading-6 text-slate-500">
             Dúvidas sobre este documento? Acesse a{" "}
             <Link href="/suporte" className="font-medium text-cyan-300 transition hover:text-cyan-200">
-              Central de Ajuda
+              Central de dúvidas
             </Link>
             {" "}ou abra um ticket de suporte.
           </div>
