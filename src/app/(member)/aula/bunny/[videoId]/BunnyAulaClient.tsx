@@ -362,6 +362,14 @@ export default function BunnyAulaClient({
                   {releaseAt && (
                     <LessonReleaseLock releaseAt={releaseAt} onReleased={() => router.refresh()} />
                   )}
+                  {!releaseAt && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/85 px-6 text-center backdrop-blur-sm">
+                      <div className="max-w-md rounded-2xl border border-cyan-400/25 bg-zinc-950/90 px-6 py-6 shadow-2xl">
+                        <p className="text-base font-semibold text-white">Esta aula será liberada em breve</p>
+                        <p className="mt-2 text-xs leading-5 text-zinc-400">Seu acesso está ativo. Aguarde o prazo de liberação desta aula.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : !isAccessible ? (
                 <div className="absolute inset-0">

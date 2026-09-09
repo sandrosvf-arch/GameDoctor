@@ -108,7 +108,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   const isReleaseLocked = lessonAccess?.isReleaseLocked ?? false
   const hasRestrictedContentAccess = isAccessible
   // previewEnabled is now admin-editable per lesson (see /admin/aulas) and defaults to true for existing paid lessons
-  const canPreview = Boolean(lessonAccess?.isPreview && lesson?.previewVideoProviderId)
+  const canPreview = !isReleaseLocked && Boolean(lessonAccess?.isPreview && lesson?.previewVideoProviderId)
   const title = titulo ?? lesson?.title ?? meta?.title?.replace(/\.mp4$/i, "") ?? "Aula"
   const durationSeconds = meta?.length ?? lesson.videoDurationSeconds ?? lesson.durationSeconds ?? null
   const duration = durationSeconds ? formatDuration(durationSeconds) : null
