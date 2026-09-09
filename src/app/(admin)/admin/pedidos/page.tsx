@@ -158,7 +158,11 @@ export default function AdminPedidosPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search)
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState(() => {
+    if (typeof window === "undefined") return "all"
+    const status = new URLSearchParams(window.location.search).get("status")
+    return status === "APPROVED" ? status : "all"
+  })
   const [page, setPage] = useState(1)
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)

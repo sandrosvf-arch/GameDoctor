@@ -4,7 +4,9 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import {
+  Check,
   ChevronDown,
+  Copy,
   CreditCard,
   FileBadge2,
   KeyRound,
@@ -27,6 +29,7 @@ interface StudentItem {
   id: string
   name: string
   email: string
+  phone: string | null
   status: UserStatus
   createdAt: string
   lastLoginAt: string | null
@@ -156,6 +159,15 @@ function formatStudyTime(seconds: number) {
   return `${minutes}m`
 }
 
+function formatPhone(value: string | null) {
+  if (!value) return "Não informado"
+
+  const digits = value.replace(/\D/g, "")
+  if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+  if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  return value
+}
+
 function detailTitle(view: DetailView) {
   if (view === "purchases") return "Histórico de compras"
   if (view === "accesses") return "Acessos ativos"
@@ -165,6 +177,7 @@ function detailTitle(view: DetailView) {
 
 export default function AdminAlunosPage() {
   const [items, setItems] = useState<StudentItem[]>([])
+  const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [pagination, setPagination] = useState<Pagination | null>(null)
 
@@ -175,7 +188,10 @@ export default function AdminAlunosPage() {
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search)
   const [statusFilter, setStatusFilter] = useState("all")
-  const [subscriptionFilter, setSubscriptionFilter] = useState("all")
+  const [subscriptionFilter, setSubscriptionFilter] = useState(() => {
+    if (typeof window === "undefined") return "all"
+    return new URLSearchParams(window.location.search).get("subscription") === "active" ? "active" : "all"
+  })
   const [page, setPage] = useState(1)
 
   const [passwordModalUser, setPasswordModalUser] = useState<StudentItem | null>(null)
@@ -354,6 +370,15 @@ export default function AdminAlunosPage() {
       setPlanDurationDays("365")
     }
   }
+
+  async function copyPhone(student: StudentItem) {
+    if (!student.phone) return
+
+    await navigator.clipboard.writeText(student.phone.replace(/\D/g, ""))
+    setCopiedPhoneId(student.id)
+    window.setTimeout(() => setCopiedPhoneId((current) => current === student.id ? null : current), 1600)
+  }
+
   return (
     <div className="max-w-7xl space-y-6 p-6 md:p-8">
       <div>
@@ -455,6 +480,7 @@ export default function AdminAlunosPage() {
                 <thead className="bg-background/70">
                   <tr className="text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
                     <th className="px-4 py-3">Aluno</th>
+                    <th className="px-4 py-3">WhatsApp</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Assinatura</th>
                     <th className="px-4 py-3">Cadastro</th>
@@ -472,6 +498,21 @@ export default function AdminAlunosPage() {
                           <td className="px-4 py-4">
                             <p className="font-medium text-foreground">{student.name}</p>
                             <p className="mt-1 text-xs text-muted-foreground">{student.email}</p>
+                          </td>
+                          <td className="px-4 py-4">
+                            {student.phone ? (
+                              <button
+                                type="button"
+                                onClick={() => void copyPhone(student)}
+                                className="inline-flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
+                                title="Copiar WhatsApp"
+                              >
+                                {copiedPhoneId === student.id ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                                {copiedPhoneId === student.id ? "Copiado" : formatPhone(student.phone)}
+                              </button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Não informado</span>
+                            )}
                           </td>
                           <td className="px-4 py-4">
                             <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs ${statusTone(student.status)}`}>

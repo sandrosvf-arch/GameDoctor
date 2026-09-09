@@ -21,6 +21,20 @@ export async function GET() {
     startsAt: { lte: now },
     OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
   }
+  const approvedPaymentWhere = {
+    paymentStatus: "APPROVED" as const,
+    order: { archivedAt: null },
+  }
+
+  function approvedPaymentInPeriod(start: Date, end: Date) {
+    return {
+      ...approvedPaymentWhere,
+      OR: [
+        { paidAt: { gte: start, lt: end } },
+        { paidAt: null, createdAt: { gte: start, lt: end } },
+      ],
+    }
+  }
 
   // Revenue last 12 months (parallel)
   const revenueChart = await Promise.all(
@@ -29,10 +43,7 @@ export async function GET() {
       const end = i === 0 ? now : startOfMonth(subMonths(now, i - 1))
       const res = await db.payment.aggregate({
         _sum: { amount: true },
-        where: {
-          paymentStatus: "APPROVED",
-          paidAt: { gte: start, lt: end },
-        },
+        where: approvedPaymentInPeriod(start, end),
       })
       return { month: format(start, "MMM", { locale: ptBR }), value: Number(res._sum.amount ?? 0) }
     })
@@ -41,6 +52,7 @@ export async function GET() {
   const [
     totalStudents,
     activeAccesses,
+    approvedRevenue,
     monthlyRevenue,
     prevMonthRevenue,
     completedLessons,
@@ -58,17 +70,15 @@ export async function GET() {
     db.accessPermission.count({ where: activeAccessWhere }),
     db.payment.aggregate({
       _sum: { amount: true },
-      where: {
-        paymentStatus: "APPROVED",
-        paidAt: { gte: startCurrent, lte: now },
-      },
+      where: approvedPaymentWhere,
     }),
     db.payment.aggregate({
       _sum: { amount: true },
-      where: {
-        paymentStatus: "APPROVED",
-        paidAt: { gte: startPrev, lt: startCurrent },
-      },
+      where: approvedPaymentInPeriod(startCurrent, now),
+    }),
+    db.payment.aggregate({
+      _sum: { amount: true },
+      where: approvedPaymentInPeriod(startPrev, startCurrent),
     }),
     db.lessonProgress.count({ where: { completed: true } }),
     db.comment.count(),
@@ -77,12 +87,13 @@ export async function GET() {
     db.lesson.count({ where: { status: "DRAFT" } }),
     db.payment.findMany({
       take: 5,
-      orderBy: { paidAt: "desc" },
-      where: { paymentStatus: "APPROVED", paidAt: { not: null } },
+      orderBy: { createdAt: "desc" },
+      where: approvedPaymentWhere,
       select: {
         id: true,
         amount: true,
         paidAt: true,
+        createdAt: true,
         order: {
           select: {
             id: true,
@@ -164,6 +175,7 @@ export async function GET() {
     stats: {
       totalStudents,
       activeAccesses,
+      approvedRevenue: Number(approvedRevenue._sum.amount ?? 0),
       monthlyRevenue: mrr,
       mrrChange,
       completedLessons,
@@ -181,7 +193,7 @@ export async function GET() {
       plan: payment.order.orderItems[0]?.plan?.name ?? null,
       course: payment.order.orderItems[0]?.course?.title ?? null,
       amount: Number(payment.amount),
-      approvedAt: payment.paidAt?.toISOString() ?? new Date().toISOString(),
+      approvedAt: payment.paidAt?.toISOString() ?? payment.createdAt.toISOString(),
     })),
     recentLessons: recentLessons.map(l => ({
       title: l.title,

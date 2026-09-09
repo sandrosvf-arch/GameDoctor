@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils"
 interface Stats {
   totalStudents: number
   activeAccesses: number
+  approvedRevenue: number
   monthlyRevenue: number
   mrrChange: number
   completedLessons: number
@@ -128,7 +129,7 @@ function LineChart({ data }: { data: ChartPoint[] }) {
       </defs>
       <path d={areaPath} fill="url(#lineGrad)" />
       <path d={linePath} fill="none" stroke="#06b6d4" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      {points.map((point, index) => (
+      {points.filter((point) => point.value > 0).map((point, index) => (
         <circle
           key={index}
           cx={point.x}
@@ -208,6 +209,7 @@ function KpiCard({
   icon: Icon,
   iconColor,
   trend,
+  href,
 }: {
   label: string
   value: string
@@ -215,9 +217,10 @@ function KpiCard({
   icon: React.ElementType
   iconColor: string
   trend?: { value: number; label: string }
+  href?: string
 }) {
-  return (
-    <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+  const content = (
+    <>
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">{label}</span>
         <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", iconColor)}>
@@ -241,8 +244,12 @@ function KpiCard({
         ) : null}
         {sub && !trend ? <p className="mt-1.5 text-xs text-muted-foreground">{sub}</p> : null}
       </div>
-    </div>
+    </>
   )
+
+  const className = "block space-y-3 rounded-xl border border-border bg-muted/20 p-4 transition-colors hover:border-primary/40 hover:bg-muted/30"
+
+  return href ? <Link href={href} className={className}>{content}</Link> : <div className={className}>{content}</div>
 }
 
 function parseColor(color: string | null) {
@@ -316,6 +323,7 @@ export default function AdminDashboardPage() {
           icon={Users}
           iconColor="bg-blue-500/15 text-blue-400"
           sub="alunos ativos"
+          href="/admin/alunos"
         />
         <KpiCard
           label="Acessos ativos"
@@ -323,13 +331,15 @@ export default function AdminDashboardPage() {
           icon={CreditCard}
           iconColor="bg-emerald-500/15 text-emerald-400"
           sub="vigentes neste momento"
+          href="/admin/alunos?subscription=active"
         />
         <KpiCard
           label="Receita aprovada"
-          value={fmtCurrency(stats.monthlyRevenue)}
+          value={fmtCurrency(stats.approvedRevenue)}
           icon={TrendingUp}
           iconColor="bg-cyan-500/15 text-cyan-400"
-          trend={{ value: stats.mrrChange, label: "vs mes anterior" }}
+          sub="total recebido"
+          href="/admin/pedidos?status=APPROVED"
         />
         <KpiCard
           label="Aulas concluidas"
@@ -344,6 +354,7 @@ export default function AdminDashboardPage() {
           icon={BookMarked}
           iconColor="bg-amber-500/15 text-amber-400"
           sub={`${fmtNum(stats.draftLessons)} aulas em rascunho`}
+          href="/admin/cursos"
         />
         <KpiCard
           label="Comentarios"
@@ -351,15 +362,19 @@ export default function AdminDashboardPage() {
           icon={MessageSquare}
           iconColor="bg-rose-500/15 text-rose-400"
           sub="comentarios cadastrados"
+          href="/admin/comentarios"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-border bg-muted/20 p-5 lg:col-span-2">
+        <Link
+          href="/admin/pedidos?status=APPROVED"
+          className="block rounded-xl border border-border bg-muted/20 p-5 transition-colors hover:border-primary/40 hover:bg-muted/30 lg:col-span-2"
+        >
           <div className="mb-4 flex items-start justify-between">
             <div>
               <h2 className="text-sm font-semibold">Receita aprovada por mes</h2>
-              <p className="mt-1 text-2xl font-bold">{fmtCurrency(stats.monthlyRevenue)}</p>
+            <p className="mt-1 text-2xl font-bold">{fmtCurrency(stats.monthlyRevenue)}</p>
               {stats.mrrChange !== 0 ? (
                 <p
                   className={cn(
@@ -385,7 +400,7 @@ export default function AdminDashboardPage() {
               </span>
             ))}
           </div>
-        </div>
+        </Link>
 
         <div className="rounded-xl border border-border bg-muted/20 p-5">
           <h2 className="mb-4 text-sm font-semibold">Distribuicao de acessos ativos</h2>
