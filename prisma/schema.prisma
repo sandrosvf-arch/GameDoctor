@@ -255,6 +255,13 @@ enum AiMessageRole {
   ASSISTANT
 }
 
+enum AiMessageStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 // ─────────────────────────────────────────────
 // MODELS
 // ─────────────────────────────────────────────
@@ -391,7 +398,10 @@ model AiMessage {
   conversationId String        @map("conversation_id")
   userId         String        @map("user_id")
   role           AiMessageRole
+  status         AiMessageStatus @default(COMPLETED)
   content        String        @db.Text
+  requestId      String?       @unique @map("request_id")
+  requestMessageId String?     @map("request_message_id")
   model          String?
   inputTokens    Int?          @map("input_tokens")
   outputTokens   Int?          @map("output_tokens")
@@ -403,6 +413,7 @@ model AiMessage {
 
   @@index([conversationId, createdAt])
   @@index([userId, createdAt])
+  @@index([conversationId, status])
   @@map("ai_messages")
 }
 

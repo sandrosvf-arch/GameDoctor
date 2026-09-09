@@ -19,6 +19,12 @@ interface UsageStatus {
   renewsAt?: string
 }
 
+interface PendingRequest {
+  requestId: string
+  message: string
+  conversationId: string | null
+}
+
 const STORAGE_KEY = "gamedoctor_assistant_state"
 
 function linkifyMessageUrls(content: string) {
@@ -80,6 +86,7 @@ function PlatformAssistantContent({
   const [message, setMessage] = useState("")
   const [messages, setMessages] = useState<AssistantMessage[]>([])
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [pendingRequest, setPendingRequest] = useState<PendingRequest | null>(null)
   const [usage, setUsage] = useState<UsageStatus | null>(null)
   const [requiresUpgrade, setRequiresUpgrade] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -87,6 +94,7 @@ function PlatformAssistantContent({
   const [hydrated, setHydrated] = useState(false)
   const [supportUrl, setSupportUrl] = useState(whatsappUrl)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const recoveryStartedRef = useRef(false)
 
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
   const isLessonPage = pathname.startsWith("/aula/")
@@ -135,10 +143,12 @@ function PlatformAssistantContent({
           messages?: AssistantMessage[]
           conversationId?: string | null
           usage?: UsageStatus | null
+          pendingRequest?: PendingRequest | null
         }
         if (Array.isArray(parsed.messages)) setMessages(parsed.messages)
         if (parsed.conversationId) setConversationId(parsed.conversationId)
         if (parsed.usage) setUsage(parsed.usage)
+        if (parsed.pendingRequest?.requestId && parsed.pendingRequest.message) setPendingRequest(parsed.pendingRequest)
       }
     } catch {
       // ignore corrupted storage
@@ -149,8 +159,8 @@ function PlatformAssistantContent({
 
   useEffect(() => {
     if (!hydrated) return
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, conversationId, usage }))
-  }, [hydrated, messages, conversationId, usage])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, conversationId, usage, pendingRequest }))
+  }, [hydrated, messages, conversationId, usage, pendingRequest])
 
   useEffect(() => {
     if (!hydrated || !open && !page) return
@@ -159,6 +169,100 @@ function PlatformAssistantContent({
     })
     return () => window.cancelAnimationFrame(frame)
   }, [hydrated, messages, loading, error, open, page])
+
+  async function processRequest(requestData: PendingRequest) {
+    setLoading(true)
+    setError(null)
+
+    try {
+      for (let attempt = 0; attempt < 240; attempt += 1) {
+        const response = await fetch("/api/ai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: requestData.message,
+            conversationId: requestData.conversationId,
+            requestId: requestData.requestId,
+          }),
+        })
+        const data = await response.json().catch(() => null)
+
+        if (response.status === 202 || data?.pending) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1500))
+          continue
+        }
+
+        if (!response.ok) {
+          setError(data?.error ?? "Não foi possível falar com o assistente.")
+          if (data?.usage) setUsage(data.usage)
+          setRequiresUpgrade(data?.requiresUpgrade === true)
+          return
+        }
+
+        setConversationId(data.conversationId)
+        if (data.usage) setUsage(data.usage)
+        setMessages((current) => (
+          current.some((item) => item.role === "ASSISTANT" && item.content === data.answer)
+            ? current
+            : [...current, { role: "ASSISTANT", content: data.answer }]
+        ))
+        setPendingRequest(null)
+        return
+      }
+
+      setError("Sua pergunta continua sendo processada. Você pode voltar depois para ver a resposta.")
+    } catch {
+      setError("Não foi possível conectar ao assistente. A pergunta ficou salva e será retomada ao abrir novamente.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!hydrated || status !== "authenticated" || recoveryStartedRef.current) return
+    recoveryStartedRef.current = true
+
+    if (pendingRequest) {
+      void processRequest(pendingRequest)
+      return
+    }
+
+    const controller = new AbortController()
+    const syncUrl = conversationId
+      ? `/api/ai/chat?conversationId=${encodeURIComponent(conversationId)}`
+      : "/api/ai/chat"
+    void fetch(syncUrl, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (data?.pending?.requestId && data.pending.message) {
+          const recoveredRequest: PendingRequest = {
+            requestId: data.pending.requestId,
+            message: data.pending.message,
+            conversationId: data.pending.conversationId ?? null,
+          }
+          setConversationId(recoveredRequest.conversationId)
+          setPendingRequest(recoveredRequest)
+          void processRequest(recoveredRequest)
+          return
+        }
+        if (Array.isArray(data?.messages)) setMessages(data.messages)
+      })
+      .catch(() => {})
+
+    return () => controller.abort()
+  }, [hydrated, status, pendingRequest, conversationId])
+
+  useEffect(() => {
+    if (!hydrated || (!loading && !pendingRequest)) return
+
+    function preventRefresh(event: BeforeUnloadEvent) {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+
+    window.addEventListener("beforeunload", preventRefresh)
+    return () => window.removeEventListener("beforeunload", preventRefresh)
+  }, [hydrated, loading, pendingRequest])
 
   async function sendMessage(event: FormEvent) {
     event.preventDefault()
@@ -169,19 +273,31 @@ function PlatformAssistantContent({
     const text = message.trim()
     if (!text || loading) return
 
+    const requestData: PendingRequest = {
+      requestId: crypto.randomUUID(),
+      message: text,
+      conversationId,
+    }
     setMessage("")
     setError(null)
     setRequiresUpgrade(false)
-    setMessages((current) => [...current, { role: "USER", content: text }])
+    const nextMessages = [...messages, { role: "USER" as const, content: text }]
+    setMessages(nextMessages)
+    setPendingRequest(requestData)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages: nextMessages, conversationId, usage, pendingRequest: requestData }))
     setLoading(true)
 
     try {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, conversationId }),
+        body: JSON.stringify(requestData),
       })
       const data = await response.json().catch(() => null)
+      if (response.status === 202 || data?.pending) {
+        await processRequest(requestData)
+        return
+      }
       if (!response.ok) {
         setError(data?.error ?? "Não foi possível falar com o assistente.")
         if (data?.usage) setUsage(data.usage)
@@ -192,6 +308,7 @@ function PlatformAssistantContent({
       setConversationId(data.conversationId)
       setUsage(data.usage)
       setMessages((current) => [...current, { role: "ASSISTANT", content: data.answer }])
+      setPendingRequest(null)
     } catch {
       setError("Não foi possível conectar ao assistente.")
     } finally {
@@ -202,6 +319,7 @@ function PlatformAssistantContent({
   function startNewConversation() {
     setConversationId(null)
     setMessages([])
+    setPendingRequest(null)
     setError(null)
     localStorage.removeItem(STORAGE_KEY)
   }

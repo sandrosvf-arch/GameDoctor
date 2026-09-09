@@ -12,6 +12,7 @@ import { getAiProvider } from "@/lib/ai/provider"
 const bodySchema = z.object({
   message: z.string().trim().min(1).max(4_000),
   conversationId: z.string().cuid().nullable().optional(),
+  requestId: z.string().uuid().optional(),
 })
 
 function isKnowledgeQuestion(message: string) {
@@ -87,6 +88,57 @@ function isCommunityQuestion(message: string) {
   return /\b(comunidade|forum|topico|relato|outros alunos|alguem comentou)\b/.test(normalized)
 }
 
+export async function GET(request: Request) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Faça login para consultar a conversa.", requiresAuth: true }, { status: 401 })
+  }
+
+  const conversationId = new URL(request.url).searchParams.get("conversationId")
+  if (!conversationId) {
+    const pending = await db.aiMessage.findFirst({
+      where: { userId: session.user.id, role: "ASSISTANT", status: { in: ["PENDING", "PROCESSING", "FAILED"] } },
+      orderBy: { createdAt: "desc" },
+      select: { requestId: true, conversationId: true, requestMessageId: true, status: true },
+    })
+    if (!pending?.requestId || !pending.requestMessageId) return NextResponse.json({ pending: null })
+
+    const requestMessage = await db.aiMessage.findUnique({ where: { id: pending.requestMessageId }, select: { content: true } })
+    return NextResponse.json({
+      pending: requestMessage ? {
+        requestId: pending.requestId,
+        conversationId: pending.conversationId,
+        message: requestMessage.content,
+        status: pending.status,
+      } : null,
+    })
+  }
+
+  const conversation = await db.aiConversation.findFirst({
+    where: { id: conversationId, userId: session.user.id },
+    select: { id: true },
+  })
+  if (!conversation) return NextResponse.json({ error: "Conversa não encontrada." }, { status: 404 })
+
+  const messages = await db.aiMessage.findMany({
+    where: { conversationId, userId: session.user.id, status: "COMPLETED", content: { not: "" } },
+    orderBy: { createdAt: "asc" },
+    select: { role: true, content: true },
+  })
+  const pending = await db.aiMessage.findFirst({
+    where: { conversationId, userId: session.user.id, role: "ASSISTANT", status: { in: ["PENDING", "PROCESSING", "FAILED"] } },
+    orderBy: { createdAt: "desc" },
+    select: { requestId: true },
+  })
+
+  return NextResponse.json({
+    conversationId,
+    messages,
+    pending: Boolean(pending),
+    requestId: pending?.requestId ?? null,
+  })
+}
+
 export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user?.id) {
@@ -96,6 +148,19 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json({ error: "Envie uma mensagem válida de até 4.000 caracteres." }, { status: 400 })
+  }
+
+  const requestId = parsed.data.requestId ?? crypto.randomUUID()
+  const existingRequest = await db.aiMessage.findFirst({
+    where: { requestId, userId: session.user.id, role: "ASSISTANT" },
+    select: { id: true, conversationId: true, requestMessageId: true, status: true, content: true, createdAt: true },
+  })
+  if (existingRequest?.status === "COMPLETED") {
+    return NextResponse.json({ conversationId: existingRequest.conversationId, answer: existingRequest.content, sources: [], requestId })
+  }
+  const processingTimeout = new Date(Date.now() - 120_000)
+  if ((existingRequest?.status === "PROCESSING" && existingRequest.createdAt >= processingTimeout) || existingRequest?.status === "PENDING") {
+    return NextResponse.json({ pending: true, conversationId: existingRequest.conversationId, requestId }, { status: 202 })
   }
 
   const provider = getAiProvider()
@@ -119,7 +184,10 @@ export async function POST(request: Request) {
     }, { status: 429 })
   }
 
-  let conversationId = parsed.data.conversationId ?? null
+  let conversationId = existingRequest?.conversationId ?? parsed.data.conversationId ?? null
+  let requestMessageId = existingRequest?.requestMessageId ?? null
+  let assistantMessageId = existingRequest?.id ?? null
+  let messageText = parsed.data.message
   if (conversationId) {
     const conversation = await db.aiConversation.findFirst({
       where: { id: conversationId, userId: session.user.id },
@@ -130,9 +198,76 @@ export async function POST(request: Request) {
     }
   }
 
-  const history = conversationId
+  if (requestMessageId) {
+    const requestMessage = await db.aiMessage.findFirst({
+      where: { id: requestMessageId, userId: session.user.id, role: "USER" },
+      select: { content: true },
+    })
+    if (requestMessage) messageText = requestMessage.content
+  } else {
+    const created = await db.$transaction(async (tx) => {
+      const conversation = conversationId
+        ? { id: conversationId }
+        : await tx.aiConversation.create({
+            data: { userId: session.user.id, title: messageText.slice(0, 80) },
+            select: { id: true },
+          })
+      const userMessage = await tx.aiMessage.create({
+        data: { conversationId: conversation.id, userId: session.user.id, role: "USER", status: "COMPLETED", content: messageText, credits: 0 },
+        select: { id: true },
+      })
+      const assistantMessage = await tx.aiMessage.create({
+        data: {
+          conversationId: conversation.id,
+          userId: session.user.id,
+          role: "ASSISTANT",
+          status: "PENDING",
+          content: "",
+          requestId,
+          requestMessageId: userMessage.id,
+          credits: 0,
+        },
+        select: { id: true },
+      })
+      return { conversationId: conversation.id, requestMessageId: userMessage.id, assistantMessageId: assistantMessage.id }
+    })
+    conversationId = created.conversationId
+    requestMessageId = created.requestMessageId
+    assistantMessageId = created.assistantMessageId
+  }
+
+  if (!conversationId || !requestMessageId || !assistantMessageId) {
+    return NextResponse.json({ error: "NÃ£o foi possÃ­vel preparar a conversa." }, { status: 500 })
+  }
+
+  const claimed = await db.aiMessage.updateMany({
+    where: {
+      id: assistantMessageId,
+      userId: session.user.id,
+      OR: [
+        { status: { in: ["PENDING", "FAILED"] } },
+        { status: "PROCESSING", createdAt: { lt: processingTimeout } },
+      ],
+    },
+    data: { status: "PROCESSING" },
+  })
+  if (!claimed.count) {
+    const current = await db.aiMessage.findUnique({ where: { id: assistantMessageId }, select: { status: true, content: true } })
+    if (current?.status === "COMPLETED") {
+      return NextResponse.json({ conversationId, answer: current.content, sources: [], requestId })
+    }
+    return NextResponse.json({ pending: true, conversationId, requestId }, { status: 202 })
+  }
+
+  try {
+    const history = conversationId
     ? await db.aiMessage.findMany({
-        where: { conversationId, userId: session.user.id },
+        where: {
+          conversationId,
+          userId: session.user.id,
+          status: "COMPLETED",
+          ...(requestMessageId ? { NOT: { id: requestMessageId } } : {}),
+        },
         orderBy: { createdAt: "desc" },
         take: 8,
         select: { role: true, content: true },
@@ -148,21 +283,21 @@ export async function POST(request: Request) {
   }))
   // Pergunta técnica (console, defeito, código de erro...) nunca passa pelo FAQ:
   // vai direto para aulas + material técnico. FAQ só para dúvidas sobre a plataforma.
-  const faqContext = isSocialMessage(parsed.data.message) || isTechnicalQuestion(parsed.data.message)
+  const faqContext = isSocialMessage(messageText) || isTechnicalQuestion(messageText)
     ? null
-    : await classifyAiFaq(parsed.data.message, provider)
-  const socialOrFeedback = isSocialMessage(parsed.data.message) || isFeedbackMessage(parsed.data.message)
+    : await classifyAiFaq(messageText, provider)
+  const socialOrFeedback = isSocialMessage(messageText) || isFeedbackMessage(messageText)
   const routing = faqContext ? null : socialOrFeedback
     ? { action: "respond" as const, query: null as string | null, answer: null as string | null, inputTokens: null as number | null, outputTokens: null as number | null }
     : await routeAiConversation({
     provider,
     promptText: systemPrompt,
     history: conversationHistory,
-    message: parsed.data.message,
+    message: messageText,
   })
   // Toda mensagem "respond" (saudação, feedback, vaga) ganha resposta com a persona, sem busca e sem crédito.
   const social = !faqContext && routing?.action === "respond"
-    ? await buildSocialResponse(provider, parsed.data.message, conversationHistory, session.user.name)
+    ? await buildSocialResponse(provider, messageText, conversationHistory, session.user.name)
     : null
   if (social && routing) {
     routing.answer = social.answer
@@ -170,10 +305,10 @@ export async function POST(request: Request) {
     routing.outputTokens = social.outputTokens
   }
   const outsidePlatform = false
-  const shouldSearch = Boolean(faqContext) || routing?.action === "search" || isKnowledgeQuestion(parsed.data.message)
-  const searchQuery = isCommunityQuestion(parsed.data.message)
-    ? parsed.data.message
-    : routing?.query ?? parsed.data.message
+  const shouldSearch = Boolean(faqContext) || routing?.action === "search" || isKnowledgeQuestion(messageText)
+  const searchQuery = isCommunityQuestion(messageText)
+    ? messageText
+    : routing?.query ?? messageText
   const context = faqContext
     ? [faqContext]
     : shouldSearch
@@ -200,11 +335,11 @@ export async function POST(request: Request) {
     const completion = await provider.complete({
       system: [
         buildAiSystemPrompt(systemPrompt, context, session.user.name),
-        buildAiQuestionDirective(parsed.data.message),
+        buildAiQuestionDirective(messageText),
       ].filter(Boolean).join("\n\n"),
       messages: [
         ...conversationHistory,
-        { role: "user", content: parsed.data.message },
+        { role: "user", content: messageText },
       ],
       temperature: 0.3,
       // ~3,5 caracteres por token em PT-BR; folga para o passo a passo numerado não ser cortado.
@@ -212,9 +347,7 @@ export async function POST(request: Request) {
     })
 
     const completionAnswer = completion.content?.trim()
-    if (!completionAnswer) {
-      return NextResponse.json({ error: "O assistente não retornou uma resposta." }, { status: 502 })
-    }
+    if (!completionAnswer) throw new Error("EMPTY_AI_RESPONSE")
 
     answer = completionAnswer
     responseModel = provider.model
@@ -230,38 +363,10 @@ export async function POST(request: Request) {
   const sanitizedAnswer = finalized.answer
   const hasNoContent = finalized.hasNoContent
 
-  if (!conversationId) {
-    const conversation = await db.aiConversation.create({
-      data: {
-        userId: session.user.id,
-        title: parsed.data.message.slice(0, 80),
-      },
-      select: { id: true },
-    })
-    conversationId = conversation.id
-  }
-
   await db.$transaction([
-    db.aiMessage.create({
-      data: {
-        conversationId,
-        userId: session.user.id,
-        role: "USER",
-        content: parsed.data.message,
-        credits: 0,
-      },
-    }),
-    db.aiMessage.create({
-      data: {
-        conversationId,
-        userId: session.user.id,
-        role: "ASSISTANT",
-        content: sanitizedAnswer,
-        model: responseModel,
-        inputTokens,
-        outputTokens,
-        credits,
-      },
+    db.aiMessage.update({
+      where: { id: assistantMessageId },
+      data: { status: "COMPLETED", content: sanitizedAnswer, model: responseModel, inputTokens, outputTokens, credits },
     }),
     db.aiConversation.update({
       where: { id: conversationId },
@@ -274,5 +379,19 @@ export async function POST(request: Request) {
     answer: sanitizedAnswer,
     sources: hasNoContent ? [] : context.map(({ title, href, source }) => ({ title, href, source })),
     usage,
+    requestId,
   })
+  } catch (error) {
+    console.error("[ai/chat] Falha ao processar mensagem", error)
+    await db.aiMessage.updateMany({
+      where: { id: assistantMessageId, status: "PROCESSING" },
+      data: { status: "FAILED" },
+    })
+    return NextResponse.json({
+      error: "Não foi possível processar sua pergunta. Tente novamente.",
+      retryable: true,
+      conversationId,
+      requestId,
+    }, { status: 502 })
+  }
 }
