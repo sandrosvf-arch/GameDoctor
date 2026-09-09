@@ -16,7 +16,7 @@ sys.path.insert(0, BASE)
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import gd_auth, gd_cred
 from gd_auth import SESSAO
-from gd_bridge import planejar_importacao, _zipar, _lp, _ProgressReader
+from gd_bridge import planejar_importacao, abrir_fonte, metadata_de, _ProgressReader
 from gd_config import GAME_DOCTOR_API_URL
 
 
@@ -25,15 +25,9 @@ def log(*a):
 
 
 def enviar(it):
-    if "zip" in it:
-        dados = _zipar(it["zip"], it["raiz"])
-        size, mime, fonte = len(dados), "application/zip", io.BytesIO(dados)
-    else:
-        size = it["tamanho"]
-        mime = mimetypes.guess_type(it["fonte"])[0] or "application/octet-stream"
-        fonte = open(_lp(it["fonte"]), "rb")
+    fonte, size, mime = abrir_fonte(it)
     st, prep = gd_auth._req("POST", "/api/software/admin/upload-url", token=SESSAO.get("token"), body={
-        "fileName": it["nome_arquivo"], "mimeType": mime, "sizeBytes": size,
+        "fileName": it.get("nome_upload") or it["nome_arquivo"], "mimeType": mime, "sizeBytes": size,
         "category": it["marca"], "sourceKey": it["source_key"]}, timeout=30)
     if st != 200:
         fonte.close()
@@ -60,9 +54,7 @@ def enviar(it):
     st, created = gd_auth._req("POST", "/api/software/admin/material", token=SESSAO.get("token"), body={
         "title": it["titulo"], "fileName": it["nome_arquivo"], "storagePath": prep["path"],
         "mimeType": mime, "sizeBytes": size, "type": it["tipo"], "category": it["categoria"],
-        "sourceKey": it["source_key"],
-        "metadata": {"marca": it["marca"], "console": it["console"], "pasta": it["subpasta"],
-                     "extrair": bool(it.get("extrair")), "pacote": "zip" in it}}, timeout=30)
+        "sourceKey": it["source_key"], "metadata": metadata_de(it)}, timeout=30)
     if st not in (200, 201):
         raise RuntimeError((created or {}).get("error", f"HTTP {st}"))
     return "enviado"

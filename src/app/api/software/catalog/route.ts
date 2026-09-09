@@ -14,6 +14,11 @@ function mapCategory(type: string, fileName: string) {
   if (BOARDVIEW_EXT.has(ext)) return "boardview"
   return "software"
 }
+function partMeta(metadata: unknown, key: string): number {
+  if (typeof metadata !== "object" || !metadata || !(key in metadata)) return 0
+  const n = Number((metadata as Record<string, unknown>)[key])
+  return Number.isFinite(n) ? n : 0
+}
 
 export async function GET(request: Request) {
   const token = getSoftwareBearer(request)
@@ -68,6 +73,11 @@ export async function GET(request: Request) {
       extrair: typeof material.metadata === "object" && material.metadata && "extrair" in material.metadata
         ? Boolean(material.metadata.extrair)
         : material.fileName.toLowerCase().endsWith(".zip"),
+      // arquivos grandes sobem em partes (limite do storage); o app junta as partes ao baixar
+      partes: partMeta(material.metadata, "partes"),
+      parte: partMeta(material.metadata, "parte"),
+      grupo: typeof material.metadata === "object" && material.metadata && "grupo" in material.metadata ? String(material.metadata.grupo) : "",
+      tamanho_total: partMeta(material.metadata, "tamanho_total"),
       criado_em: material.createdAt.toISOString(),
       atualizado_em: material.updatedAt.toISOString(),
       storage_path: material.storagePath,

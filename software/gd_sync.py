@@ -54,7 +54,7 @@ class Sync:
         faltam, ids_remotos = [], set()
         for m in self.catalogo:
             ids_remotos.add(str(m["id"]))
-            if m.get("categoria") not in CATEGORIAS_COFRE:
+            if m.get("categoria") not in CATEGORIAS_COFRE or m.get("parte_extra"):
                 continue
             if not self.cofre.tem(m["id"], m.get("sha256"), m.get("versao")) or not self._marcado(m):
                 faltam.append(m)
@@ -133,12 +133,41 @@ class Sync:
                     progresso(lido, tot)
             return buf.getvalue()
 
+    def _partes_de(self, m):
+        """Lista ordenada das partes de um material dividido (a propria parte 1 inclusa)."""
+        if m.get("partes", 1) <= 1:
+            return [m]
+        chave = (m.get("grupo"), m.get("marca"), m.get("console"), m.get("pasta") or "")
+        ps = [o for o in self.catalogo
+              if (o.get("grupo"), o.get("marca"), o.get("console"), o.get("pasta") or "") == chave]
+        ps.sort(key=lambda o: o.get("parte", 1))
+        if len(ps) != m["partes"] or [o.get("parte") for o in ps] != list(range(1, m["partes"] + 1)):
+            raise RuntimeError(f"material incompleto no servidor ({len(ps)} de {m['partes']} partes)")
+        return ps
+
+    def _baixar_material(self, m, progresso=None):
+        """Baixa o material inteiro; se estiver em partes, baixa todas e junta."""
+        partes = self._partes_de(m)
+        if len(partes) == 1:
+            return self._baixar_bytes(m["storage_path"], progresso)
+        total = int(m.get("tamanho") or 0)      # tamanho_total ja veio em "tamanho" (_normalizar)
+        buf, feito = io.BytesIO(), [0]
+        for p in partes:
+            base = feito[0]
+            def prog(lido, tot, base=base):
+                if progresso and total:
+                    progresso(min(base + lido, total), total)
+            dados = self._baixar_bytes(p["storage_path"], prog)
+            buf.write(dados)
+            feito[0] += len(dados)
+        return buf.getvalue()
+
     def _ingerir(self, m):
         """Baixa, confere hash, aplica marca e guarda no cofre."""
         def prog(lido, tot):
             with self._lock:
                 self.estado["pct_item"] = int(lido * 100 / tot)
-        dados = self._baixar_bytes(m["storage_path"], prog)
+        dados = self._baixar_material(m, prog)
         if m.get("sha256") and len(m["sha256"]) == 64:
             h = hashlib.sha256(dados).hexdigest()
             if h.lower() != m["sha256"].lower():
@@ -244,7 +273,7 @@ class Sync:
             def prog(lido, tot):
                 with self._lock:
                     self.estado["pct_item"] = int(lido * 100 / tot)
-            dados = self._baixar_bytes(m["storage_path"], prog)
+            dados = self._baixar_material(m, prog)
             if m.get("sha256") and len(m["sha256"]) == 64 and hashlib.sha256(dados).hexdigest().lower() != m["sha256"].lower():
                 raise RuntimeError("hash divergente (download corrompido)")
             arq = m.get("arquivo") or os.path.basename(m["storage_path"])
@@ -296,4 +325,15 @@ def _normalizar(r):
         meta_ext = arq.lower().endswith(".zip")
     r["extrair"] = bool(meta_ext)
     r["pasta"] = "/".join(x.strip() for x in str(r.get("pasta") or "").split("/") if x.strip())
+    # arquivo grande dividido em partes no servidor: a parte 1 representa o material,
+    # as demais ficam invisiveis e sao juntadas no download
+    try:
+        r["partes"] = max(1, int(r.get("partes") or 1))
+        r["parte"] = max(1, int(r.get("parte") or 1))
+    except (TypeError, ValueError):
+        r["partes"], r["parte"] = 1, 1
+    r["grupo"] = str(r.get("grupo") or "")
+    if r["partes"] > 1 and r.get("tamanho_total"):
+        r["tamanho"] = int(r["tamanho_total"])
+    r["parte_extra"] = r["partes"] > 1 and r["parte"] > 1
     return r

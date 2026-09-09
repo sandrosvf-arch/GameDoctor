@@ -44,6 +44,30 @@ NOMES_IGNORAR = {"thumbs.db", "desktop.ini", ".ds_store", ".gamedoctor-import.js
 NOMES_GENERICOS = {"bin", "lib", "libs", "app", "src", "files", "common", "x64", "x86", "win",
                    "win32", "win64", "windows", "release", "debug", "dist", "build", "data",
                    "assets", "tools", "portable", "program", "programa", "arquivos"}
+# o storage do site recusa objetos acima de ~250 MB: arquivos maiores sobem em partes deste tamanho
+TAMANHO_PARTE = 200 * 1024 * 1024
+
+
+class _Fatia(io.RawIOBase):
+    """Leitura de um trecho (offset, tamanho) de um arquivo, como se fosse um arquivo inteiro."""
+    def __init__(self, caminho, offset, tamanho):
+        self._f = open(_lp(caminho), "rb")
+        self._f.seek(offset)
+        self._resta = tamanho
+    def readable(self):
+        return True
+    def read(self, n=-1):
+        if self._resta <= 0:
+            return b""
+        n = self._resta if n is None or n < 0 else min(n, self._resta)
+        d = self._f.read(n)
+        self._resta -= len(d)
+        return d
+    def close(self):
+        try:
+            self._f.close()
+        finally:
+            super().close()
 
 
 def _lp(p):
@@ -84,7 +108,7 @@ def _e_pacote(nomes):
 def planejar_importacao(pasta):
     """Devolve a lista de itens a enviar. A pasta selecionada é uma MARCA (Sony, Microsoft…):
     marca = nome da pasta, console = 1º nível, subpasta = níveis seguintes — a mesma árvore
-    de H:\PARA UPAR NO DRIVE. Se a pasta for a raiz do acervo, cada filha vira uma marca."""
+    de H:/PARA UPAR NO DRIVE. Se a pasta for a raiz do acervo, cada filha vira uma marca."""
     pasta = os.path.abspath(pasta)
     raiz_nome = os.path.basename(pasta)
     itens = []
@@ -142,10 +166,24 @@ def planejar_importacao(pasta):
                 continue
             cat = categoria_por_extensao(f)
             rel = rel_de(p)
-            itens.append({"rel": rel, "source_key": f"{raiz_nome}/{rel}", "nome_arquivo": f,
-                          "titulo": os.path.splitext(f)[0], "categoria": cat, "tipo": _tipo_api(cat, ext),
-                          "marca": marca, "console": console, "subpasta": sub, "fonte": p,
-                          "tamanho": os.path.getsize(_lp(p)), "extrair": ext == ".zip"})
+            tam = os.path.getsize(_lp(p))
+            base = {"rel": rel, "source_key": f"{raiz_nome}/{rel}", "nome_arquivo": f,
+                    "titulo": os.path.splitext(f)[0], "categoria": cat, "tipo": _tipo_api(cat, ext),
+                    "marca": marca, "console": console, "subpasta": sub, "fonte": p,
+                    "tamanho": tam, "extrair": ext == ".zip"}
+            if tam <= TAMANHO_PARTE:
+                itens.append(base)
+                continue
+            # arquivo acima do limite do storage: sobe em partes, o app junta ao baixar
+            n = (tam + TAMANHO_PARTE - 1) // TAMANHO_PARTE
+            for i in range(n):
+                ini = i * TAMANHO_PARTE
+                it = dict(base)
+                it.update({"source_key": f"{raiz_nome}/{rel}#parte{i+1:02d}de{n:02d}",
+                           "nome_upload": f"{f}.parte{i+1:02d}",
+                           "offset": ini, "tamanho": min(TAMANHO_PARTE, tam - ini),
+                           "partes": n, "parte": i + 1, "grupo": rel, "tamanho_total": tam})
+                itens.append(it)
         if avulsos and nivel >= 1:
             nome = (os.path.basename(d) if nivel >= 2 else console) + " - arquivos"
             rel = (rel_dir + "/" if rel_dir else "") + "_arquivos.zip"
@@ -166,6 +204,27 @@ def _zipar(arqs, raiz):
         for a in arqs:
             z.write(_lp(a), os.path.relpath(a, raiz))
     return buf.getvalue()
+
+
+def abrir_fonte(it):
+    """(fonte legivel, tamanho, mime) de um item do plano: pacote zipado em memoria,
+    parte de um arquivo grande, ou o arquivo inteiro."""
+    if "zip" in it:
+        dados = _zipar(it["zip"], it["raiz"])
+        return io.BytesIO(dados), len(dados), "application/zip"
+    mime = mimetypes.guess_type(it["fonte"])[0] or "application/octet-stream"
+    if it.get("partes"):
+        return _Fatia(it["fonte"], it["offset"], it["tamanho"]), it["tamanho"], mime
+    return open(_lp(it["fonte"]), "rb"), it["tamanho"], mime
+
+
+def metadata_de(it):
+    meta = {"marca": it["marca"], "console": it["console"], "pasta": it["subpasta"],
+            "extrair": bool(it.get("extrair")), "pacote": "zip" in it}
+    if it.get("partes"):
+        meta.update({"partes": it["partes"], "parte": it["parte"], "grupo": it["grupo"],
+                     "tamanho_total": it["tamanho_total"]})
+    return meta
 
 
 def _e_foto_de_placa(nome):
@@ -339,8 +398,8 @@ class AppBridge(QObject):
                       and (m.get("marca"), m.get("console"), m.get("pasta") or "") in pastas_com_bv
                       and _e_foto_de_placa(m.get("arquivo") or m.get("nome") or ""))
             # o instalador do proprio Game Doctor (pagina "Baixar software" do site) nao e material
-            if (m.get("marca") or "GameDoctor") == "GameDoctor":
-                oculto = True
+            if (m.get("marca") or "GameDoctor") == "GameDoctor" or m.get("parte_extra"):
+                oculto = True       # partes 2..N de um arquivo grande nao sao materiais
             pasta_nome = (m.get("pasta") or "").split("/")[-1] or (m.get("console") or "")
             itens.append({
                 "id": mid, "nome": m.get("nome"), "arquivo": m.get("arquivo"),
@@ -429,22 +488,16 @@ class AppBridge(QObject):
             return
         total = len(itens)
         for index, it in enumerate(itens, 1):
-            rel = it["rel"]
+            rel = it["source_key"] if it.get("partes") else it["rel"]
             if retomar and manifest.get(rel, {}).get("status") == "done":
                 self._import_progress(index, total, rel, "já processado", 0, it["tamanho"])
                 continue
             try:
                 if "zip" in it:
                     self._import_progress(index, total, rel, "compactando pacote", 0, it["tamanho"])
-                    dados = _zipar(it["zip"], it["raiz"])
-                    size, mime = len(dados), "application/zip"
-                    fonte = io.BytesIO(dados)
-                else:
-                    size = it["tamanho"]
-                    mime = mimetypes.guess_type(it["fonte"])[0] or "application/octet-stream"
-                    fonte = open(_lp(it["fonte"]), "rb")
+                fonte, size, mime = abrir_fonte(it)
                 status, prepared = gd_auth._req("POST", "/api/software/admin/upload-url", token=SESSAO.get("token"), body={
-                    "fileName": it["nome_arquivo"], "mimeType": mime, "sizeBytes": size,
+                    "fileName": it.get("nome_upload") or it["nome_arquivo"], "mimeType": mime, "sizeBytes": size,
                     "category": it["marca"], "sourceKey": it["source_key"]}, timeout=30)
                 if status != 200: raise RuntimeError((prepared or {}).get("error", f"HTTP {status}"))
                 if prepared.get("skipped"):
@@ -462,8 +515,7 @@ class AppBridge(QObject):
                     "title": it["titulo"], "fileName": it["nome_arquivo"],
                     "storagePath": prepared["path"], "mimeType": mime, "sizeBytes": size,
                     "type": it["tipo"], "category": it["categoria"], "sourceKey": it["source_key"],
-                    "metadata": {"marca": it["marca"], "console": it["console"], "pasta": it["subpasta"],
-                                 "extrair": bool(it.get("extrair")), "pacote": "zip" in it},
+                    "metadata": metadata_de(it),
                 }, timeout=30)
                 if status not in (200, 201): raise RuntimeError((created or {}).get("error", f"HTTP {status}"))
                 manifest[rel] = {"status": "done", "updated": time.time()}
