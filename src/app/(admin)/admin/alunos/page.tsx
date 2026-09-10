@@ -513,8 +513,8 @@ export default function AdminAlunosPage() {
           </div>
         ) : (
           <>
-            <div className="max-w-full overflow-hidden rounded-xl border border-border">
-              <div className="max-w-full overflow-x-auto rounded-xl">
+            <div className={`max-w-full rounded-xl border border-border ${items.length === 1 ? "overflow-visible" : "overflow-hidden"}`}>
+              <div className={`max-w-full rounded-xl ${items.length === 1 ? "overflow-visible" : "overflow-x-auto"}`}>
                 <table className="w-full table-fixed divide-y divide-border text-sm">
                 <thead className="bg-background/70">
                   <tr className="text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
