@@ -348,6 +348,14 @@ export default function AdminDashboardPage() {
           href="/admin/alunos?subscription=active"
         />
         <KpiCard
+          label="Vendas hoje"
+          value={fmtNum(stats.salesToday)}
+          icon={ShoppingCart}
+          iconColor="bg-amber-500/15 text-amber-400"
+          sub="pagamentos aprovados"
+          href="/admin/pedidos?status=APPROVED"
+        />
+        <KpiCard
           label="Receita aprovada"
           value={fmtCurrency(stats.approvedRevenue)}
           icon={TrendingUp}
@@ -363,14 +371,6 @@ export default function AdminDashboardPage() {
           sub="total de conclusoes"
         />
         <KpiCard
-          label="Vendas hoje"
-          value={fmtNum(stats.salesToday)}
-          icon={ShoppingCart}
-          iconColor="bg-amber-500/15 text-amber-400"
-          sub="pagamentos aprovados"
-          href="/admin/pedidos?status=APPROVED"
-        />
-        <KpiCard
           label="Comentarios"
           value={fmtNum(stats.totalComments)}
           icon={MessageSquare}
@@ -380,8 +380,19 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-muted/20 p-5">
+      <div className="rounded-xl border border-border bg-muted/20 p-5">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold">Receita aprovada por dia</h2>
+            <p className="mt-1 text-2xl font-bold">{fmtCurrency(dailyRevenueChart.reduce((sum, point) => sum + point.value, 0))}</p>
+          </div>
+          <span className="text-right text-xs text-muted-foreground">Mês atual<br />Clique em um dia</span>
+        </div>
+        <RevenueChart data={dailyRevenueChart} chartId="daily-revenue" color="#a78bfa" ordersHref="/admin/pedidos?status=APPROVED" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="rounded-xl border border-border bg-muted/20 p-5 lg:col-span-2">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
               <h2 className="text-sm font-semibold">Receita aprovada por mês</h2>
@@ -394,17 +405,6 @@ export default function AdminDashboardPage() {
             <span className="text-right text-xs text-muted-foreground">Últimos 12 meses<br />Clique em um mês</span>
           </div>
           <RevenueChart data={monthlyRevenueChart} chartId="monthly-revenue" color="#06b6d4" ordersHref="/admin/pedidos?status=APPROVED" />
-        </div>
-
-        <div className="rounded-xl border border-border bg-muted/20 p-5">
-          <div className="mb-4 flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold">Receita aprovada por dia</h2>
-              <p className="mt-1 text-2xl font-bold">{fmtCurrency(dailyRevenueChart.reduce((sum, point) => sum + point.value, 0))}</p>
-            </div>
-            <span className="text-right text-xs text-muted-foreground">Mês atual<br />Clique em um dia</span>
-          </div>
-          <RevenueChart data={dailyRevenueChart} chartId="daily-revenue" color="#a78bfa" ordersHref="/admin/pedidos?status=APPROVED" />
         </div>
 
         <div className="rounded-xl border border-border bg-muted/20 p-5">
