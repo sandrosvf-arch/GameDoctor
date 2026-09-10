@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { startOfMonth, subMonths, format } from "date-fns"
+import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 async function requireAdmin() {
@@ -14,8 +14,52 @@ export async function GET() {
   if (!await requireAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const now = new Date()
-  const startCurrent = startOfMonth(now)
-  const startPrev = startOfMonth(subMonths(now, 1))
+
+  function saoPauloParts(referenceDate: Date) {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Sao_Paulo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
+        .formatToParts(referenceDate)
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, part.value])
+    )
+
+    return {
+      year: Number(parts.year),
+      month: Number(parts.month),
+      day: Number(parts.day),
+      hour: Number(parts.hour),
+      minute: Number(parts.minute),
+      second: Number(parts.second),
+    }
+  }
+
+  function saoPauloDayRange(referenceDate: Date) {
+    const parts = saoPauloParts(referenceDate)
+    const wallClock = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second))
+    const offset = referenceDate.getTime() - wallClock.getTime()
+    const start = new Date(Date.UTC(parts.year, parts.month - 1, parts.day) + offset)
+    const end = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + 1) + offset)
+    return { start, end }
+  }
+
+  function saoPauloMonthStart(monthOffset = 0) {
+    const parts = saoPauloParts(now)
+    const wallClock = new Date(Date.UTC(parts.year, parts.month - 1 - monthOffset, 1, 12))
+    return saoPauloDayRange(wallClock).start
+  }
+
+  const currentDay = saoPauloDayRange(now)
+  const currentMonthStart = saoPauloMonthStart()
+  const previousMonthStart = saoPauloMonthStart(1)
   const activeAccessWhere = {
     status: "ACTIVE" as const,
     startsAt: { lte: now },
@@ -36,16 +80,38 @@ export async function GET() {
     }
   }
 
-  // Revenue last 12 months (parallel)
-  const revenueChart = await Promise.all(
-    Array.from({ length: 12 }, (_, i) => 11 - i).map(async (i) => {
-      const start = startOfMonth(subMonths(now, i))
-      const end = i === 0 ? now : startOfMonth(subMonths(now, i - 1))
+  const monthlyRevenueChart = await Promise.all(
+    Array.from({ length: 12 }, (_, index) => 11 - index).map(async (monthOffset) => {
+      const start = saoPauloMonthStart(monthOffset)
+      const end = monthOffset === 0 ? now : saoPauloMonthStart(monthOffset - 1)
       const res = await db.payment.aggregate({
         _sum: { amount: true },
         where: approvedPaymentInPeriod(start, end),
       })
-      return { month: format(start, "MMM", { locale: ptBR }), value: Number(res._sum.amount ?? 0) }
+      return {
+        label: format(start, "MMM", { locale: ptBR }),
+        value: Number(res._sum.amount ?? 0),
+        start: start.toISOString(),
+        end: end.toISOString(),
+      }
+    })
+  )
+
+  const currentDateParts = saoPauloParts(now)
+  const dailyRevenueChart = await Promise.all(
+    Array.from({ length: currentDateParts.day }, (_, index) => index + 1).map(async (day) => {
+      const dayReference = new Date(Date.UTC(currentDateParts.year, currentDateParts.month - 1, day, 12))
+      const range = saoPauloDayRange(dayReference)
+      const res = await db.payment.aggregate({
+        _sum: { amount: true },
+        where: approvedPaymentInPeriod(range.start, day === currentDateParts.day ? now : range.end),
+      })
+      return {
+        label: `${String(day).padStart(2, "0")}/${String(currentDateParts.month).padStart(2, "0")}`,
+        value: Number(res._sum.amount ?? 0),
+        start: range.start.toISOString(),
+        end: (day === currentDateParts.day ? now : range.end).toISOString(),
+      }
     })
   )
 
@@ -60,6 +126,7 @@ export async function GET() {
     publishedCourses,
     totalLessons,
     draftLessons,
+    salesToday,
     recentOrders,
     topCoursesRaw,
     planDistRaw,
@@ -74,17 +141,18 @@ export async function GET() {
     }),
     db.payment.aggregate({
       _sum: { amount: true },
-      where: approvedPaymentInPeriod(startCurrent, now),
+      where: approvedPaymentInPeriod(currentMonthStart, now),
     }),
     db.payment.aggregate({
       _sum: { amount: true },
-      where: approvedPaymentInPeriod(startPrev, startCurrent),
+      where: approvedPaymentInPeriod(previousMonthStart, currentMonthStart),
     }),
     db.lessonProgress.count({ where: { completed: true } }),
     db.comment.count(),
     db.course.count({ where: { status: "PUBLISHED" } }),
     db.lesson.count({ where: { status: "PUBLISHED" } }),
     db.lesson.count({ where: { status: "DRAFT" } }),
+    db.payment.count({ where: approvedPaymentInPeriod(currentDay.start, now) }),
     db.payment.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
@@ -176,15 +244,17 @@ export async function GET() {
       totalStudents,
       activeAccesses,
       approvedRevenue: Number(approvedRevenue._sum.amount ?? 0),
-      monthlyRevenue: mrr,
-      mrrChange,
+       monthlyRevenue: mrr,
+       mrrChange,
+       salesToday,
       completedLessons,
       totalComments,
       publishedCourses,
       totalLessons,
       draftLessons,
     },
-    revenueChart,
+    monthlyRevenueChart,
+    dailyRevenueChart,
     topCourses,
     planDistribution,
     recentOrders: recentOrders.map((payment) => ({

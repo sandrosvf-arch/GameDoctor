@@ -215,6 +215,45 @@ export default function AdminAlunosPage() {
   const [details, setDetails] = useState<StudentDetails | null>(null)
 
   const selectedPlan = availablePlans.find((plan) => plan.id === planId) ?? null
+  const hasOpenModal = Boolean(passwordModalUser || planModalUser || detailsUser)
+
+  function closePasswordModal() {
+    if (passwordLoading) return
+    setPasswordModalUser(null)
+    setPassword("")
+    setConfirmPassword("")
+  }
+
+  function closePlanModal() {
+    if (planSubmitting) return
+    setPlanModalUser(null)
+  }
+
+  function closeDetailsModal() {
+    setDetailsUser(null)
+    setDetails(null)
+    setDetailsError(null)
+  }
+
+  useEffect(() => {
+    if (!hasOpenModal) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return
+      closePasswordModal()
+      closePlanModal()
+      closeDetailsModal()
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [hasOpenModal])
 
   const pageNumbers = useMemo(() => {
     if (!pagination) return []
@@ -474,8 +513,8 @@ export default function AdminAlunosPage() {
           </div>
         ) : (
           <>
-            <div className="max-w-full overflow-hidden rounded-xl border border-border">
-              <div className="max-w-full overflow-x-auto rounded-xl">
+            <div className={`max-w-full rounded-xl border border-border ${items.length === 1 ? "overflow-visible" : "overflow-hidden"}`}>
+              <div className={`max-w-full rounded-xl ${items.length === 1 ? "overflow-visible" : "overflow-x-auto"}`}>
                 <table className="w-full table-fixed divide-y divide-border text-sm">
                 <thead className="bg-background/70">
                   <tr className="text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
@@ -686,16 +725,26 @@ export default function AdminAlunosPage() {
       </section>
 
       {passwordModalUser ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-2xl">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold">Alterar senha</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Defina uma nova senha para <strong>{passwordModalUser.email}</strong>.
-              </p>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closePasswordModal()
+          }}
+        >
+          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-background p-5 shadow-2xl">
+            <div className="mb-4 flex shrink-0 items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Alterar senha</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Defina uma nova senha para <strong>{passwordModalUser.email}</strong>.
+                </p>
+              </div>
+              <button type="button" onClick={closePasswordModal} className="rounded-lg border border-border p-2 hover:bg-accent" aria-label="Fechar modal">
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <form onSubmit={handlePasswordSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto">
               <div className="space-y-2">
                 <label className="text-xs text-muted-foreground">Nova senha</label>
                 <input
@@ -723,13 +772,7 @@ export default function AdminAlunosPage() {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!passwordLoading) {
-                      setPasswordModalUser(null)
-                      setPassword("")
-                      setConfirmPassword("")
-                    }
-                  }}
+                  onClick={closePasswordModal}
                   className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent"
                 >
                   Cancelar
@@ -754,9 +797,14 @@ export default function AdminAlunosPage() {
       ) : null}
 
       {planModalUser ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closePlanModal()
+          }}
+        >
+          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-background p-5 shadow-2xl">
+            <div className="flex shrink-0 items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold">Atribuir plano</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -765,25 +813,24 @@ export default function AdminAlunosPage() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (!planSubmitting) setPlanModalUser(null)
-                }}
+                onClick={closePlanModal}
                 className="rounded-lg border border-border p-2 hover:bg-accent"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {planLoading ? (
-              <div className="flex h-40 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : availablePlans.length === 0 ? (
-              <div className="mt-6 rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
-                Nenhum plano ativo disponível para atribuição.
-              </div>
-            ) : (
-              <form onSubmit={handlePlanSubmit} className="mt-6 space-y-4">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {planLoading ? (
+                <div className="flex min-h-40 items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : availablePlans.length === 0 ? (
+                <div className="mt-6 rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
+                  Nenhum plano ativo disponível para atribuição.
+                </div>
+              ) : (
+                <form onSubmit={handlePlanSubmit} className="mt-6 space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
                     Plano
@@ -822,11 +869,11 @@ export default function AdminAlunosPage() {
                       ))
                     }}
                     className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm"
-                  >
-                    <option value="annual">Anual · {selectedPlan?.annualAccessDurationDays ?? 365} dias</option>
-                    {selectedPlan?.monthlyEnabled && selectedPlan.monthlyAccessDurationDays ? (
-                      <option value="monthly">Mensal · {selectedPlan.monthlyAccessDurationDays} dias</option>
-                    ) : null}
+                    >
+                      <option value="annual">Anual · {selectedPlan?.annualAccessDurationDays ?? 365} dias</option>
+                      {selectedPlan?.monthlyEnabled && selectedPlan.monthlyAccessDurationDays ? (
+                        <option value="monthly">Mensal · {selectedPlan.monthlyAccessDurationDays} dias</option>
+                      ) : null}
                   </select>
                 </div>
 
@@ -856,9 +903,7 @@ export default function AdminAlunosPage() {
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (!planSubmitting) setPlanModalUser(null)
-                    }}
+                    onClick={closePlanModal}
                     className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent"
                   >
                     Cancelar
@@ -877,15 +922,21 @@ export default function AdminAlunosPage() {
                     )}
                   </button>
                 </div>
-              </form>
-            )}
+                </form>
+              )}
+            </div>
           </div>
         </div>
       ) : null}
       {detailsUser ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-4xl rounded-2xl border border-border bg-background p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeDetailsModal()
+          }}
+        >
+          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-background p-5 shadow-2xl">
+            <div className="flex shrink-0 items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold">{detailTitle(detailsView)}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -893,11 +944,7 @@ export default function AdminAlunosPage() {
                 </p>
               </div>
               <button
-                onClick={() => {
-                  setDetailsUser(null)
-                  setDetails(null)
-                  setDetailsError(null)
-                }}
+                onClick={closeDetailsModal}
                 className="rounded-lg border border-border p-2 hover:bg-accent"
               >
                 <X className="h-4 w-4" />
@@ -929,7 +976,7 @@ export default function AdminAlunosPage() {
               ))}
             </div>
 
-            <div className="mt-5 min-h-[320px] rounded-xl border border-border bg-card/40 p-4">
+            <div className="mt-5 min-h-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card/40 p-4">
               {detailsLoading ? (
                 <div className="flex h-[280px] items-center justify-center">
                   <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />

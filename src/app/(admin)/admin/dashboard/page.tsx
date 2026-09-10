@@ -36,11 +36,14 @@ interface Stats {
   publishedCourses: number
   totalLessons: number
   draftLessons: number
+  salesToday: number
 }
 
 interface ChartPoint {
-  month: string
+  label: string
   value: number
+  start: string
+  end: string
 }
 
 interface TopCourse {
@@ -82,7 +85,8 @@ interface RecentLog {
 
 interface DashboardData {
   stats: Stats
-  revenueChart: ChartPoint[]
+  monthlyRevenueChart: ChartPoint[]
+  dailyRevenueChart: ChartPoint[]
   topCourses: TopCourse[]
   planDistribution: PlanSlice[]
   recentOrders: RecentOrder[]
@@ -97,12 +101,12 @@ const fmtNum = (value: number) => new Intl.NumberFormat("pt-BR").format(value)
 
 const PIE_COLORS = ["#06b6d4", "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b"]
 
-function LineChart({ data }: { data: ChartPoint[] }) {
-  if (!data.length) return null
+function RevenueChart({ data, chartId, color, ordersHref }: { data: ChartPoint[]; chartId: string; color: string; ordersHref: string }) {
+  if (!data.length) return <p className="flex h-40 items-center justify-center text-xs text-muted-foreground">Sem dados</p>
 
   const max = Math.max(...data.map((item) => item.value), 1)
   const width = 400
-  const height = 100
+  const height = 150
   const paddingX = 8
   const paddingY = 10
   const innerWidth = width - paddingX * 2
@@ -120,26 +124,42 @@ function LineChart({ data }: { data: ChartPoint[] }) {
   const areaPath = `${linePath} L${points[points.length - 1].x.toFixed(1)},${height} L${paddingX},${height} Z`
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-[100px] w-full" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaPath} fill="url(#lineGrad)" />
-      <path d={linePath} fill="none" stroke="#06b6d4" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      {points.filter((point) => point.value > 0).map((point, index) => (
-        <circle
-          key={index}
-          cx={point.x}
-          cy={point.y}
-          r="3"
-          fill="#06b6d4"
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
-    </svg>
+    <>
+      <div className="relative h-36">
+        <svg viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 h-full w-full overflow-visible" preserveAspectRatio="none" role="img" aria-label="Gráfico de receita">
+          <defs>
+            <linearGradient id={`${chartId}-gradient`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={areaPath} fill={`url(#${chartId}-gradient)`} />
+          <path d={linePath} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {points.map((point, index) => (
+          <a
+            key={index}
+            href={`${ordersHref}&from=${encodeURIComponent(point.start)}&to=${encodeURIComponent(point.end)}`}
+            className="absolute z-10 block h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#090c11] transition-transform hover:scale-150"
+            style={{ left: `${(point.x / width) * 100}%`, top: `${(point.y / height) * 100}%`, backgroundColor: color }}
+          >
+            <title>{`${point.label}: ${fmtCurrency(point.value)}. Ver pedidos deste período.`}</title>
+          </a>
+        ))}
+      </div>
+      <div className="mt-2 flex justify-between gap-1">
+        {data.map((point, index) => (
+          <a
+            key={index}
+            href={`${ordersHref}&from=${encodeURIComponent(point.start)}&to=${encodeURIComponent(point.end)}`}
+            className="min-w-0 truncate text-[10px] capitalize text-muted-foreground transition-colors hover:text-foreground"
+            title={`Ver pedidos de ${point.label}`}
+          >
+            {data.length <= 14 || index === 0 || index === data.length - 1 || index % Math.ceil(data.length / 7) === 0 ? point.label : ""}
+          </a>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -304,7 +324,7 @@ export default function AdminDashboardPage() {
     )
   }
 
-  const { stats, revenueChart, topCourses, planDistribution, recentOrders, recentLessons, recentLogs } = data
+  const { stats, monthlyRevenueChart, dailyRevenueChart, topCourses, planDistribution, recentOrders, recentLessons, recentLogs } = data
 
   return (
     <div className="max-w-[1400px] space-y-6 p-6 md:p-8">
@@ -334,6 +354,14 @@ export default function AdminDashboardPage() {
           href="/admin/alunos?subscription=active"
         />
         <KpiCard
+          label="Vendas hoje"
+          value={fmtNum(stats.salesToday)}
+          icon={ShoppingCart}
+          iconColor="bg-amber-500/15 text-amber-400"
+          sub="pagamentos aprovados"
+          href="/admin/pedidos?status=APPROVED"
+        />
+        <KpiCard
           label="Receita aprovada"
           value={fmtCurrency(stats.approvedRevenue)}
           icon={TrendingUp}
@@ -349,14 +377,6 @@ export default function AdminDashboardPage() {
           sub="total de conclusoes"
         />
         <KpiCard
-          label="Cursos publicados"
-          value={fmtNum(stats.publishedCourses)}
-          icon={BookMarked}
-          iconColor="bg-amber-500/15 text-amber-400"
-          sub={`${fmtNum(stats.draftLessons)} aulas em rascunho`}
-          href="/admin/cursos"
-        />
-        <KpiCard
           label="Comentarios"
           value={fmtNum(stats.totalComments)}
           icon={MessageSquare}
@@ -366,41 +386,32 @@ export default function AdminDashboardPage() {
         />
       </div>
 
+      <div className="rounded-xl border border-border bg-muted/20 p-5">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold">Receita aprovada por dia</h2>
+            <p className="mt-1 text-2xl font-bold">{fmtCurrency(dailyRevenueChart.reduce((sum, point) => sum + point.value, 0))}</p>
+          </div>
+          <span className="text-right text-xs text-muted-foreground">Mês atual<br />Clique em um dia</span>
+        </div>
+        <RevenueChart data={dailyRevenueChart} chartId="daily-revenue" color="#a78bfa" ordersHref="/admin/pedidos?status=APPROVED" />
+      </div>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Link
-          href="/admin/pedidos?status=APPROVED"
-          className="block rounded-xl border border-border bg-muted/20 p-5 transition-colors hover:border-primary/40 hover:bg-muted/30 lg:col-span-2"
-        >
-          <div className="mb-4 flex items-start justify-between">
+        <div className="rounded-xl border border-border bg-muted/20 p-5 lg:col-span-2">
+          <div className="mb-4 flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-sm font-semibold">Receita aprovada por mes</h2>
-            <p className="mt-1 text-2xl font-bold">{fmtCurrency(stats.monthlyRevenue)}</p>
-              {stats.mrrChange !== 0 ? (
-                <p
-                  className={cn(
-                    "mt-0.5 flex items-center gap-1 text-xs",
-                    stats.mrrChange >= 0 ? "text-emerald-400" : "text-red-400"
-                  )}
-                >
-                  {stats.mrrChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {stats.mrrChange >= 0 ? "+" : ""}
-                  {stats.mrrChange.toFixed(1)}% vs mes anterior
-                </p>
-              ) : null}
+              <h2 className="text-sm font-semibold">Receita aprovada por mês</h2>
+              <p className="mt-1 text-2xl font-bold">{fmtCurrency(stats.monthlyRevenue)}</p>
+              {stats.mrrChange !== 0 ? <p className={cn("mt-0.5 flex items-center gap-1 text-xs", stats.mrrChange >= 0 ? "text-emerald-400" : "text-red-400")}>
+                {stats.mrrChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {stats.mrrChange >= 0 ? "+" : ""}{stats.mrrChange.toFixed(1)}% vs mês anterior
+              </p> : null}
             </div>
-            <span className="text-xs text-muted-foreground">Ultimos 12 meses</span>
+            <span className="text-right text-xs text-muted-foreground">Últimos 12 meses<br />Clique em um mês</span>
           </div>
-
-          <LineChart data={revenueChart} />
-
-          <div className="mt-2 flex justify-between">
-            {revenueChart.map((point, index) => (
-              <span key={index} className="text-[10px] capitalize text-muted-foreground">
-                {point.month}
-              </span>
-            ))}
-          </div>
-        </Link>
+          <RevenueChart data={monthlyRevenueChart} chartId="monthly-revenue" color="#06b6d4" ordersHref="/admin/pedidos?status=APPROVED" />
+        </div>
 
         <div className="rounded-xl border border-border bg-muted/20 p-5">
           <h2 className="mb-4 text-sm font-semibold">Distribuicao de acessos ativos</h2>

@@ -24,6 +24,12 @@ export async function GET(request: NextRequest) {
   const q = searchParams.get("q")?.trim() ?? ""
   const status = searchParams.get("status")?.trim() ?? "all"
   const archived = searchParams.get("archived") === "true"
+  const fromValue = searchParams.get("from")
+  const toValue = searchParams.get("to")
+  const from = fromValue ? new Date(fromValue) : null
+  const to = toValue ? new Date(toValue) : null
+  const validFrom = from && !Number.isNaN(from.getTime()) ? from : null
+  const validTo = to && !Number.isNaN(to.getTime()) ? to : null
 
   const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1
   const pageSize =
@@ -62,6 +68,19 @@ export async function GET(request: NextRequest) {
   const baseWhere = {
     ...searchWhere,
     archivedAt: archived ? { not: null } : null,
+    ...(validFrom || validTo
+      ? {
+          payments: {
+            some: {
+              paymentStatus: "APPROVED" as const,
+              paidAt: {
+                ...(validFrom ? { gte: validFrom } : {}),
+                ...(validTo ? { lt: validTo } : {}),
+              },
+            },
+          },
+        }
+      : {}),
   }
   const where = {
     ...baseWhere,
