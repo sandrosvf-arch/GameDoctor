@@ -178,14 +178,12 @@ export default async function AdminLayout({
         </Link>
 
         <Sheet>
-          <SheetTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-foreground"
-              aria-label="Abrir menu administrativo"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+          <SheetTrigger
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-foreground"
+            aria-label="Abrir menu administrativo"
+          >
+            <Menu className="h-5 w-5" />
           </SheetTrigger>
           <SheetContent side="right" className="w-[min(20rem,calc(100vw-2rem))] overflow-y-auto">
             <Link href="/" className="block pr-8">
