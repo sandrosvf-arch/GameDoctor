@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react"
+import { OfferUrgency } from "@/components/checkout/OfferUrgency"
 
 const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() ?? ""
 
@@ -512,7 +513,7 @@ export function CheckoutPageClient({
   const hasProfileCpf = profile.cpf?.replace(/\D/g, "").length === 11
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
+    <main className="mx-auto w-full max-w-6xl px-0 py-5 sm:px-6 lg:py-8 px-0">
       <div className="mx-auto max-w-3xl space-y-4">
         <section className="min-w-0 space-y-4">
           {quote.currentPlan?.active && (
@@ -555,6 +556,8 @@ export function CheckoutPageClient({
               </div>
             )}
           </div>
+
+          <OfferUrgency />
 
           <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0d1118] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
             <div className="border-b border-white/[0.07] px-5 py-4">
