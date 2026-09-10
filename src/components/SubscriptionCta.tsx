@@ -26,7 +26,7 @@ export async function SubscriptionCta() {
   }
 
   return (
-    <aside className="fixed inset-x-4 bottom-4 z-40 flex justify-center pointer-events-none sm:justify-start lg:left-72 lg:right-auto">
+    <aside className="fixed inset-x-4 bottom-4 z-40 flex justify-center pointer-events-none sm:justify-start lg:left-4 lg:right-auto">
       <Link
         href="/planos"
         className="pointer-events-auto flex min-h-12 w-full max-w-sm items-center gap-3 rounded-2xl border border-cyan-300/25 bg-[#0b1720]/95 px-4 py-3 text-left shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-300/50 hover:bg-[#10232e]"
