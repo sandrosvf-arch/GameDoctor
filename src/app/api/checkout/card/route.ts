@@ -56,6 +56,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Quantidade de parcelas inválida." }, { status: 400 })
   }
 
+  if (period === "monthly" && installments !== 1) {
+    return NextResponse.json({ error: "O plano mensal aceita somente pagamento à vista no cartão." }, { status: 400 })
+  }
+
   try {
     const user = await db.user.findUnique({
       where: { id: session.user.id },

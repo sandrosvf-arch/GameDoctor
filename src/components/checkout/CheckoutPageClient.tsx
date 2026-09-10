@@ -141,7 +141,7 @@ export function CheckoutPageClient({
     setCardSdkReady(true)
   }, [])
 
-  const maxInstallments = Math.min(12, Math.max(1, quote.installments.max))
+  const maxInstallments = quote.period === "monthly" ? 1 : Math.min(12, Math.max(1, quote.installments.max))
 
   function choosePaymentMethod(method: PaymentMethod) {
     setSelectedPaymentMethod(method)

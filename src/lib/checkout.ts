@@ -537,7 +537,7 @@ export async function listPublicPlans(userId?: string | null) {
       noInterest: plan.maxInstallmentsNoInterest,
     },
     offers: [
-      {
+      ...(plan.annualPrice !== null && toNumber(plan.annualPrice) > 0 ? [{
         period: "annual" as const,
         label: "Anual",
         price: toNumber(plan.annualPixPrice) || (plan.slug === "plano-anual" ? 697 : toNumber(plan.annualPrice)),
@@ -550,7 +550,7 @@ export async function listPublicPlans(userId?: string | null) {
             || toNumber(plan.annualPrice),
         ),
         accessDurationDays: plan.annualAccessDurationDays,
-      },
+      }] : []),
       ...(plan.monthlyEnabled && plan.monthlyPrice !== null
         ? [{
             period: "monthly" as const,

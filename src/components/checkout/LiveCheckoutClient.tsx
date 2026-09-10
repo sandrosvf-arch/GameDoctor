@@ -290,7 +290,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   }, [pix?.orderId])
 
   const cardInitialization = useMemo(() => ({ amount: quote.cardTotal, payer: { email: customer.email.trim() } }), [customer.email, quote.cardTotal])
-  const cardCustomization = useMemo(() => ({ paymentMethods: { minInstallments: 1, maxInstallments: Math.min(12, quote.installments.max) }, visual: { hideFormTitle: true } }), [quote.installments.max])
+  const cardCustomization = useMemo(() => ({ paymentMethods: { minInstallments: 1, maxInstallments: quote.period === "monthly" ? 1 : Math.min(12, quote.installments.max) }, visual: { hideFormTitle: true } }), [quote.installments.max, quote.period])
 
   return (
     <main className="relative overflow-hidden px-4 pb-28 pt-8 sm:px-6 lg:py-12 lg:pb-32">

@@ -127,13 +127,14 @@ export default async function PlanosPage() {
                       : buildLoginHref(plan.slug, offer.period)
                     const installmentCount = plan.installments.max
                     const installmentValue = offer.cardEstimate.installmentAmount
+                    const showInstallments = offer.period === "annual" && installmentCount > 1
 
                     return (
                       <div
                         key={offer.period}
                         className="border-b border-white/[0.08] py-5 first:pt-0 last:border-b-0 last:pb-0"
                       >
-                        {canSeePrices ? installmentCount > 1 ? (
+                         {canSeePrices ? showInstallments ? (
                           <div>
                             <p className="text-sm font-medium text-slate-400">Você paga apenas</p>
                             <p className="mt-1 text-4xl font-bold text-white md:text-5xl">
@@ -143,7 +144,7 @@ export default async function PlanosPage() {
                           </div>
                         ) : (
                           <div>
-                            <p className="text-sm font-medium text-slate-400">Valor do acesso</p>
+                             <p className="text-sm font-medium text-slate-400">{offer.period === "monthly" ? "Acesso mensal" : "Valor do acesso"}</p>
                             <p className="mt-1 text-4xl font-bold text-white">{formatCurrency(offer.price)}</p>
                           </div>
                         ) : (
