@@ -145,7 +145,7 @@ export default async function PlanosPage() {
                         ) : (
                           <div>
                              <p className="text-sm font-medium text-slate-400">{offer.period === "monthly" ? "Acesso mensal" : "Valor do acesso"}</p>
-                            <p className="mt-1 text-4xl font-bold text-white">{formatCurrency(offer.price)}</p>
+                            <p className="mt-1 text-4xl font-bold text-white">{formatCurrency(offer.price)}{offer.period === "monthly" ? <span className="ml-2 text-base font-semibold text-cyan-300">/ mês</span> : null}</p>
                           </div>
                         ) : (
                           <div>

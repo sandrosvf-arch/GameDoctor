@@ -537,11 +537,13 @@ export function CheckoutPageClient({
               <div className="sm:text-right">
                 <p className="text-xs text-slate-400">No cartão</p>
                 <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
-                  {selectedCardInstallment
-                    ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
-                    : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}
+                  {quote.period === "monthly"
+                    ? `${formatCurrency(selectedCardInstallment?.installmentAmount ?? quote.cardEstimate.installmentAmount)} / mês`
+                    : selectedCardInstallment
+                      ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
+                      : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}
                 </p>
-                <p className="mt-1 text-xs text-slate-400">ou {formatCurrency(quote.pixTotal)} à vista</p>
+                {quote.period === "annual" && <p className="mt-1 text-xs text-slate-400">ou {formatCurrency(quote.pixTotal)} à vista</p>}
               </div>
             </div>
 
