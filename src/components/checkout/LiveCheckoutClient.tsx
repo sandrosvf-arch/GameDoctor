@@ -121,6 +121,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   function commonBody() {
     return {
       planSlug,
+      paymentMethods: availableMethods,
       customer: {
         name: customer.name.trim(),
         email: customer.email.trim().toLowerCase(),

@@ -47,7 +47,7 @@ export default async function LiveCheckoutPage({ searchParams }: { searchParams:
         quote={quote}
         planSlug={planSlug}
         allowedMethods={allowedMethods}
-        pagaleveEnabled={isPagaleveEnabled()}
+        pagaleveEnabled={isPagaleveEnabled() || Boolean(allowedMethods?.includes("pagaleve"))}
         initialProfile={profile ? {
           name: profile.name,
           email: profile.email,

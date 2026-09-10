@@ -37,11 +37,12 @@ function getPublicBaseUrl() {
 }
 
 export async function POST(request: Request) {
-  if (!isPagaleveEnabled()) {
+  const body = await request.json().catch(() => null)
+  const requestedMethods = Array.isArray(body?.paymentMethods) ? body.paymentMethods.map(String) : []
+  if (!isPagaleveEnabled() && !requestedMethods.includes("pagaleve")) {
     return NextResponse.json({ error: "O Parcelamento via Pix está temporariamente indisponível." }, { status: 404 })
   }
 
-  const body = await request.json().catch(() => null)
   const cpf = String(body?.cpf ?? "").replace(/\D/g, "").slice(0, 11)
   const planSlug = normalizeText(body?.planSlug, 120)
   const idempotencyKey = normalizeText(body?.idempotencyKey, 120) || randomUUID()
