@@ -7,6 +7,7 @@ import { CardPayment, initMercadoPago } from "@mercadopago/sdk-react"
 import { Check, Copy, CreditCard, Loader2, MapPin, QrCode, ShieldCheck, Wallet } from "lucide-react"
 import type { CheckoutQuote } from "@/lib/checkout"
 import { isValidBrazilianPhone, normalizeBrazilianPhone } from "@/lib/phone"
+import { OfferUrgency } from "@/components/checkout/OfferUrgency"
 
 const mercadoPagoPublicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() ?? ""
 type PaymentMethod = "card" | "pix" | "pagaleve"
@@ -310,6 +311,8 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 {quote.plan.benefits.map((benefit) => <span key={benefit} className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-cyan-300" />{benefit}</span>)}
               </div>
             </section>
+
+            <OfferUrgency />
 
             <section id="live-customer" className="rounded-2xl border border-white/[0.08] bg-[#0b1017]/95 p-5 shadow-2xl shadow-black/20 sm:p-6">
               <div className="flex items-center gap-3">
