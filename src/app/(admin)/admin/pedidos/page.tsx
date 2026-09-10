@@ -458,6 +458,9 @@ function OrderItemRow({
           <p className="mt-2 text-xs text-slate-600 lg:hidden">
             {formatDate(order.createdAt)}
           </p>
+          <p className="mt-2 hidden text-xs text-slate-500 lg:block" title="Data e hora da compra">
+            Compra: {formatDate(order.createdAt)}
+          </p>
         </div>
 
         <div className="min-w-0">
