@@ -138,6 +138,7 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               price: true,
+              planPeriod: true,
               plan: {
                 select: {
                   id: true,
@@ -205,6 +206,7 @@ export async function GET(request: NextRequest) {
       coupon: order.coupon,
       items: order.orderItems.map((item) => ({
         id: item.id,
+        planPeriod: item.planPeriod,
         label: item.plan?.name ?? item.course?.title ?? "Item",
         type: item.plan ? "plan" : "course",
         price: Number(item.price),

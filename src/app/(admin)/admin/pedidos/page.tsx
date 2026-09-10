@@ -32,6 +32,7 @@ type PaymentStatus =
 
 interface OrderItem {
   id: string
+  planPeriod: "ANNUAL" | "MONTHLY" | null
   label: string
   type: "plan" | "course"
   price: number
@@ -129,6 +130,10 @@ function paymentStatusLabel(status: PaymentStatus) {
   if (status === "FAILED") return "Falhou"
   if (status === "REFUSED") return "Recusado"
   return "Cancelado"
+}
+
+function planPeriodLabel(period: OrderItem["planPeriod"]) {
+  return period === "MONTHLY" ? "Mensal" : period === "ANNUAL" ? "Anual" : null
 }
 
 function paymentStatusTone(status: PaymentStatus) {
@@ -496,6 +501,11 @@ function OrderItemRow({
           <p className="mt-2 line-clamp-1 text-xs text-slate-600">
             {order.items.map((item) => item.label).join(" · ")}
           </p>
+          {order.items.some((item) => item.planPeriod) && (
+            <p className="mt-1 text-[11px] font-medium text-cyan-400/80">
+              {order.items.map((item) => planPeriodLabel(item.planPeriod)).filter(Boolean).join(" · ")}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:block">
@@ -550,6 +560,7 @@ function OrderItemRow({
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <DetailItem label="Pedido" value={order.id} />
+                  <DetailItem label="Período" value={order.items.map((item) => planPeriodLabel(item.planPeriod)).filter(Boolean).join(" · ") || "-"} />
                   <DetailItem label="Criado em" value={formatDate(order.createdAt)} />
                   <DetailItem label="Atualizado em" value={formatDate(order.updatedAt)} />
                   <DetailItem label="Referência externa" value={order.gatewayReference || "-"} />
