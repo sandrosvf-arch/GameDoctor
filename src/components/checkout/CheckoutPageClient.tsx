@@ -538,7 +538,7 @@ export function CheckoutPageClient({
                 <p className="text-xs text-slate-400">No cartão</p>
                 <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
                   {quote.period === "monthly"
-                    ? `${formatCurrency(selectedCardInstallment?.installmentAmount ?? quote.cardEstimate.installmentAmount)} / mês`
+                    ? `${formatCurrency(quote.cardTotal)} / mês`
                     : selectedCardInstallment
                       ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
                       : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}

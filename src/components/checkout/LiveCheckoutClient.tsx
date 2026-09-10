@@ -311,7 +311,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 </div>
                 <div className="shrink-0 sm:text-right">
                   <p className="text-xs">No cartão</p>
-                   <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">{quote.period === "monthly" ? `${currency(quote.cardEstimate.installmentAmount)} / mês` : `12x de ${currency(quote.cardEstimate.installmentAmount)}`}</p>
+                   <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">{quote.period === "monthly" ? `${currency(quote.cardTotal)} / mês` : `12x de ${currency(quote.cardEstimate.installmentAmount)}`}</p>
                    {quote.period === "annual" && <p className="mt-1 text-xs">ou {currency(quote.pixTotal)} à vista</p>}
                 </div>
               </div>
