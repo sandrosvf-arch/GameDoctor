@@ -73,7 +73,8 @@ function MethodButton({ active, icon, title, description, onClick }: {
 }
 
 export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEnabled, allowedMethods }: { quote: CheckoutQuote; planSlug: string; initialProfile: Profile | null; pagaleveEnabled: boolean; allowedMethods?: PaymentMethod[] }) {
-  const availableMethods = allowedMethods?.filter((method) => method !== "pagaleve" || pagaleveEnabled) ?? ["card", "pix", ...(pagaleveEnabled ? ["pagaleve" as const] : [])]
+  const defaultMethods = quote.period === "monthly" ? ["card" as const] : ["card" as const, "pix" as const, ...(pagaleveEnabled ? ["pagaleve" as const] : [])]
+  const availableMethods = (allowedMethods ?? defaultMethods).filter((method) => quote.period !== "monthly" || method === "card").filter((method) => method !== "pagaleve" || pagaleveEnabled || allowedMethods?.includes("pagaleve"))
   const [customer, setCustomer] = useState({
     name: initialProfile?.name ?? "",
     email: initialProfile?.email ?? "",
@@ -121,6 +122,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   function commonBody() {
     return {
       planSlug,
+      period: quote.period,
       paymentMethods: availableMethods,
       customer: {
         name: customer.name.trim(),
@@ -288,7 +290,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   }, [pix?.orderId])
 
   const cardInitialization = useMemo(() => ({ amount: quote.cardTotal, payer: { email: customer.email.trim() } }), [customer.email, quote.cardTotal])
-  const cardCustomization = useMemo(() => ({ paymentMethods: { minInstallments: 1, maxInstallments: Math.min(12, quote.installments.max) }, visual: { hideFormTitle: true } }), [quote.installments.max])
+  const cardCustomization = useMemo(() => ({ paymentMethods: { minInstallments: 1, maxInstallments: quote.period === "monthly" ? 1 : Math.min(12, quote.installments.max) }, visual: { hideFormTitle: true } }), [quote.installments.max, quote.period])
 
   return (
     <main className="relative overflow-hidden px-4 pb-28 pt-8 sm:px-6 lg:py-12 lg:pb-32">
@@ -309,8 +311,8 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 </div>
                 <div className="shrink-0 sm:text-right">
                   <p className="text-xs">No cartão</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">12x de {currency(quote.cardEstimate.installmentAmount)}</p>
-                  <p className="mt-1 text-xs">ou {currency(quote.pixTotal)} à vista</p>
+                   <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">{quote.period === "monthly" ? `${currency(quote.cardTotal)} / mês` : `12x de ${currency(quote.cardEstimate.installmentAmount)}`}</p>
+                   {quote.period === "annual" && <p className="mt-1 text-xs">ou {currency(quote.pixTotal)} à vista</p>}
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/[0.08] pt-4 text-xs text-slate-300">
@@ -415,7 +417,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
       </div>
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.1] bg-[#090d14]/95 px-4 py-3 shadow-[0_-12px_35px_rgba(0,0,0,.35)] backdrop-blur-xl sm:px-6">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Total</p><p className="truncate text-lg font-semibold text-white sm:text-xl">{currency(quote.finalTotal)} <span className="text-xs font-normal text-slate-500">ou 12x de {currency(quote.cardEstimate.installmentAmount)}</span></p></div>
+             <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Total</p><p className="truncate text-lg font-semibold text-white sm:text-xl">{currency(quote.finalTotal)} <span className="text-xs font-normal text-slate-500">{quote.period === "monthly" ? "/ mês" : `ou 12x de ${currency(quote.cardEstimate.installmentAmount)}`}</span></p></div>
           <button type="button" onClick={() => document.getElementById("live-payment")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="h-11 shrink-0 rounded-xl bg-cyan-300 px-5 text-sm font-bold text-slate-950 transition hover:bg-cyan-200 sm:px-8">Continuar compra</button>
         </div>
       </div>

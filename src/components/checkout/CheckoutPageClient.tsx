@@ -119,7 +119,7 @@ export function CheckoutPageClient({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>("card")
   const [submittingPayment, setSubmittingPayment] = useState(false)
   const [redirectingPayment, setRedirectingPayment] = useState(false)
-  const [autoRenew, setAutoRenew] = useState(initialQuote.period === "annual")
+  const [autoRenew, setAutoRenew] = useState(initialQuote.period === "annual" || initialQuote.period === "monthly")
   const [error, setError] = useState<string | null>(null)
   const [cardSdkReady, setCardSdkReady] = useState(false)
   const [cardInstallments, setCardInstallments] = useState<CardInstallmentOption[]>([])
@@ -141,7 +141,7 @@ export function CheckoutPageClient({
     setCardSdkReady(true)
   }, [])
 
-  const maxInstallments = Math.min(12, Math.max(1, quote.installments.max))
+  const maxInstallments = quote.period === "monthly" ? 1 : Math.min(12, Math.max(1, quote.installments.max))
 
   function choosePaymentMethod(method: PaymentMethod) {
     setSelectedPaymentMethod(method)
@@ -178,7 +178,7 @@ export function CheckoutPageClient({
             paymentMethodId: formData.payment_method_id,
             issuerId: formData.issuer_id,
             installments: formData.installments,
-            autoRenew: quote.period === "annual" && autoRenew,
+            autoRenew,
             idempotencyKey: idempotencyKeyRef.current,
           }),
         })
@@ -537,11 +537,13 @@ export function CheckoutPageClient({
               <div className="sm:text-right">
                 <p className="text-xs text-slate-400">No cartão</p>
                 <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
-                  {selectedCardInstallment
-                    ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
-                    : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}
+                  {quote.period === "monthly"
+                    ? `${formatCurrency(quote.cardTotal)} / mês`
+                    : selectedCardInstallment
+                      ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
+                      : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}
                 </p>
-                <p className="mt-1 text-xs text-slate-400">ou {formatCurrency(quote.pixTotal)} à vista</p>
+                {quote.period === "annual" && <p className="mt-1 text-xs text-slate-400">ou {formatCurrency(quote.pixTotal)} à vista</p>}
               </div>
             </div>
 
@@ -624,7 +626,7 @@ export function CheckoutPageClient({
                 )}
               </div>
 
-              <div>
+              {quote.period === "annual" && <div>
                 <button
                   type="button"
                   onClick={() => choosePaymentMethod("pix")}
@@ -732,7 +734,7 @@ export function CheckoutPageClient({
                     )}
                   </div>
                 )}
-              </div>
+              </div>}
 
               {pagaleveEnabled && quote.period === "annual" && (
                 <div>

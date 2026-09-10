@@ -2,7 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto"
 import { Prisma } from "@prisma/client"
 import type { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { buildCheckoutQuote, createPendingPlanCheckout } from "@/lib/checkout"
+import { buildCheckoutQuote, createPendingPlanCheckout, type CheckoutPeriod } from "@/lib/checkout"
 import { isValidBrazilianPhone, normalizeBrazilianPhone } from "@/lib/phone"
 
 const PUBLIC_TOKEN_DURATION_MS = 48 * 60 * 60 * 1000
@@ -121,14 +121,14 @@ async function enforceLiveCheckoutRateLimit(input: {
   }
 }
 
-export async function getLiveCheckoutQuote(planSlug: string) {
+export async function getLiveCheckoutQuote(planSlug: string, period: CheckoutPeriod = "annual") {
   const normalizedPlanSlug = planSlug.trim()
   if (!normalizedPlanSlug) throw new Error("Plano da oferta não informado.")
 
   return buildCheckoutQuote({
     userId: null,
     planSlug: normalizedPlanSlug,
-    period: "annual",
+    period,
   })
 }
 
@@ -136,6 +136,7 @@ export async function prepareLiveCheckout(input: {
   request: Request
   identity: unknown
   planSlug: string
+  period: CheckoutPeriod
   accessToken: unknown
   idempotencyKey: string
   gateway: "MERCADOPAGO" | "PAGALEVE"
@@ -175,7 +176,7 @@ export async function prepareLiveCheckout(input: {
         quote: await buildCheckoutQuote({
           userId: existingOrder.userId,
           planSlug,
-          period: "annual",
+          period: input.period,
         }),
       },
       accessToken,
@@ -193,7 +194,7 @@ export async function prepareLiveCheckout(input: {
   const checkout = await createPendingPlanCheckout({
     userId: user.id,
     planSlug,
-    period: "annual",
+    period: input.period,
     idempotencyKey: input.idempotencyKey,
     gateway: input.gateway,
     paymentMethod: input.paymentMethod,

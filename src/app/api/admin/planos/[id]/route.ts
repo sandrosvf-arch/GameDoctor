@@ -72,8 +72,8 @@ function normalizePlanPayload(body: Record<string, unknown>) {
     return { error: "Não foi possível gerar um slug válido para o plano." }
   }
 
-  if (annualPrice === null || annualPrice < 0) {
-    return { error: "Informe um valor anual válido." }
+  if (annualPrice === null && (!monthlyEnabled || monthlyPrice === null)) {
+    return { error: "Informe o valor anual ou ative o plano mensal com um valor válido." }
   }
 
   if ([annualPixPrice, annualCardPrice, annualBoletoPrice, annualPixInstallmentPrice]
@@ -81,7 +81,7 @@ function normalizePlanPayload(body: Record<string, unknown>) {
     return { error: "Os valores por forma de pagamento devem ser vÃ¡lidos." }
   }
 
-  if (cardInstallmentTotal !== null && cardInstallmentTotal < annualPrice) {
+  if (annualPrice !== null && cardInstallmentTotal !== null && cardInstallmentTotal < annualPrice) {
     return { error: "O valor total parcelado deve ser igual ou maior que o valor anual." }
   }
 
@@ -95,11 +95,11 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       slug,
       description,
       annualPrice,
-      annualPixPrice: annualPixPrice ?? annualPrice,
-      annualCardPrice: annualCardPrice ?? annualPrice,
-      annualBoletoPrice: annualBoletoPrice ?? annualPrice,
-      annualPixInstallmentPrice: annualPixInstallmentPrice ?? cardInstallmentTotal ?? annualPrice,
-      cardInstallmentTotal,
+      annualPixPrice: annualPrice === null ? null : annualPixPrice ?? annualPrice,
+      annualCardPrice: annualPrice === null ? null : annualCardPrice ?? annualPrice,
+      annualBoletoPrice: annualPrice === null ? null : annualBoletoPrice ?? annualPrice,
+      annualPixInstallmentPrice: annualPrice === null ? null : annualPixInstallmentPrice ?? cardInstallmentTotal ?? annualPrice,
+      cardInstallmentTotal: annualPrice === null ? null : cardInstallmentTotal,
       monthlyPrice: monthlyEnabled ? monthlyPrice : null,
       monthlyEnabled,
       annualAccessDurationDays,
@@ -110,9 +110,9 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       showOnPlans,
       status,
       benefits,
-      price: annualPrice,
-      billingType: "YEARLY" as BillingType,
-      accessDurationDays: annualAccessDurationDays,
+      price: annualPrice ?? monthlyPrice,
+      billingType: (annualPrice === null ? "MONTHLY" : "YEARLY") as BillingType,
+      accessDurationDays: annualPrice === null ? monthlyAccessDurationDays : annualAccessDurationDays,
     } satisfies Prisma.PlanUncheckedUpdateInput,
   }
 }

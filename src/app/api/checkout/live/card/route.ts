@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto"
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { getAppBaseUrl, normalizeCheckoutPeriod, toPlanCheckoutPeriod } from "@/lib/checkout"
 import { prepareLiveCheckout, setLiveCheckoutCookie } from "@/lib/live-checkout"
 import { grantApprovedOrderAccess, sendLiveCheckoutAccessIfNeeded } from "@/lib/payment/live-checkout-approval"
 import {
   createMercadoPagoOrder,
   getMercadoPagoPayerEmail,
+  createMercadoPagoSubscription,
   mapMercadoPagoMethodToInternal,
   mapMercadoPagoStatusToInternal,
 } from "@/lib/payment/providers/mercadopago"
@@ -31,6 +33,7 @@ export async function POST(request: Request) {
       request,
       identity: body?.customer,
       planSlug,
+      period: normalizeCheckoutPeriod(body?.period) ?? "annual",
       accessToken: body?.accessToken,
       idempotencyKey,
       gateway: "MERCADOPAGO",
@@ -98,6 +101,40 @@ export async function POST(request: Request) {
       await sendLiveCheckoutAccessIfNeeded(checkout.orderId).catch((error) => {
         console.error("[live-checkout/card/access-email]", error)
       })
+    }
+
+    if ((checkout.quote.period === "annual" || checkout.quote.period === "monthly") && status !== "REFUSED" && status !== "CANCELLED") {
+      try {
+        const subscription = await createMercadoPagoSubscription({
+          externalReference: checkout.orderId,
+          payerEmail: getMercadoPagoPayerEmail(user.email),
+          reason: `${checkout.quote.plan.name} - renovação ${checkout.quote.periodLabel.toLowerCase()}`,
+          amount: checkout.quote.subtotal,
+          frequency: checkout.quote.period === "monthly" ? 1 : 12,
+          cardToken,
+          startDate: new Date(Date.now() + checkout.quote.accessDurationDays * 24 * 60 * 60 * 1000),
+          backUrl: getAppBaseUrl() + "/minha-conta",
+        })
+        const localSubscription = await db.subscription.create({
+          data: {
+            userId: user.id,
+            planId: checkout.quote.plan.id,
+            initialOrderId: checkout.orderId,
+            gatewaySubscriptionId: subscription.id,
+            period: toPlanCheckoutPeriod(checkout.quote.period),
+            amount: checkout.quote.subtotal,
+            accessDurationDays: checkout.quote.accessDurationDays,
+            status: subscription.status === "authorized" ? "ACTIVE" : "PENDING",
+            autoRenew: true,
+            startsAt: new Date(),
+            nextBillingAt: subscription.next_payment_date ? new Date(subscription.next_payment_date) : undefined,
+          },
+          select: { id: true },
+        })
+        await db.order.update({ where: { id: checkout.orderId }, data: { subscriptionId: localSubscription.id } })
+      } catch (subscriptionError) {
+        console.error("[live-checkout/card/subscription]", subscriptionError)
+      }
     }
 
     return setLiveCheckoutCookie(NextResponse.json({ orderId: checkout.orderId, status }), prepared.accessToken)

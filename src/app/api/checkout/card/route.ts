@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { grantOrderAccess } from "@/lib/payment/grant-order-access"
-import { createPendingPlanCheckout, getAppBaseUrl, normalizeCheckoutPeriod } from "@/lib/checkout"
+import { createPendingPlanCheckout, getAppBaseUrl, normalizeCheckoutPeriod, toPlanCheckoutPeriod } from "@/lib/checkout"
 import {
   createMercadoPagoOrder,
   getMercadoPagoPayerEmail,
@@ -54,6 +54,10 @@ export async function POST(request: Request) {
 
   if (!Number.isInteger(installments) || installments < 1 || installments > 12) {
     return NextResponse.json({ error: "Quantidade de parcelas inválida." }, { status: 400 })
+  }
+
+  if (period === "monthly" && installments !== 1) {
+    return NextResponse.json({ error: "O plano mensal aceita somente pagamento à vista no cartão." }, { status: 400 })
   }
 
   try {
@@ -159,14 +163,15 @@ export async function POST(request: Request) {
     let subscriptionCreated = false
     let subscriptionWarning: string | null = null
 
-    if (autoRenew && period === "annual" && internalStatus !== "REFUSED" && internalStatus !== "CANCELLED") {
+    if (autoRenew && (period === "annual" || period === "monthly") && internalStatus !== "REFUSED" && internalStatus !== "CANCELLED") {
       try {
         const startDate = new Date(Date.now() + checkout.quote.accessDurationDays * 24 * 60 * 60 * 1000)
         const subscription = await createMercadoPagoSubscription({
           externalReference: checkout.orderId,
           payerEmail: getMercadoPagoPayerEmail(user.email),
-          reason: checkout.quote.plan.name + " - renovação anual",
-          annualAmount: checkout.quote.subtotal,
+          reason: checkout.quote.plan.name + " - renovação " + checkout.quote.periodLabel.toLowerCase(),
+          amount: checkout.quote.subtotal,
+          frequency: period === "monthly" ? 1 : 12,
           cardToken,
           startDate,
           backUrl: getAppBaseUrl() + "/minha-conta",
@@ -178,7 +183,7 @@ export async function POST(request: Request) {
             planId: checkout.quote.plan.id,
             initialOrderId: checkout.orderId,
             gatewaySubscriptionId: subscription.id,
-            period: "ANNUAL",
+            period: toPlanCheckoutPeriod(period),
             amount: checkout.quote.subtotal,
             accessDurationDays: checkout.quote.accessDurationDays,
             status: subscription.status === "authorized" ? "ACTIVE" : "PENDING",

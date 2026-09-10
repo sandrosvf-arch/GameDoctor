@@ -382,7 +382,8 @@ export async function createMercadoPagoSubscription(input: {
   externalReference: string
   payerEmail: string
   reason: string
-  annualAmount: number
+  amount: number
+  frequency: number
   cardToken: string
   startDate: Date
   backUrl: string
@@ -395,9 +396,9 @@ export async function createMercadoPagoSubscription(input: {
       payer_email: input.payerEmail,
       card_token_id: input.cardToken,
       auto_recurring: {
-        frequency: 12,
+        frequency: input.frequency,
         frequency_type: "months",
-        transaction_amount: Number(input.annualAmount.toFixed(2)),
+        transaction_amount: Number(input.amount.toFixed(2)),
         currency_id: "BRL",
         start_date: input.startDate.toISOString(),
       },

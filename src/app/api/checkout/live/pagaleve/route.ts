@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { normalizeCheckoutPeriod } from "@/lib/checkout"
 import { getAppBaseUrl } from "@/lib/checkout"
 import { prepareLiveCheckout, setLiveCheckoutCookie } from "@/lib/live-checkout"
 import {
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
       request,
       identity: body?.customer,
       planSlug,
+      period: normalizeCheckoutPeriod(body?.period) ?? "annual",
       accessToken: body?.accessToken,
       idempotencyKey,
       gateway: "PAGALEVE",

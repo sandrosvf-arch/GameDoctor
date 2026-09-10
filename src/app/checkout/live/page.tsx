@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getLiveCheckoutQuote } from "@/lib/live-checkout"
+import { normalizeCheckoutPeriod } from "@/lib/checkout"
 import { LiveCheckoutClient } from "@/components/checkout/LiveCheckoutClient"
 import { isPagaleveEnabled } from "@/lib/payment/providers/pagaleve"
 
@@ -20,13 +21,14 @@ function normalizeMethods(value: string | undefined) {
 export default async function LiveCheckoutPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
   const planSlug = single(params.plan)?.trim() ?? ""
+  const period = normalizeCheckoutPeriod(single(params.period)) ?? "annual"
   const allowedMethods = normalizeMethods(single(params.methods))
   if (!planSlug) {
     return <div className="min-h-screen bg-[#05080d] text-white"><main className="mx-auto flex min-h-[60vh] max-w-xl items-center justify-center px-4 text-center"><div><h1 className="text-2xl font-semibold">Oferta não encontrada</h1><p className="mt-3 text-sm text-slate-400">O link desta live não informou um plano válido.</p></div></main></div>
   }
   const session = await auth()
   const [quote, profile] = await Promise.all([
-    getLiveCheckoutQuote(planSlug),
+    getLiveCheckoutQuote(planSlug, period),
     session?.user?.id
       ? db.user.findUnique({
           where: { id: session.user.id },

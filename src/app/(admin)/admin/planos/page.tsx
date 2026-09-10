@@ -5,13 +5,14 @@ import { Check, Copy, Loader2, Pencil, Plus, RefreshCw, Trash2, X } from "lucide
 
 type PlanStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED"
 type SmartPaymentMethod = "card" | "pix" | "pagaleve"
+type SmartCheckoutPeriod = "annual" | "monthly"
 
 interface PlanItem {
   id: string
   name: string
   slug: string
   description: string | null
-  annualPrice: number
+  annualPrice: number | null
   annualPixPrice: number | null
   annualCardPrice: number | null
   annualBoletoPrice: number | null
@@ -137,6 +138,7 @@ export default function AdminPlanosPage() {
   const [copiedPlanId, setCopiedPlanId] = useState<string | null>(null)
   const [smartCheckoutPlan, setSmartCheckoutPlan] = useState<PlanItem | null>(null)
   const [smartPaymentMethods, setSmartPaymentMethods] = useState<SmartPaymentMethod[]>(["card", "pix", "pagaleve"])
+  const [smartCheckoutPeriod, setSmartCheckoutPeriod] = useState<SmartCheckoutPeriod>("annual")
 
   async function load() {
     setLoading(true)
@@ -159,9 +161,10 @@ export default function AdminPlanosPage() {
     load()
   }, [])
 
-  async function copySmartCheckoutLink(plan: PlanItem, methods: SmartPaymentMethod[]) {
+  async function copySmartCheckoutLink(plan: PlanItem, methods: SmartPaymentMethod[], period: SmartCheckoutPeriod) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || window.location.origin
     const params = new URLSearchParams({ plan: plan.slug })
+    if (period === "monthly") params.set("period", period)
     if (methods.length < 3) params.set("methods", methods.join(","))
     const link = `${baseUrl.replace(/\/+$/, "")}/checkout/live?${params.toString()}`
     try {
@@ -175,7 +178,9 @@ export default function AdminPlanosPage() {
 
   function openSmartCheckoutOptions(plan: PlanItem) {
     setSmartCheckoutPlan(plan)
-    setSmartPaymentMethods(["card", "pix", "pagaleve"])
+    const initialPeriod = plan.annualPrice === null && plan.monthlyEnabled ? "monthly" : "annual"
+    setSmartCheckoutPeriod(initialPeriod)
+    setSmartPaymentMethods(initialPeriod === "monthly" ? ["card"] : ["card", "pix", "pagaleve"])
   }
 
   function closeModal() {
@@ -195,7 +200,7 @@ export default function AdminPlanosPage() {
     setForm({
       name: plan.name,
       description: plan.description ?? "",
-      annualPrice: String(plan.annualPrice),
+       annualPrice: plan.annualPrice === null ? "" : String(plan.annualPrice),
       annualPixPrice: plan.annualPixPrice === null ? "" : String(plan.annualPixPrice),
       annualCardPrice: plan.annualCardPrice === null ? "" : String(plan.annualCardPrice),
       annualBoletoPrice: plan.annualBoletoPrice === null ? "" : String(plan.annualBoletoPrice),
@@ -464,13 +469,12 @@ export default function AdminPlanosPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Valor anual</label>
+                   <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Valor anual (opcional)</label>
                   <input
                     value={form.annualPrice}
                     onChange={(event) => setForm((current) => ({ ...current, annualPrice: event.target.value }))}
                     className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
                     placeholder="997.00"
-                    required
                   />
                 </div>
 
@@ -647,13 +651,20 @@ export default function AdminPlanosPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-semibold text-foreground">Métodos do Smart Checkout</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Escolha o que ficará disponível para {smartCheckoutPlan.name}.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Escolha o período e os métodos disponíveis para {smartCheckoutPlan.name}.</p>
               </div>
               <button type="button" onClick={() => setSmartCheckoutPlan(null)} className="rounded-full border border-border p-2 text-muted-foreground hover:bg-accent" aria-label="Fechar seleção">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="mt-5 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {(["annual", "monthly"] as SmartCheckoutPeriod[]).filter((period) => period === "annual" ? smartCheckoutPlan.annualPrice !== null : smartCheckoutPlan.monthlyEnabled).map((period) => (
+                  <button key={period} type="button" onClick={() => { setSmartCheckoutPeriod(period); setSmartPaymentMethods(period === "monthly" ? ["card"] : ["card", "pix", "pagaleve"]) }} className={`rounded-xl border px-3 py-2 text-sm ${smartCheckoutPeriod === period ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-300" : "border-border text-muted-foreground"}`}>
+                    {period === "annual" ? "Anual" : "Mensal"}
+                  </button>
+                ))}
+              </div>
               {([
                 ["card", "Cartão de crédito"],
                 ["pix", "Pix"],
@@ -673,7 +684,7 @@ export default function AdminPlanosPage() {
             <button
               type="button"
               disabled={smartPaymentMethods.length === 0}
-              onClick={() => { void copySmartCheckoutLink(smartCheckoutPlan, smartPaymentMethods); setSmartCheckoutPlan(null) }}
+              onClick={() => { void copySmartCheckoutLink(smartCheckoutPlan, smartPaymentMethods, smartCheckoutPeriod); setSmartCheckoutPlan(null) }}
               className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Copy className="h-4 w-4" /> Copiar link selecionado
