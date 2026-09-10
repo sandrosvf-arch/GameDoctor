@@ -125,22 +125,28 @@ function RevenueChart({ data, chartId, color, ordersHref }: { data: ChartPoint[]
 
   return (
     <>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-36 w-full overflow-visible" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de receita">
-      <defs>
-        <linearGradient id={`${chartId}-gradient`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaPath} fill={`url(#${chartId}-gradient)`} />
-      <path d={linePath} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      {points.map((point, index) => (
-        <a key={index} href={`${ordersHref}&from=${encodeURIComponent(point.start)}&to=${encodeURIComponent(point.end)}`}>
-          <title>{`${point.label}: ${fmtCurrency(point.value)}. Ver pedidos deste período.`}</title>
-          <circle cx={point.x} cy={point.y} r={point.value > 0 ? 4 : 2.5} fill={color} stroke="#090c11" strokeWidth="1.5" vectorEffect="non-scaling-stroke" className="cursor-pointer transition-[r] hover:[r:6px]" />
-        </a>
-      ))}
-      </svg>
+      <div className="relative h-36">
+        <svg viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 h-full w-full overflow-visible" preserveAspectRatio="none" role="img" aria-label="Gráfico de receita">
+          <defs>
+            <linearGradient id={`${chartId}-gradient`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={areaPath} fill={`url(#${chartId}-gradient)`} />
+          <path d={linePath} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {points.map((point, index) => (
+          <a
+            key={index}
+            href={`${ordersHref}&from=${encodeURIComponent(point.start)}&to=${encodeURIComponent(point.end)}`}
+            className="absolute z-10 block h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#090c11] transition-transform hover:scale-150"
+            style={{ left: `${(point.x / width) * 100}%`, top: `${(point.y / height) * 100}%`, backgroundColor: color }}
+          >
+            <title>{`${point.label}: ${fmtCurrency(point.value)}. Ver pedidos deste período.`}</title>
+          </a>
+        ))}
+      </div>
       <div className="mt-2 flex justify-between gap-1">
         {data.map((point, index) => (
           <a
