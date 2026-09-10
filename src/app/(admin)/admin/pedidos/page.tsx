@@ -1,7 +1,7 @@
 "use client"
 
 import { ReactNode, useDeferredValue, useEffect, useMemo, useState } from "react"
-import { format } from "date-fns"
+import { format, isToday, isYesterday } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import {
   ChevronDown,
@@ -108,6 +108,16 @@ function formatDate(value: string | null) {
   return format(new Date(value), "dd/MM/yyyy 'às' HH:mm", {
     locale: ptBR,
   })
+}
+
+function formatPurchaseDate(value: string | null) {
+  if (!value) return "-"
+
+  const date = new Date(value)
+  const time = format(date, "HH:mm")
+  if (isToday(date)) return `Hoje ${time}`
+  if (isYesterday(date)) return `Ontem ${time}`
+  return format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
 }
 
 function paymentStatusLabel(status: PaymentStatus) {
@@ -456,7 +466,10 @@ function OrderItemRow({
           </div>
 
           <p className="mt-2 text-xs text-slate-600 lg:hidden">
-            {formatDate(order.createdAt)}
+            {formatPurchaseDate(order.createdAt)}
+          </p>
+          <p className="mt-2 hidden text-xs text-slate-500 lg:block" title="Data e hora da compra">
+            {formatPurchaseDate(order.createdAt)}
           </p>
         </div>
 
