@@ -163,6 +163,8 @@ export default function AdminPedidosPage() {
     const status = new URLSearchParams(window.location.search).get("status")
     return status === "APPROVED" ? status : "all"
   })
+  const [periodFrom] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("from") ?? "")
+  const [periodTo] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("to") ?? "")
   const [page, setPage] = useState(1)
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
@@ -187,6 +189,8 @@ export default function AdminPedidosPage() {
       q: deferredSearch,
       status: statusFilter,
       archived: String(showArchived),
+      ...(periodFrom ? { from: periodFrom } : {}),
+      ...(periodTo ? { to: periodTo } : {}),
     })
 
     const response = await fetch(`/api/admin/pedidos?${params.toString()}`, {
@@ -231,7 +235,7 @@ export default function AdminPedidosPage() {
 
   useEffect(() => {
     void load(page)
-  }, [page, deferredSearch, statusFilter, showArchived])
+  }, [page, deferredSearch, statusFilter, showArchived, periodFrom, periodTo])
 
   return (
     <div className="min-h-screen bg-[#090c11] text-slate-100">
