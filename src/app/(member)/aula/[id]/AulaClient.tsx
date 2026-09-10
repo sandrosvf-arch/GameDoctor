@@ -18,7 +18,6 @@ import {
   AlertCircle,
   Play,
   Lock,
-  Sparkles,
   MessageSquare,
   Send,
   User2,
@@ -29,6 +28,8 @@ import { cn } from "@/lib/utils"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 import { BunnyPreviewPlayer } from "@/components/lessons/BunnyPreviewPlayer"
+import { LoginToWatchOverlay } from "@/components/lessons/LoginToWatchOverlay"
+import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 
 interface Material {
   id: string
@@ -81,6 +82,7 @@ interface ApiResponse {
   course: { id: string; title: string; slug: string; modules: ModuleItem[] }
   prevLesson: { id: string; title: string } | null
   nextLesson: { id: string; title: string } | null
+  lessonCount: number
 }
 
 interface CommentItem {
@@ -124,43 +126,30 @@ const materialIcon: Record<string, React.ReactNode> = {
   IMAGE: <FileText className="h-4 w-4 text-purple-400" />,
 }
 
-function PaywallOverlay({ lessonId }: { lessonId: string }) {
+function PaywallOverlay({ lessonCount }: { lessonCount: number }) {
   return (
-    <div
-      className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-6 rounded-xl"
-      style={{
-        background:
-          "linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.88) 55%, rgba(0,0,0,0.97) 100%)",
-      }}
-    >
-      <div className="max-w-md space-y-4">
-        <div className="flex items-center justify-center gap-2 text-primary">
-          <Sparkles className="h-5 w-5" />
-          <span className="text-xs font-semibold uppercase tracking-widest">
-            Prévia encerrada
-          </span>
-        </div>
-        <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight">
-          Continue assistindo
-        </h2>
-        <p className="text-zinc-400 text-sm leading-relaxed">
-          Para continuar vendo esta aula, escolha um plano de assinatura.
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 px-6 text-center backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-2xl border-2 border-amber-400/50 bg-zinc-950/85 p-5 shadow-[0_0_40px_rgba(245,158,11,0.25)]">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-400">
+          Oferta especial
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-1">
-          <Button size="default" asChild>
-            <Link href="/planos">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Continuar assistindo
-            </Link>
-          </Button>
-          <Button
-            size="default"
-            variant="outline"
-            className="border-white/20 text-white hover:bg-white/10"
-            asChild
-          >
-            <Link href={`/login?callbackUrl=/aula/${lessonId}`}>
-              Já tenho acesso
+        <p className="mt-2 text-lg font-bold leading-snug text-white">
+          Entre para a melhor plataforma de manutenção de videogames do Brasil
+        </p>
+        <p className="mt-1 text-xs text-zinc-400">
+          IA especializada · {lessonCount} aulas · softwares · comunidade
+        </p>
+        <div className="mt-3 flex justify-center">
+          <OfferCountdown />
+        </div>
+        <div className="mt-3">
+          <Button size="lg" asChild className="cta-shine relative w-full bg-gradient-to-r from-amber-400 to-emerald-400 font-black uppercase tracking-wide text-zinc-950 shadow-[0_8px_24px_rgba(245,158,11,0.35)]">
+            <Link href="/checkout?plan=plano-anual&period=annual">
+              <span className="relative z-10">Garantir oferta especial</span>
+              <span
+                aria-hidden
+                className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]"
+              />
             </Link>
           </Button>
         </div>
@@ -346,6 +335,20 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     />
                   )}
                 </div>
+              ) : isGuest && lesson.isFree ? (
+                <LoginToWatchOverlay
+                  thumbnail={lesson.videoThumbnailUrl}
+                  title={lesson.title}
+                  isFree
+                  callbackUrl={`/aula/${lesson.id}`}
+                />
+              ) : isGuest && lesson.previewAvailable ? (
+                <LoginToWatchOverlay
+                  thumbnail={lesson.videoThumbnailUrl}
+                  title={lesson.title}
+                  isFree={false}
+                  callbackUrl={`/aula/${lesson.id}`}
+                />
               ) : !lesson.isAccessible && lesson.previewAvailable && !paywallVisible ? (
                 <BunnyPreviewPlayer
                   lessonId={lesson.id}
@@ -404,7 +407,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                 />
               ) : null}
 
-              {paywallVisible && <PaywallOverlay lessonId={lessonId} />}
+              {paywallVisible && <PaywallOverlay lessonCount={data.lessonCount} />}
             </div>
 
             {/* Title + actions bar */}

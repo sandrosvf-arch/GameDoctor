@@ -22,7 +22,6 @@ import {
   Send,
   SkipBack,
   SkipForward,
-  Sparkles,
   User2,
   MessageCircle,
   X,
@@ -33,6 +32,8 @@ import { BUNNY_CDN_HOST } from "@/lib/constants"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 import { BunnyEmbedPlayer } from "@/components/lessons/BunnyPreviewPlayer"
+import { LoginToWatchOverlay } from "@/components/lessons/LoginToWatchOverlay"
+import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 
 export interface LessonMaterial {
   id: string
@@ -96,6 +97,7 @@ interface BunnyAulaClientProps {
   courseTitle: string
   courseSlug: string | null
   description: string | null
+  lessonCount: number
   courseLessons: CourseLessonInfo[]
   nextLesson: CourseLessonInfo | null
   materials: LessonMaterial[]
@@ -122,6 +124,7 @@ export default function BunnyAulaClient({
   courseTitle,
   courseSlug,
   description,
+  lessonCount,
   courseLessons,
   nextLesson,
   materials,
@@ -373,7 +376,14 @@ export default function BunnyAulaClient({
                 </div>
               ) : !isAccessible ? (
                 <div className="absolute inset-0">
-                  {canPreview && previewEmbedUrl && !paywallVisible ? (
+                  {isGuest && canPreview && previewEmbedUrl ? (
+                    <LoginToWatchOverlay
+                      thumbnail={previewImage}
+                      title={title}
+                      isFree={false}
+                      callbackUrl={`/aula/bunny/${videoId}`}
+                    />
+                  ) : canPreview && previewEmbedUrl && !paywallVisible ? (
                     !started ? (
                       <>
                         {previewImage && (
@@ -427,37 +437,43 @@ export default function BunnyAulaClient({
                   )}
 
                   {paywallVisible && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 px-6 text-center animate-in fade-in duration-300 backdrop-blur-[1px]">
-                      <div className="w-full max-w-xl rounded-2xl border border-white/15 bg-zinc-950/70 p-5 shadow-2xl backdrop-blur-xl">
-                        <div className="flex items-center justify-center gap-2 text-white">
-                          <Play className="h-4 w-4 fill-white" />
-                          <p className="text-base font-semibold">Continue assistindo</p>
-                        </div>
-                        <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                          Entre para a maior e mais completa plataforma de formação de técnicos em videogames do Brasil
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 px-6 text-center animate-in fade-in duration-300 backdrop-blur-[2px]">
+                      <div className="w-full max-w-md rounded-2xl border-2 border-amber-400/50 bg-zinc-950/85 p-5 shadow-[0_0_40px_rgba(245,158,11,0.25)]">
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-400">
+                          Oferta especial
                         </p>
-                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <p className="mt-2 text-lg font-bold leading-snug text-white">
+                          Entre para a melhor plataforma de manutenção de videogames do Brasil
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-400">
+                          IA especializada · {lessonCount} aulas · softwares · comunidade
+                        </p>
+                        <div className="mt-3 flex justify-center">
+                          <OfferCountdown />
+                        </div>
+                        <div className="mt-3">
                           <Link
-                            href="/planos"
-                            className="cta-shine inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-zinc-950 shadow-[0_8px_24px_rgba(16,185,129,0.28)]"
+                            href="/checkout?plan=plano-anual&period=annual"
+                            className="cta-shine relative inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 px-4 py-3 text-sm font-black uppercase tracking-wide text-zinc-950 shadow-[0_8px_24px_rgba(245,158,11,0.35)]"
                           >
-                            <span className="relative z-10">Continuar assistindo</span>
+                            <span className="relative z-10">Garantir oferta especial</span>
                             <span
                               aria-hidden
                               className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]"
                             />
-                          </Link>
-                          <Link
-                            href={`/login?callbackUrl=/aula/bunny/${videoId}`}
-                            className="inline-flex items-center justify-center rounded-xl border border-white/25 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-                          >
-                            Já tenho acesso
                           </Link>
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
+              ) : isGuest && isFree ? (
+                <LoginToWatchOverlay
+                  thumbnail={previewImage}
+                  title={title}
+                  isFree
+                  callbackUrl={`/aula/bunny/${videoId}`}
+                />
               ) : !started ? (
                 <div className="absolute inset-0">
                   {previewImage && (

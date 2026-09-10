@@ -230,7 +230,10 @@ function CadastroContent() {
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
           Já tem conta?{" "}
-          <Link href="/login" className="text-primary hover:underline font-medium">
+          <Link
+            href={`/login${callbackUrl !== "/" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+            className="text-primary hover:underline font-medium"
+          >
             Entrar
           </Link>
         </p>

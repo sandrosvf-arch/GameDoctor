@@ -159,13 +159,24 @@ function LoginForm() {
         </form>
       </CardContent>
 
-      <CardFooter className="justify-center">
-        <p className="text-sm text-muted-foreground">
-          Não tem conta?{" "}
-          <Link href="/cadastro" className="text-primary hover:underline font-medium">
-            Cadastre-se
-          </Link>
-        </p>
+      <CardFooter className="flex-col gap-3">
+        <div className="relative w-full overflow-hidden rounded-xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-cyan-500/5 to-transparent p-4 text-center shadow-[0_0_24px_rgba(16,185,129,0.18)]">
+          <p className="text-xs font-black uppercase tracking-widest text-emerald-400">
+            Primeiro acesso?
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Você ainda não tem conta na plataforma.
+          </p>
+          <Button asChild className="cta-shine relative mt-3 w-full bg-gradient-to-r from-cyan-500 to-emerald-400 font-bold text-zinc-950 shadow-[0_8px_24px_rgba(16,185,129,0.32)] hover:from-cyan-400 hover:to-emerald-300">
+            <Link href={`/cadastro${callbackUrl !== "/" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}>
+              <span className="relative z-10">Cadastre-se aqui</span>
+              <span
+                aria-hidden
+                className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/70 to-white/0 blur-[0.5px]"
+              />
+            </Link>
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   )

@@ -91,7 +91,7 @@ export function TrailViewClient({
             // boxShadow: "0 4px 20px rgba(0,0,0,0.45)",
           }}
         >
-          <div className="relative aspect-[3/2] sm:aspect-video rounded-[11px] overflow-hidden bg-zinc-950">
+          <div className="relative aspect-[3/2] sm:aspect-video rounded-[11px] overflow-hidden bg-zinc-950 [container-type:inline-size]">
             {/* Thumbnail */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -137,7 +137,10 @@ export function TrailViewClient({
             <div className="absolute inset-x-0 bottom-0 flex h-[30%] sm:h-[18%] items-center px-2.5">
               <div className="flex w-full items-center justify-between gap-2">
                 <div className="min-w-0 [filter:drop-shadow(0_0_3px_rgb(0,0,0))_drop-shadow(0_2px_6px_rgb(0,0,0))_drop-shadow(0_4px_12px_rgba(0,0,0,0.85))]">
-                  <p className="line-clamp-2 text-[15px] font-bold leading-tight text-white sm:text-[18px] lg:text-[19px]">
+                  <p
+                    className="line-clamp-2 font-bold text-white"
+                    style={{ fontSize: "clamp(10px, 3.4cqw, 19px)", lineHeight: 1.15 }}
+                  >
                     {lesson.title}
                   </p>
                 </div>

@@ -1,21 +1,17 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { CardPayment, getInstallments, initMercadoPago } from "@mercadopago/sdk-react"
 import {
-  ArrowLeft,
   Check,
-  ChevronRight,
   CreditCard,
   Copy,
   Loader2,
   LockKeyhole,
   MapPin,
-  Pencil,
   QrCode,
   ShieldCheck,
-  TicketPercent,
   Wallet,
 } from "lucide-react"
 
@@ -107,7 +103,7 @@ export function CheckoutPageClient({
   pagaleveEnabled: boolean
 }) {
   const [quote, setQuote] = useState(initialQuote)
-  const [couponCode, setCouponCode] = useState(initialQuote.coupon.code ?? "")
+  const couponCode = initialQuote.coupon.code ?? ""
   const [cpf, setCpf] = useState(profile.cpf ?? "")
   const [phone, setPhone] = useState(profile.phone ?? "")
   const [billingAddress, setBillingAddress] = useState<BillingAddress>(profile.billingAddress ?? {
@@ -119,12 +115,10 @@ export function CheckoutPageClient({
     city: "",
     state: "",
   })
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null)
-  const [loadingQuote, setLoadingQuote] = useState(false)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>("card")
   const [submittingPayment, setSubmittingPayment] = useState(false)
   const [redirectingPayment, setRedirectingPayment] = useState(false)
   const [autoRenew, setAutoRenew] = useState(initialQuote.period === "annual")
-  const [message, setMessage] = useState<string | null>(initialQuote.coupon.message)
   const [error, setError] = useState<string | null>(null)
   const [cardSdkReady, setCardSdkReady] = useState(false)
   const [cardInstallments, setCardInstallments] = useState<CardInstallmentOption[]>([])
@@ -146,62 +140,11 @@ export function CheckoutPageClient({
     setCardSdkReady(true)
   }, [])
 
-  async function refreshQuote(nextCouponCode: string) {
-    setLoadingQuote(true)
-    setError(null)
-    setMessage(null)
-    setPixPayment(null)
-    setPixCopied(false)
-
-    try {
-      const response = await fetch("/api/checkout/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          planSlug: quote.plan.slug,
-          period: quote.period,
-          couponCode: nextCouponCode.trim(),
-        }),
-      })
-      const data = await response.json().catch(() => null)
-
-      if (!response.ok) {
-        setError(data?.error ?? "Não foi possível recalcular o pedido.")
-        return
-      }
-
-      setQuote(data.quote)
-      setCouponCode(data.quote.coupon.code ?? nextCouponCode.trim())
-      setMessage(data.quote.coupon.message ?? null)
-      installmentRequestRef.current += 1
-      setCardInstallments([])
-      setSelectedCardInstallments(null)
-      setLoadingCardInstallments(false)
-      idempotencyKeyRef.current = newIdempotencyKey()
-    } catch {
-      setError("Não foi possível recalcular o pedido. Tente novamente.")
-    } finally {
-      setLoadingQuote(false)
-    }
-  }
-
   const maxInstallments = Math.min(12, Math.max(1, quote.installments.max))
 
   function choosePaymentMethod(method: PaymentMethod) {
     setSelectedPaymentMethod(method)
     setError(null)
-    setPixPayment(null)
-    setPixCopied(false)
-    setCardInstallments([])
-    setSelectedCardInstallments(null)
-    idempotencyKeyRef.current = newIdempotencyKey()
-  }
-
-  function changePaymentMethod() {
-    setSelectedPaymentMethod(null)
-    setError(null)
-    submittingPaymentRef.current = false
-    setSubmittingPayment(false)
     setPixPayment(null)
     setPixCopied(false)
     setCardInstallments([])
@@ -560,48 +503,17 @@ export function CheckoutPageClient({
     setError("Não foi possível carregar os dados do cartão. Tente novamente.")
   }, [])
 
-  const accessLabel = quote.period === "annual" ? "12 meses de acesso" : "1 mês de acesso"
   const selectedCardInstallment = selectedPaymentMethod === "card"
     ? cardInstallments.find((option) => option.installments === selectedCardInstallments) ?? null
     : null
   const showCardEstimate = selectedPaymentMethod === null || selectedPaymentMethod === "card"
   const checkoutTotal = selectedCardInstallment?.totalAmount
     ?? (showCardEstimate ? quote.cardEstimate.total : selectedPaymentMethod === "pix" ? quote.pixTotal : quote.finalTotal)
-  const checkoutSubtotal = selectedCardInstallment
-    ? checkoutTotal + quote.discountTotal
-    : showCardEstimate
-      ? quote.cardEstimate.total + quote.discountTotal
-      : quote.subtotal
   const hasProfileCpf = profile.cpf?.replace(/\D/g, "").length === 11
-  const paymentMethodLabel =
-    selectedPaymentMethod === "pix"
-      ? "PIX"
-      : selectedPaymentMethod === "pagaleve"
-        ? "Parcelamento via Pix - Pagaleve"
-      : selectedPaymentMethod === "card"
-        ? "Cartão de crédito"
-        : "Não selecionada"
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
-      <div className="mb-5 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Checkout seguro</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-[-0.025em] text-white sm:text-2xl">
-            Finalize sua inscrição
-          </h1>
-        </div>
-
-        <Link
-          href="/planos"
-          className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </Link>
-      </div>
-
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mx-auto max-w-3xl space-y-4">
         <section className="min-w-0 space-y-4">
           {quote.currentPlan?.active && (
             <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-4 py-3 text-sm text-emerald-100">
@@ -614,253 +526,113 @@ export function CheckoutPageClient({
               Informe seu CPF no formulário para gerar o pagamento via Pix.
             </div>
           )}
-          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0d1118] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+          <div className="overflow-hidden rounded-2xl border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(8,25,34,.98),rgba(9,13,20,.98))] shadow-2xl shadow-cyan-950/20">
             <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.17em] text-slate-500">Plano escolhido</p>
-                <h2 className="mt-1.5 text-lg font-semibold text-white">{quote.plan.name}</h2>
-                <p className="mt-1 text-sm text-slate-400">{accessLabel}</p>
+                <h2 className="text-lg font-semibold text-white sm:text-xl">Acesso completo à plataforma</h2>
+                <p className="mt-1 text-xs text-slate-400">{quote.plan.name}</p>
               </div>
 
               <div className="sm:text-right">
-                {showCardEstimate ? (
-                  <>
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Parcelamento</p>
-                    <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
-                      {selectedCardInstallment
-                        ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
-                        : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">Total {formatCurrency(checkoutTotal)}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Total</p>
-                    <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
-                      {formatCurrency(checkoutTotal)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {selectedPaymentMethod === "pix" ? "Pagamento via Pix" : "Parcelamento via Pix"}
-                    </p>
-                  </>
-                )}
+                <p className="text-xs text-slate-400">No cartão</p>
+                <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
+                  {selectedCardInstallment
+                    ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
+                    : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">ou {formatCurrency(quote.pixTotal)} à vista</p>
               </div>
             </div>
 
             {quote.plan.benefits.length > 0 && (
-              <div className="border-t border-white/[0.07] px-5 py-4">
-                <div className="grid gap-x-5 gap-y-2.5 sm:grid-cols-2">
-                  {quote.plan.benefits.map((benefit) => (
-                    <div key={benefit} className="flex min-w-0 items-start gap-2.5">
-                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-300">
-                        <Check className="h-3 w-3" strokeWidth={2.5} />
-                      </span>
-                      <span className="text-sm leading-5 text-slate-300">{benefit}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-white/[0.08] px-5 py-4 text-xs text-slate-300">
+                {quote.plan.benefits.map((benefit) => (
+                  <span key={benefit} className="inline-flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-cyan-300" strokeWidth={2.5} />
+                    {benefit}
+                  </span>
+                ))}
               </div>
             )}
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0d1118] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
             <div className="border-b border-white/[0.07] px-5 py-4">
-              <h2 className="text-base font-semibold text-white">Forma de pagamento</h2>
-              <p className="mt-1 text-sm text-slate-500">Escolha uma opção para abrir os dados de pagamento.</p>
+              <h2 className="text-base font-semibold text-white">Escolha a forma de pagamento</h2>
             </div>
 
-            {selectedPaymentMethod === null ? (
-              <div className="space-y-2.5 p-3 sm:p-4">
-                <PaymentMethodOption
-                  title="Cartão de crédito"
-                  description={"Parcele em até " + maxInstallments + "x"}
-                  icon={<CreditCard className="h-5 w-5" />}
-                  badge="Visa, Mastercard e Elo"
+            <div className="divide-y divide-white/[0.07]">
+              <div>
+                <button
+                  type="button"
                   onClick={() => choosePaymentMethod("card")}
-                />
-                <PaymentMethodOption
-                  title="Pix"
-                  description="Aprovação rápida e pagamento à vista"
-                  icon={<QrCode className="h-5 w-5" />}
-                  badge="Instantâneo"
-                  onClick={() => choosePaymentMethod("pix")}
-                />
-                {pagaleveEnabled && quote.period === "annual" && (
-                  <PaymentMethodOption
-                    title="Parcelamento via Pix - Pagaleve"
-                    description="Confira as parcelas disponíveis e pague sem cartão"
-                    icon={<Wallet className="h-5 w-5" />}
-                    badge="Pagaleve"
-                    onClick={() => choosePaymentMethod("pagaleve")}
-                  />
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left"
+                >
+                  <RadioDot active={selectedPaymentMethod === "card"} />
+                  <CreditCard className="h-5 w-5 text-slate-300" />
+                  <span className="text-sm font-semibold text-white">Cartão de crédito</span>
+                </button>
+                {selectedPaymentMethod === "card" && (
+                  <div className="border-t border-white/[0.07] bg-white/[0.02] p-4 sm:p-5">
+                    {!publicKey ? (
+                      <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-100">O pagamento com cartão está temporariamente indisponível.</div>
+                    ) : (
+                      <div ref={cardBrickContainerRef} className="overflow-hidden rounded-xl border border-white/[0.08] bg-white p-2 sm:p-3">
+                        {!cardSdkReady ? (
+                          <div className="flex min-h-28 items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando pagamento...</div>
+                        ) : (
+                          <CardPayment
+                            initialization={cardInitialization}
+                            customization={cardCustomization}
+                            locale="pt-BR"
+                            onSubmit={handleSubmitCard}
+                            onError={handleCardError}
+                            onBinChange={handleCardBinChange}
+                          />
+                        )}
+                      </div>
+                    )}
+                    {loadingCardInstallments ? (
+                      <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Consultando as condições do cartão...
+                      </div>
+                    ) : cardInstallments.length > 0 ? (
+                      <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+                        <p className="text-xs font-semibold text-slate-300">Parcelamento calculado para este cartão</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          As condições disponíveis foram atualizadas conforme o cartão informado.
+                        </p>
+                      </div>
+                    ) : null}
+                    {quote.period === "annual" && (
+                      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3" style={{ display: "none" }}>
+                        <input type="checkbox" checked={autoRenew} onChange={(event) => setAutoRenew(event.target.checked)} className="mt-0.5 h-4 w-4 accent-cyan-400" />
+                        <span>
+                          <span className="block text-sm font-medium text-white">Renovação anual automática</span>
+                          <span className="mt-0.5 block text-xs leading-5 text-slate-500">Você poderá cancelar a renovação quando quiser.</span>
+                        </span>
+                      </label>
+                    )}
+                    {submittingPayment && (
+                      <div className="mt-3 flex items-center gap-2 text-sm text-cyan-200"><Loader2 className="h-4 w-4 animate-spin" />Processando pagamento...</div>
+                    )}
+                  </div>
                 )}
               </div>
-            ) : (
+
               <div>
-                <div className="flex items-center justify-between gap-4 border-b border-white/[0.07] px-5 py-3.5">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-300/15 bg-cyan-300/[0.07] text-cyan-200">
-                      {selectedPaymentMethod === "pix"
-                        ? <QrCode className="h-[18px] w-[18px]" />
-                        : selectedPaymentMethod === "pagaleve"
-                          ? <Wallet className="h-[18px] w-[18px]" />
-                          : <CreditCard className="h-[18px] w-[18px]" />}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">{paymentMethodLabel}</p>
-                      <p className="text-xs text-slate-500">Forma de pagamento selecionada</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={changePaymentMethod}
-                    disabled={submittingPayment}
-                    className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 text-xs font-semibold text-slate-300 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Alterar
-                  </button>
-                </div>
-
-                {selectedPaymentMethod === "pagaleve" ? (
-                  <div className="space-y-5 p-4 sm:p-5">
-                    <div className="rounded-xl border border-white/[0.09] bg-white/[0.025] p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-slate-200">
-                          <Wallet className="h-5 w-5" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-white">Parcelamento via Pix - Pagaleve</p>
-                          <p className="mt-1 text-sm leading-5 text-slate-400">
-                            Parcele sua compra sem cartão e confira todas as condições antes de confirmar.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#090d13]">
-                      <div className="grid gap-px bg-white/[0.07] sm:grid-cols-3">
-                        <PagaleveSummaryItem label="Valor da compra" value={formatCurrency(quote.pixInstallmentTotal)} />
-                        <PagaleveSummaryItem label="Primeira parcela" value="Pode ser ajustada" />
-                        <PagaleveSummaryItem label="Valor total" value="Não será alterado" />
-                      </div>
-                      <div className="border-t border-white/[0.07] px-4 py-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                          Simule suas parcelas
-                        </p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Consulte no calculador oficial a quantidade e os valores disponíveis para esta compra.
-                        </p>
-                          <PagaleveInstallmentCalculator amount={quote.pixInstallmentTotal} />
-                        <div className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-3">
-                          <p className="text-xs font-semibold text-amber-100">Simulação sujeita à análise</p>
-                          <p className="mt-1 text-xs leading-5 text-amber-100/70">
-                            A Pagaleve pode ajustar o valor da primeira parcela e redistribuir as próximas.
-                            O valor total da compra permanece o mesmo.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="mb-3 flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-cyan-200" />
-                        <h3 className="text-sm font-semibold text-white">Dados de cobrança</h3>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <CheckoutField
-                          label="CPF"
-                          value={cpf}
-                          onChange={(value) => setCpf(value.replace(/\D/g, "").slice(0, 11))}
-                          inputMode="numeric"
-                          placeholder="00000000000"
-                        />
-                        <CheckoutField
-                          label="Telefone"
-                          value={phone}
-                          onChange={(value) => setPhone(value.replace(/\D/g, "").slice(0, 11))}
-                          inputMode="tel"
-                          placeholder="11999999999"
-                        />
-                        <CheckoutField
-                          label="CEP"
-                          value={billingAddress.postalCode}
-                          onChange={(value) => setBillingAddress((current) => ({
-                            ...current,
-                            postalCode: value.replace(/\D/g, "").slice(0, 8),
-                          }))}
-                          inputMode="numeric"
-                          placeholder="00000000"
-                        />
-                        <CheckoutField
-                          label="Rua"
-                          value={billingAddress.street}
-                          onChange={(value) => setBillingAddress((current) => ({ ...current, street: value }))}
-                          placeholder="Nome da rua"
-                        />
-                        <CheckoutField
-                          label="Número"
-                          value={billingAddress.number}
-                          onChange={(value) => setBillingAddress((current) => ({ ...current, number: value }))}
-                          placeholder="123"
-                        />
-                        <CheckoutField
-                          label="Complemento"
-                          value={billingAddress.complement}
-                          onChange={(value) => setBillingAddress((current) => ({ ...current, complement: value }))}
-                          placeholder="Opcional"
-                        />
-                        <CheckoutField
-                          label="Bairro"
-                          value={billingAddress.neighborhood}
-                          onChange={(value) => setBillingAddress((current) => ({ ...current, neighborhood: value }))}
-                          placeholder="Seu bairro"
-                        />
-                        <CheckoutField
-                          label="Cidade"
-                          value={billingAddress.city}
-                          onChange={(value) => setBillingAddress((current) => ({ ...current, city: value }))}
-                          placeholder="Sua cidade"
-                        />
-                        <CheckoutField
-                          label="Estado"
-                          value={billingAddress.state}
-                          onChange={(value) => setBillingAddress((current) => ({
-                            ...current,
-                            state: value.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase(),
-                          }))}
-                          placeholder="SP"
-                        />
-                      </div>
-                      {loadingPostalCode && (
-                        <p className="mt-2 flex items-center gap-2 text-xs text-cyan-200">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Consultando CEP...
-                        </p>
-                      )}
-                      {postalCodeError && (
-                        <p className="mt-2 text-xs text-amber-200">{postalCodeError}</p>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => void handleSubmitPagaleve()}
-                      disabled={submittingPayment}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {redirectingPayment
-                        ? <><Loader2 className="h-4 w-4 animate-spin" />Abrindo ambiente de pagamento...</>
-                        : submittingPayment
-                          ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando pagamento...</>
-                        : <><Wallet className="h-4 w-4" />Ver condições de parcelamento</>}
-                    </button>
-                    <p className="text-center text-xs leading-5 text-slate-500">
-                      A quantidade, o valor da primeira parcela e as datas das próximas serão confirmados antes do pagamento.
-                    </p>
-                  </div>
-                ) : selectedPaymentMethod === "pix" ? (
-                  <div className="p-5">
+                <button
+                  type="button"
+                  onClick={() => choosePaymentMethod("pix")}
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left"
+                >
+                  <RadioDot active={selectedPaymentMethod === "pix"} />
+                  <QrCode className="h-5 w-5 text-slate-300" />
+                  <span className="text-sm font-semibold text-white">Pix</span>
+                </button>
+                {selectedPaymentMethod === "pix" && (
+                  <div className="border-t border-white/[0.07] bg-white/[0.02] p-5">
                     {!pixPayment ? (
                       <>
                         {!hasProfileCpf && (
@@ -956,55 +728,161 @@ export function CheckoutPageClient({
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="p-4 sm:p-5">
-                    {!publicKey ? (
-                      <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-100">O pagamento com cartão está temporariamente indisponível.</div>
-                    ) : (
-                      <div ref={cardBrickContainerRef} className="overflow-hidden rounded-xl border border-white/[0.08] bg-white p-2 sm:p-3">
-                        {!cardSdkReady ? (
-                          <div className="flex min-h-28 items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando pagamento...</div>
-                        ) : (
-                          <CardPayment
-                            initialization={cardInitialization}
-                            customization={cardCustomization}
-                            locale="pt-BR"
-                            onSubmit={handleSubmitCard}
-                            onError={handleCardError}
-                            onBinChange={handleCardBinChange}
-                          />
-                        )}
-                      </div>
-                    )}
-                    {loadingCardInstallments ? (
-                      <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Consultando as condições do cartão...
-                      </div>
-                    ) : cardInstallments.length > 0 ? (
-                      <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
-                        <p className="text-xs font-semibold text-slate-300">Parcelamento calculado para este cartão</p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                          As condições disponíveis foram atualizadas conforme o cartão informado.
-                        </p>
-                      </div>
-                    ) : null}
-                    {quote.period === "annual" && (
-                      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3" style={{ display: "none" }}>
-                        <input type="checkbox" checked={autoRenew} onChange={(event) => setAutoRenew(event.target.checked)} className="mt-0.5 h-4 w-4 accent-cyan-400" />
-                        <span>
-                          <span className="block text-sm font-medium text-white">Renovação anual automática</span>
-                          <span className="mt-0.5 block text-xs leading-5 text-slate-500">Você poderá cancelar a renovação quando quiser.</span>
-                        </span>
-                      </label>
-                    )}
-                    {submittingPayment && (
-                      <div className="mt-3 flex items-center gap-2 text-sm text-cyan-200"><Loader2 className="h-4 w-4 animate-spin" />Processando pagamento...</div>
-                    )}
-                  </div>
                 )}
               </div>
-            )}
+
+              {pagaleveEnabled && quote.period === "annual" && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => choosePaymentMethod("pagaleve")}
+                    className="flex w-full items-center gap-3 px-5 py-4 text-left"
+                  >
+                    <RadioDot active={selectedPaymentMethod === "pagaleve"} />
+                    <Wallet className="h-5 w-5 text-slate-300" />
+                    <span className="text-sm font-semibold text-white">Parcelamento via Pix - Pagaleve</span>
+                  </button>
+                  {selectedPaymentMethod === "pagaleve" && (
+                    <div className="space-y-5 border-t border-white/[0.07] bg-white/[0.02] p-4 sm:p-5">
+                      <div className="rounded-xl border border-white/[0.09] bg-white/[0.025] p-4">
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-slate-200">
+                            <Wallet className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-white">Parcelamento via Pix - Pagaleve</p>
+                            <p className="mt-1 text-sm leading-5 text-slate-400">
+                              Parcele sua compra sem cartão e confira todas as condições antes de confirmar.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#090d13]">
+                        <div className="grid gap-px bg-white/[0.07] sm:grid-cols-3">
+                          <PagaleveSummaryItem label="Valor da compra" value={formatCurrency(quote.pixInstallmentTotal)} />
+                          <PagaleveSummaryItem label="Primeira parcela" value="Pode ser ajustada" />
+                          <PagaleveSummaryItem label="Valor total" value="Não será alterado" />
+                        </div>
+                        <div className="border-t border-white/[0.07] px-4 py-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Simule suas parcelas
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">
+                            Consulte no calculador oficial a quantidade e os valores disponíveis para esta compra.
+                          </p>
+                            <PagaleveInstallmentCalculator amount={quote.pixInstallmentTotal} />
+                          <div className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-3">
+                            <p className="text-xs font-semibold text-amber-100">Simulação sujeita à análise</p>
+                            <p className="mt-1 text-xs leading-5 text-amber-100/70">
+                              A Pagaleve pode ajustar o valor da primeira parcela e redistribuir as próximas.
+                              O valor total da compra permanece o mesmo.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="mb-3 flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-cyan-200" />
+                          <h3 className="text-sm font-semibold text-white">Dados de cobrança</h3>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <CheckoutField
+                            label="CPF"
+                            value={cpf}
+                            onChange={(value) => setCpf(value.replace(/\D/g, "").slice(0, 11))}
+                            inputMode="numeric"
+                            placeholder="00000000000"
+                          />
+                          <CheckoutField
+                            label="Telefone"
+                            value={phone}
+                            onChange={(value) => setPhone(value.replace(/\D/g, "").slice(0, 11))}
+                            inputMode="tel"
+                            placeholder="11999999999"
+                          />
+                          <CheckoutField
+                            label="CEP"
+                            value={billingAddress.postalCode}
+                            onChange={(value) => setBillingAddress((current) => ({
+                              ...current,
+                              postalCode: value.replace(/\D/g, "").slice(0, 8),
+                            }))}
+                            inputMode="numeric"
+                            placeholder="00000000"
+                          />
+                          <CheckoutField
+                            label="Rua"
+                            value={billingAddress.street}
+                            onChange={(value) => setBillingAddress((current) => ({ ...current, street: value }))}
+                            placeholder="Nome da rua"
+                          />
+                          <CheckoutField
+                            label="Número"
+                            value={billingAddress.number}
+                            onChange={(value) => setBillingAddress((current) => ({ ...current, number: value }))}
+                            placeholder="123"
+                          />
+                          <CheckoutField
+                            label="Complemento"
+                            value={billingAddress.complement}
+                            onChange={(value) => setBillingAddress((current) => ({ ...current, complement: value }))}
+                            placeholder="Opcional"
+                          />
+                          <CheckoutField
+                            label="Bairro"
+                            value={billingAddress.neighborhood}
+                            onChange={(value) => setBillingAddress((current) => ({ ...current, neighborhood: value }))}
+                            placeholder="Seu bairro"
+                          />
+                          <CheckoutField
+                            label="Cidade"
+                            value={billingAddress.city}
+                            onChange={(value) => setBillingAddress((current) => ({ ...current, city: value }))}
+                            placeholder="Sua cidade"
+                          />
+                          <CheckoutField
+                            label="Estado"
+                            value={billingAddress.state}
+                            onChange={(value) => setBillingAddress((current) => ({
+                              ...current,
+                              state: value.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase(),
+                            }))}
+                            placeholder="SP"
+                          />
+                        </div>
+                        {loadingPostalCode && (
+                          <p className="mt-2 flex items-center gap-2 text-xs text-cyan-200">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Consultando CEP...
+                          </p>
+                        )}
+                        {postalCodeError && (
+                          <p className="mt-2 text-xs text-amber-200">{postalCodeError}</p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleSubmitPagaleve()}
+                        disabled={submittingPayment}
+                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {redirectingPayment
+                          ? <><Loader2 className="h-4 w-4 animate-spin" />Abrindo ambiente de pagamento...</>
+                          : submittingPayment
+                            ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando pagamento...</>
+                          : <><Wallet className="h-4 w-4" />Ver condições de parcelamento</>}
+                      </button>
+                      <p className="text-center text-xs leading-5 text-slate-500">
+                        A quantidade, o valor da primeira parcela e as datas das próximas serão confirmados antes do pagamento.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           {error && (
             <div className="rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-200">
@@ -1012,92 +890,18 @@ export function CheckoutPageClient({
             </div>
           )}
 
-        </section>
-
-        <aside className="min-w-0 lg:sticky lg:top-5">
-          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0d1118] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
-            <div className="border-b border-white/[0.07] px-5 py-4">
-              <h2 className="text-base font-semibold text-white">Resumo do pedido</h2>
-            </div>
-
-            <div className="space-y-4 p-5">
-              <div className="space-y-3">
-                <OrderRow label="Plano" value={quote.plan.name} />
-                <OrderRow label="Período" value={quote.periodLabel} />
-                <OrderRow label="Pagamento" value={paymentMethodLabel} />
-              </div>
-
-              {couponsEnabled && (
-                <div className="border-t border-white/[0.07] pt-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-200">
-                    <TicketPercent className="h-4 w-4 text-slate-500" />
-                    Cupom de desconto
-                  </label>
-
-                  <div className="mt-2.5 flex gap-2">
-                    <input
-                      value={couponCode}
-                      onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !loadingQuote) void refreshQuote(couponCode)
-                      }}
-                      placeholder="Seu cupom"
-                      className="h-10 min-w-0 flex-1 rounded-lg border border-white/[0.09] bg-[#090d13] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-slate-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void refreshQuote(couponCode)}
-                      disabled={loadingQuote || !couponCode.trim()}
-                      className="inline-flex h-10 items-center justify-center rounded-lg border border-white/[0.09] bg-white/[0.035] px-3.5 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {loadingQuote ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aplicar"}
-                    </button>
-                  </div>
-
-                  {message && <p className="mt-2 text-xs leading-5 text-emerald-300">{message}</p>}
-                </div>
-              )}
-
-              <div className="border-t border-white/[0.07] pt-4">
-                <PriceRow label="Subtotal" value={formatCurrency(checkoutSubtotal)} />
-                {quote.discountTotal > 0 && (
-                  <PriceRow
-                    label="Desconto"
-                    value={`- ${formatCurrency(quote.discountTotal)}`}
-                    valueClassName="text-emerald-300"
-                  />
-                )}
-                {selectedCardInstallment && (
-                  <PriceRow
-                    label={`Parcelamento (${selectedCardInstallment.installments}x)`}
-                    value={`${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`}
-                  />
-                )}
-                <div className="mt-3 flex items-end justify-between gap-4 border-t border-white/[0.07] pt-4">
-                  <div>
-                    <p className="text-sm font-medium text-white">Total</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{accessLabel}</p>
-                  </div>
-                  <span className="text-right text-2xl font-semibold tracking-[-0.04em] text-white">
-                    {formatCurrency(checkoutTotal)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-xl border border-white/[0.07] bg-white/[0.025] px-3.5 py-3">
-                <ShieldCheck className="mt-0.5 h-[18px] w-[18px] shrink-0 text-cyan-200" />
-                <p className="text-xs leading-5 text-slate-400">
-                  Pagamento protegido. O acesso é liberado após a confirmação.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-center gap-2 text-[11px] text-slate-600">
-                <LockKeyhole className="h-3.5 w-3.5" />
-                Ambiente seguro e criptografado
-              </div>
-            </div>
+          <div className="flex items-start gap-3 rounded-xl border border-white/[0.07] bg-white/[0.025] px-3.5 py-3">
+            <ShieldCheck className="mt-0.5 h-[18px] w-[18px] shrink-0 text-cyan-200" />
+            <p className="text-xs leading-5 text-slate-400">
+              Pagamento protegido. O acesso é liberado após a confirmação.
+            </p>
           </div>
-        </aside>
+
+          <div className="flex items-center justify-center gap-2 text-[11px] text-slate-600">
+            <LockKeyhole className="h-3.5 w-3.5" />
+            Ambiente seguro e criptografado
+          </div>
+        </section>
       </div>
     </main>
   )
@@ -1140,42 +944,16 @@ function PagaleveSummaryItem({ label, value }: { label: string; value: string })
   )
 }
 
-function PaymentMethodOption({
-  title,
-  description,
-  icon,
-  badge,
-  onClick,
-}: {
-  title: string
-  description: string
-  icon: ReactNode
-  badge: string
-  onClick: () => void
-}) {
+function RadioDot({ active }: { active: boolean }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-[#090d13] px-4 py-3.5 text-left transition hover:border-white/[0.16] hover:bg-white/[0.035]"
+    <span
+      className={
+        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition " +
+        (active ? "border-cyan-300 bg-cyan-300" : "border-white/20")
+      }
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-300 transition group-hover:text-white">
-        {icon}
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-sm font-semibold text-white">{title}</span>
-          <span className="text-[11px] font-medium text-slate-500">{badge}</span>
-        </span>
-        <span className="mt-0.5 block text-xs leading-5 text-slate-500">{description}</span>
-      </span>
-
-      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/[0.15]">
-        <span className="h-2 w-2 rounded-full bg-transparent transition group-hover:bg-cyan-300" />
-      </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-slate-300" />
-    </button>
+      {active && <span className="h-2 w-2 rounded-full bg-slate-950" />}
+    </span>
   )
 }
 
@@ -1212,32 +990,6 @@ function PaymentBenefit({ text }: { text: string }) {
     <div className="flex items-center gap-2">
       <Check className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
       <span>{text}</span>
-    </div>
-  )
-}
-
-function OrderRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="shrink-0 text-sm text-slate-500">{label}</span>
-      <span className="min-w-0 break-words text-right text-sm font-medium text-slate-200">{value}</span>
-    </div>
-  )
-}
-
-function PriceRow({
-  label,
-  value,
-  valueClassName = "text-slate-300",
-}: {
-  label: string
-  value: string
-  valueClassName?: string
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-1.5">
-      <span className="text-sm text-slate-500">{label}</span>
-      <span className={`text-right text-sm font-medium ${valueClassName}`}>{value}</span>
     </div>
   )
 }

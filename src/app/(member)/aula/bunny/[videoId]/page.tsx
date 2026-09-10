@@ -1,9 +1,16 @@
 import { notFound } from "next/navigation"
+import { unstable_cache } from "next/cache"
 import BunnyAulaClient, { type CourseLessonInfo, type LessonMaterial } from "./BunnyAulaClient"
 import { auth } from "@/lib/auth"
 import { bunnySignedEmbedUrl } from "@/lib/bunny"
 import { hasAccessToLesson } from "@/lib/access"
 import { db } from "@/lib/db"
+
+const getCachedLessonCount = unstable_cache(
+  () => db.lesson.count(),
+  ["home-lesson-count"],
+  { revalidate: 60 }
+)
 
 interface Props {
   params: Promise<{ videoId: string }>
@@ -38,7 +45,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   const { titulo, legenda } = await searchParams
 
   // Phase 1: parallel — session + Bunny API + lesson lookup
-  const [session, meta, lesson] = await Promise.all([
+  const [session, meta, lesson, lessonCount] = await Promise.all([
     auth(),
     getBunnyVideo(videoId),
     db.lesson.findFirst({
@@ -61,9 +68,19 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
         course: { select: { title: true, slug: true } },
       },
     }),
+    getCachedLessonCount().catch(() => 0),
   ]) 
 
   if (!lesson) notFound()
+
+  // Auto-corrige a duração salva caso divirja do vídeo real no Bunny (self-healing, não bloqueia o render).
+  const realDurationSeconds = typeof meta?.length === "number" && meta.length > 0 ? Math.round(meta.length) : null
+  if (realDurationSeconds !== null && realDurationSeconds !== lesson.videoDurationSeconds) {
+    void db.lesson.update({
+      where: { id: lesson.id },
+      data: { videoDurationSeconds: realDurationSeconds },
+    }).catch(() => {})
+  }
 
   const userId = session?.user?.id ?? null
   const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR"
@@ -147,6 +164,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       courseTitle={courseTitle}
       courseSlug={courseSlug}
       description={description}
+      lessonCount={lessonCount}
       courseLessons={courseLessons}
       nextLesson={nextLesson}
       materials={isAccessible ? materials : []}

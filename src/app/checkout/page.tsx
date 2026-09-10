@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation"
+import Image from "next/image"
+import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { areCheckoutCouponsEnabled, buildCheckoutQuote, normalizeCheckoutPeriod } from "@/lib/checkout"
@@ -65,19 +67,16 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   }
 
   return (
-    <main className="min-h-screen bg-[#070b12] text-white">
-      <section className="border-b border-white/8 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.16),transparent_28%),linear-gradient(180deg,#0b1120_0%,#070b12_100%)]">
-        <div className="mx-auto max-w-7xl px-6 py-14 md:px-8 md:py-16">
-          <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.34em] text-cyan-300">Checkout seguro</p>
-            <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] text-white md:text-5xl">
-              Finalize sua compra
-            </h1>
-          </div>
-        </div>
+    <main className="relative min-h-screen overflow-hidden bg-[#070b12] text-white">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(circle_at_20%_0%,rgba(6,182,212,0.22),transparent_36%),radial-gradient(circle_at_80%_10%,rgba(245,158,11,0.14),transparent_30%)]" />
+
+      <section className="relative mx-auto max-w-7xl px-6 pt-8 pb-4 text-center md:px-8">
+        <Link href="/planos" className="inline-block">
+          <Image src="/doctor-oficial.png" alt="GameDoctor" width={280} height={56} className="mx-auto h-12 w-auto" />
+        </Link>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-10 md:px-8 md:py-12">
+      <section className="relative mx-auto max-w-7xl px-6 pb-10 md:px-8 md:pb-12">
         <CheckoutPageClient
           initialQuote={quote}
           couponsEnabled={areCheckoutCouponsEnabled()}

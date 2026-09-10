@@ -82,6 +82,7 @@ export async function GET(
   const lessonAccess = await hasAccessToLesson(userId, id, { isStaff })
   const isAccessible = lessonAccess.hasAccess && !lessonAccess.isPreview
   const canExposeVideo = isAccessible
+  const lessonCount = await db.lesson.count()
 
   // Find prev/next lessons flat across all modules
   const allLessons = lesson.course.modules.flatMap((m) => m.lessons)
@@ -124,5 +125,6 @@ export async function GET(
     },
     prevLesson: prevLesson ? { id: prevLesson.id, title: prevLesson.title } : null,
     nextLesson: nextLesson ? { id: nextLesson.id, title: nextLesson.title } : null,
+    lessonCount,
   })
 }

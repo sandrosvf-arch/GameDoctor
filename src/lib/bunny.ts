@@ -144,3 +144,22 @@ export function bunnyVideoFields(videoId: string) {
     videoThumbnailUrl: bunnyThumbnailUrl(videoId),
   }
 }
+
+/**
+ * Busca a duração real (em segundos) de um vídeo direto na API do Bunny Stream.
+ * Usada para manter `videoDurationSeconds` sincronizado com o vídeo de verdade,
+ * evitando divergência entre a duração exibida na lista e a do player.
+ */
+export async function fetchBunnyVideoDurationSeconds(videoId: string): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://video.bunnycdn.com/library/${LIBRARY_ID}/videos/${videoId}`,
+      { headers: { AccessKey: process.env.BUNNY_STREAM_API_KEY ?? "" } }
+    )
+    if (!res.ok) return null
+    const data = await res.json().catch(() => null) as { length?: number } | null
+    return typeof data?.length === "number" && data.length > 0 ? Math.round(data.length) : null
+  } catch {
+    return null
+  }
+}

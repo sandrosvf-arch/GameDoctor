@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { bunnyVideoFields, isBunnyVideoId } from "@/lib/bunny"
+import { bunnyVideoFields, fetchBunnyVideoDurationSeconds, isBunnyVideoId } from "@/lib/bunny"
 
 async function requireAdmin() {
   const session = await auth()
@@ -59,6 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const count = await db.lesson.count({ where: { courseId } })
   const videoFields = bunnyVideoId ? bunnyVideoFields(bunnyVideoId) : {}
+  const videoDurationSeconds = bunnyVideoId ? await fetchBunnyVideoDurationSeconds(bunnyVideoId) : null
   const releaseAfterDays = rawReleaseAfterDays === undefined ? 7 : Number(rawReleaseAfterDays)
 
   if (!Number.isInteger(releaseAfterDays) || releaseAfterDays < 0 || releaseAfterDays > 3650) {
@@ -86,6 +87,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       status: "PUBLISHED",
       ...(thumbnail?.trim() && { thumbnail: thumbnail.trim() }),
       ...videoFields,
+      ...(videoDurationSeconds !== null && { videoDurationSeconds }),
     },
   })
 

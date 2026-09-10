@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { bunnyVideoFields, isBunnyVideoId } from "@/lib/bunny"
+import { bunnyVideoFields, fetchBunnyVideoDurationSeconds, isBunnyVideoId } from "@/lib/bunny"
 
 async function requireAdmin() {
   const session = await auth()
@@ -38,6 +38,7 @@ export async function PATCH(
   }
 
   const videoFields = bunnyVideoId ? bunnyVideoFields(bunnyVideoId) : {}
+  const videoDurationSeconds = bunnyVideoId ? await fetchBunnyVideoDurationSeconds(bunnyVideoId) : null
   const releaseAfterDays = rawReleaseAfterDays === undefined ? undefined : Number(rawReleaseAfterDays)
   if (releaseAfterDays !== undefined && (!Number.isInteger(releaseAfterDays) || releaseAfterDays < 0 || releaseAfterDays > 3650)) {
     return NextResponse.json({ error: "O prazo de liberação deve estar entre 0 e 3650 dias." }, { status: 400 })
@@ -66,6 +67,7 @@ export async function PATCH(
       ...(status !== undefined && { status: status as never }),
       ...(thumbnail !== undefined && { thumbnail: thumbnail || null }),
       ...videoFields,
+      ...(videoDurationSeconds !== null && { videoDurationSeconds }),
     },
   })
 
