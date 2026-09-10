@@ -6,6 +6,7 @@ import { Providers } from "@/components/Providers"
 import { Toaster } from "@/components/ui/toaster"
 import { PlatformAssistant } from "@/components/ai/PlatformAssistant"
 import { DesktopScrollRail } from "@/components/layout/DesktopScrollRail"
+import { SubscriptionCta } from "@/components/SubscriptionCta"
 
 const inter = Inter({ subsets: ["latin"] })
 const googleTagManagerId = process.env.NEXT_PUBLIC_GTM_ID?.trim()
@@ -63,6 +64,7 @@ export default function RootLayout({
           {children}
           <PlatformAssistant />
           <DesktopScrollRail />
+          <SubscriptionCta />
           <Toaster />
         </Providers>
       </body>
