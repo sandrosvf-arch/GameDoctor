@@ -677,6 +677,7 @@ model Plan {
   maxInstallments           Int         @default(12) @map("max_installments")
   maxInstallmentsNoInterest Int         @default(1) @map("max_installments_no_interest")
   status                    PlanStatus  @default(ACTIVE)
+  showOnPlans               Boolean     @default(true) @map("show_on_plans")
   highlighted               Boolean     @default(false)
   certificateIncluded       Boolean     @default(false) @map("certificate_included")
   supportIncluded           Boolean     @default(false) @map("support_included")

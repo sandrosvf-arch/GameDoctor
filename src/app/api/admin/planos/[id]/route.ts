@@ -56,6 +56,7 @@ function normalizePlanPayload(body: Record<string, unknown>) {
     Math.min(maxInstallments, parseInteger(body.maxInstallmentsNoInterest, 1) ?? 1)
   )
   const highlighted = Boolean(body.highlighted)
+  const showOnPlans = body.showOnPlans !== false
   const status = ["ACTIVE", "INACTIVE", "ARCHIVED"].includes(String(body.status))
     ? (String(body.status) as PlanStatus)
     : "ACTIVE"
@@ -106,6 +107,7 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       maxInstallments,
       maxInstallmentsNoInterest,
       highlighted,
+      showOnPlans,
       status,
       benefits,
       price: annualPrice,
