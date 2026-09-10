@@ -73,7 +73,8 @@ function MethodButton({ active, icon, title, description, onClick }: {
 }
 
 export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEnabled, allowedMethods }: { quote: CheckoutQuote; planSlug: string; initialProfile: Profile | null; pagaleveEnabled: boolean; allowedMethods?: PaymentMethod[] }) {
-  const availableMethods = allowedMethods?.filter((method) => method !== "pagaleve" || pagaleveEnabled) ?? ["card", "pix", ...(pagaleveEnabled ? ["pagaleve" as const] : [])]
+  const defaultMethods = quote.period === "monthly" ? ["card" as const] : ["card" as const, "pix" as const, ...(pagaleveEnabled ? ["pagaleve" as const] : [])]
+  const availableMethods = (allowedMethods ?? defaultMethods).filter((method) => quote.period !== "monthly" || method === "card").filter((method) => method !== "pagaleve" || pagaleveEnabled || allowedMethods?.includes("pagaleve"))
   const [customer, setCustomer] = useState({
     name: initialProfile?.name ?? "",
     email: initialProfile?.email ?? "",
@@ -121,6 +122,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   function commonBody() {
     return {
       planSlug,
+      period: quote.period,
       paymentMethods: availableMethods,
       customer: {
         name: customer.name.trim(),

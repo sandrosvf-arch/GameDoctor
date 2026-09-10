@@ -119,7 +119,7 @@ export function CheckoutPageClient({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>("card")
   const [submittingPayment, setSubmittingPayment] = useState(false)
   const [redirectingPayment, setRedirectingPayment] = useState(false)
-  const [autoRenew, setAutoRenew] = useState(initialQuote.period === "annual")
+  const [autoRenew, setAutoRenew] = useState(initialQuote.period === "annual" || initialQuote.period === "monthly")
   const [error, setError] = useState<string | null>(null)
   const [cardSdkReady, setCardSdkReady] = useState(false)
   const [cardInstallments, setCardInstallments] = useState<CardInstallmentOption[]>([])
@@ -178,7 +178,7 @@ export function CheckoutPageClient({
             paymentMethodId: formData.payment_method_id,
             issuerId: formData.issuer_id,
             installments: formData.installments,
-            autoRenew: quote.period === "annual" && autoRenew,
+            autoRenew,
             idempotencyKey: idempotencyKeyRef.current,
           }),
         })
@@ -624,7 +624,7 @@ export function CheckoutPageClient({
                 )}
               </div>
 
-              <div>
+              {quote.period === "annual" && <div>
                 <button
                   type="button"
                   onClick={() => choosePaymentMethod("pix")}
@@ -732,7 +732,7 @@ export function CheckoutPageClient({
                     )}
                   </div>
                 )}
-              </div>
+              </div>}
 
               {pagaleveEnabled && quote.period === "annual" && (
                 <div>
