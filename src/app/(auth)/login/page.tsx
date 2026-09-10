@@ -114,15 +114,6 @@ function LoginForm() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Senha</Label>
-              <Link
-                href="/recuperar-senha"
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
-              >
-                Esqueceu a senha?
-              </Link>
-            </div>
             <div className="relative">
               <Input
                 id="password"
@@ -143,6 +134,15 @@ function LoginForm() {
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Senha</Label>
+              <Link
+                href="/recuperar-senha"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Esqueceu a senha?
+              </Link>
             </div>
           </div>
 
