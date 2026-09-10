@@ -3,11 +3,25 @@
 import { useEffect, useState } from "react"
 
 const CYCLE_SECONDS = 3 * 24 * 60 * 60
+const OFFER_EXPIRY_STORAGE_KEY = "gamedoctor:launch-offer-expires-at"
+
+function getOfferExpiry() {
+  const now = Date.now()
+
+  try {
+    const storedExpiry = Number(window.localStorage.getItem(OFFER_EXPIRY_STORAGE_KEY))
+    if (Number.isFinite(storedExpiry) && storedExpiry > now) return storedExpiry
+
+    const nextExpiry = now + CYCLE_SECONDS * 1000
+    window.localStorage.setItem(OFFER_EXPIRY_STORAGE_KEY, String(nextExpiry))
+    return nextExpiry
+  } catch {
+    return now + CYCLE_SECONDS * 1000
+  }
+}
 
 function getRemainingSeconds() {
-  const cycleMilliseconds = CYCLE_SECONDS * 1000
-  const elapsedInCycle = Date.now() % cycleMilliseconds
-  return Math.max(0, Math.ceil((cycleMilliseconds - elapsedInCycle) / 1000))
+  return Math.max(0, Math.ceil((getOfferExpiry() - Date.now()) / 1000))
 }
 
 function splitTime(totalSeconds: number) {
