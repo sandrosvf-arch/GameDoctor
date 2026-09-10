@@ -25,13 +25,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params
   const material = await db.downloadMaterial.findFirst({
     where: { id, status: "ACTIVE" },
-    select: { storagePath: true },
+    select: { storagePath: true, fileName: true },
   })
   if (!material) return NextResponse.json({ error: "Material não encontrado." }, { status: 404 })
 
   try {
     const { client, bucket } = getDownloadStorageAdmin()
-    const { data, error } = await client.storage.from(bucket).createSignedUrl(material.storagePath, 60)
+    // o aluno recebe o arquivo com o nome original (ex.: GameDoctor-Setup.exe), nao o caminho interno do storage
+    const { data, error } = await client.storage.from(bucket).createSignedUrl(material.storagePath, 60, { download: material.fileName })
     if (error || !data?.signedUrl) {
       console.error("[downloads] Signed URL failed", error)
       return NextResponse.json({ error: "Não foi possível preparar o download." }, { status: 500 })
