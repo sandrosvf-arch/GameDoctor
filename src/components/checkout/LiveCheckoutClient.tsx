@@ -72,7 +72,8 @@ function MethodButton({ active, icon, title, description, onClick }: {
   )
 }
 
-export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEnabled }: { quote: CheckoutQuote; planSlug: string; initialProfile: Profile | null; pagaleveEnabled: boolean }) {
+export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEnabled, allowedMethods }: { quote: CheckoutQuote; planSlug: string; initialProfile: Profile | null; pagaleveEnabled: boolean; allowedMethods?: PaymentMethod[] }) {
+  const availableMethods = allowedMethods?.filter((method) => method !== "pagaleve" || pagaleveEnabled) ?? ["card", "pix", ...(pagaleveEnabled ? ["pagaleve" as const] : [])]
   const [customer, setCustomer] = useState({
     name: initialProfile?.name ?? "",
     email: initialProfile?.email ?? "",
@@ -82,7 +83,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   const [address, setAddress] = useState<Address>(initialProfile?.billingAddress ?? {
     postalCode: "", street: "", number: "", complement: "", neighborhood: "", city: "", state: "",
   })
-  const [method, setMethod] = useState<PaymentMethod>("card")
+  const [method, setMethod] = useState<PaymentMethod>(availableMethods[0] ?? "card")
   const [sdkReady, setSdkReady] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
@@ -101,6 +102,10 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
     setSdkReady(true)
   }, [])
 
+  useEffect(() => {
+    if (!availableMethods.includes(method)) setMethod(availableMethods[0] ?? "card")
+  }, [availableMethods, method])
+
   const identityValid = customer.name.trim().length >= 2
     && /^\S+@\S+\.\S+$/.test(customer.email.trim())
     && isValidBrazilianPhone(customer.phone)
@@ -116,6 +121,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   function commonBody() {
     return {
       planSlug,
+      paymentMethods: availableMethods,
       customer: {
         name: customer.name.trim(),
         email: customer.email.trim().toLowerCase(),
@@ -340,9 +346,9 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 <div><h2 className="font-semibold">Escolha como pagar</h2><p className="text-xs text-slate-500">Pagamento seguro e acesso liberado após confirmação.</p></div>
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-2">
-                <MethodButton active={method === "card"} icon={<CreditCard className="h-5 w-5" />} title="Cartão" description="Parcele em até 12x" onClick={() => chooseMethod("card")} />
-                <MethodButton active={method === "pix"} icon={<QrCode className="h-5 w-5" />} title="Pix" description={`${currency(quote.pixTotal)} à vista`} onClick={() => chooseMethod("pix")} />
-                {pagaleveEnabled && <MethodButton active={method === "pagaleve"} icon={<Wallet className="h-5 w-5" />} title="Parcelamento via Pix" description={`${currency(quote.pixInstallmentTotal)} no total, pela Pagaleve`} onClick={() => chooseMethod("pagaleve")} />}
+                {availableMethods.includes("card") && <MethodButton active={method === "card"} icon={<CreditCard className="h-5 w-5" />} title="Cartão" description="Parcele em até 12x" onClick={() => chooseMethod("card")} />}
+                {availableMethods.includes("pix") && <MethodButton active={method === "pix"} icon={<QrCode className="h-5 w-5" />} title="Pix" description={`${currency(quote.pixTotal)} à vista`} onClick={() => chooseMethod("pix")} />}
+                {availableMethods.includes("pagaleve") && <MethodButton active={method === "pagaleve"} icon={<Wallet className="h-5 w-5" />} title="Parcelamento via Pix" description={`${currency(quote.pixInstallmentTotal)} no total, pela Pagaleve`} onClick={() => chooseMethod("pagaleve")} />}
               </div>
 
               <div className="mt-5 border-t border-white/[0.07] pt-5">

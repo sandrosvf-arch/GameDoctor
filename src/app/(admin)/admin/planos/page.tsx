@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Check, Copy, Loader2, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react"
 
 type PlanStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED"
+type SmartPaymentMethod = "card" | "pix" | "pagaleve"
 
 interface PlanItem {
   id: string
@@ -134,6 +135,8 @@ export default function AdminPlanosPage() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [copiedPlanId, setCopiedPlanId] = useState<string | null>(null)
+  const [smartCheckoutPlan, setSmartCheckoutPlan] = useState<PlanItem | null>(null)
+  const [smartPaymentMethods, setSmartPaymentMethods] = useState<SmartPaymentMethod[]>(["card", "pix", "pagaleve"])
 
   async function load() {
     setLoading(true)
@@ -156,9 +159,11 @@ export default function AdminPlanosPage() {
     load()
   }, [])
 
-  async function copySmartCheckoutLink(plan: PlanItem) {
+  async function copySmartCheckoutLink(plan: PlanItem, methods: SmartPaymentMethod[]) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || window.location.origin
-    const link = `${baseUrl.replace(/\/+$/, "")}/checkout/live?plan=${encodeURIComponent(plan.slug)}`
+    const params = new URLSearchParams({ plan: plan.slug })
+    if (methods.length < 3) params.set("methods", methods.join(","))
+    const link = `${baseUrl.replace(/\/+$/, "")}/checkout/live?${params.toString()}`
     try {
       await navigator.clipboard.writeText(link)
       setCopiedPlanId(plan.id)
@@ -166,6 +171,11 @@ export default function AdminPlanosPage() {
     } catch {
       window.prompt("Copie o link do Smart Checkout:", link)
     }
+  }
+
+  function openSmartCheckoutOptions(plan: PlanItem) {
+    setSmartCheckoutPlan(plan)
+    setSmartPaymentMethods(["card", "pix", "pagaleve"])
   }
 
   function closeModal() {
@@ -382,7 +392,7 @@ export default function AdminPlanosPage() {
 
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => void copySmartCheckoutLink(plan)}
+                        onClick={() => openSmartCheckoutOptions(plan)}
                         className="rounded-full border border-cyan-500/30 p-2.5 text-cyan-300 transition hover:bg-cyan-500/10"
                         title="Copiar link do Smart Checkout"
                       >
@@ -627,6 +637,47 @@ export default function AdminPlanosPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {smartCheckoutPlan ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground">Métodos do Smart Checkout</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Escolha o que ficará disponível para {smartCheckoutPlan.name}.</p>
+              </div>
+              <button type="button" onClick={() => setSmartCheckoutPlan(null)} className="rounded-full border border-border p-2 text-muted-foreground hover:bg-accent" aria-label="Fechar seleção">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-5 space-y-3">
+              {([
+                ["card", "Cartão de crédito"],
+                ["pix", "Pix"],
+                ["pagaleve", "Parcelamento via Pix (Pagaleve)"],
+              ] as Array<[SmartPaymentMethod, string]>).map(([method, label]) => (
+                <label key={method} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-border/80 bg-background px-4 py-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={smartPaymentMethods.includes(method)}
+                    onChange={(event) => setSmartPaymentMethods((current) => event.target.checked ? [...new Set([...current, method])] : current.filter((item) => item !== method))}
+                    className="h-4 w-4 rounded border-border bg-background"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <button
+              type="button"
+              disabled={smartPaymentMethods.length === 0}
+              onClick={() => { void copySmartCheckoutLink(smartCheckoutPlan, smartPaymentMethods); setSmartCheckoutPlan(null) }}
+              className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Copy className="h-4 w-4" /> Copiar link selecionado
+            </button>
           </div>
         </div>
       ) : null}
