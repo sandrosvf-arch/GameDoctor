@@ -12,7 +12,6 @@ export function SubscriptionCtaBanner() {
 
   if (
     dismissed
-    || pathname?.startsWith("/aula/bunny/")
     || pathname === "/planos"
     || pathname?.startsWith("/checkout")
   ) return null
