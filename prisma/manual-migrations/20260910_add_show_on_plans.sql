@@ -1,0 +1,2 @@
+ALTER TABLE "plans"
+ADD COLUMN IF NOT EXISTS "show_on_plans" BOOLEAN NOT NULL DEFAULT true;
