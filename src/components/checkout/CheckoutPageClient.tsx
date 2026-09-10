@@ -513,7 +513,7 @@ export function CheckoutPageClient({
   const hasProfileCpf = profile.cpf?.replace(/\D/g, "").length === 11
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
+    <main className="mx-auto w-full max-w-6xl px-0 py-5 sm:px-6 lg:py-8 px-0">
       <div className="mx-auto max-w-3xl space-y-4">
         <section className="min-w-0 space-y-4">
           {quote.currentPlan?.active && (

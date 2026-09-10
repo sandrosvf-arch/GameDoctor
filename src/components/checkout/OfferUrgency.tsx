@@ -18,10 +18,10 @@ export function OfferUrgency() {
             Oferta especial de lançamento
           </p>
           <h2 id="checkout-offer-title" className="mt-2 text-lg font-bold leading-tight text-white sm:text-xl">
-            Garanta sua condição antes que termine
+            Garanta sua condição
           </h2>
           <p className="mt-1.5 text-xs leading-5 text-rose-100/70">
-            O preço promocional é reservado enquanto este contador estiver ativo.
+            O preço promocional é válido apenas por tempo limitado.
           </p>
         </div>
         <div className="min-w-0 rounded-xl border border-amber-300/20 bg-black/20 p-3">
