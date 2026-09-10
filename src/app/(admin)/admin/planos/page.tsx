@@ -25,6 +25,7 @@ interface PlanItem {
   benefits: string[]
   status: PlanStatus
   highlighted: boolean
+  showOnPlans: boolean
   createdAt: string
   usage: {
     orderItems: number
@@ -52,6 +53,7 @@ interface FormState {
   maxInstallments: string
   maxInstallmentsNoInterest: string
   highlighted: boolean
+  showOnPlans: boolean
   status: PlanStatus
   benefitsText: string
 }
@@ -71,6 +73,7 @@ const emptyForm: FormState = {
   maxInstallments: "12",
   maxInstallmentsNoInterest: "1",
   highlighted: false,
+  showOnPlans: true,
   status: "ACTIVE",
   benefitsText: "",
 }
@@ -194,6 +197,7 @@ export default function AdminPlanosPage() {
       maxInstallments: String(plan.maxInstallments),
       maxInstallmentsNoInterest: String(plan.maxInstallmentsNoInterest),
       highlighted: plan.highlighted,
+      showOnPlans: plan.showOnPlans,
       status: plan.status,
       benefitsText: plan.benefits.join("\n"),
     })
@@ -220,6 +224,7 @@ export default function AdminPlanosPage() {
       maxInstallments: form.maxInstallments,
       maxInstallmentsNoInterest: form.maxInstallmentsNoInterest,
       highlighted: form.highlighted,
+      showOnPlans: form.showOnPlans,
       status: form.status,
       benefits: form.benefitsText
         .split("\n")
@@ -366,6 +371,9 @@ export default function AdminPlanosPage() {
                             Destaque
                           </span>
                         ) : null}
+                        <span className={`rounded-full border px-2.5 py-1 text-[11px] ${plan.showOnPlans ? "border-cyan-500/30 bg-cyan-500/15 text-cyan-400" : "border-zinc-500/30 bg-zinc-500/15 text-zinc-400"}`}>
+                          {plan.showOnPlans ? "Visível na vitrine" : "Oculto na vitrine"}
+                        </span>
                       </div>
                       <p className="text-muted-foreground">
                         {plan.monthlyEnabled ? "Anual e mensal visiveis" : "Somente anual visivel"}
@@ -467,6 +475,19 @@ export default function AdminPlanosPage() {
                     placeholder="365"
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Vitrine pública</label>
+                  <label className="flex h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border/80 bg-background px-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.showOnPlans}
+                      onChange={(event) => setForm((current) => ({ ...current, showOnPlans: event.target.checked }))}
+                      className="h-4 w-4 rounded border-border bg-background"
+                    />
+                    Exibir este plano em /planos
+                  </label>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">

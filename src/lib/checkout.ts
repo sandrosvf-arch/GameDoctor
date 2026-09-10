@@ -270,7 +270,7 @@ async function getPlanForQuote(planSlug: string) {
       slug: true,
       description: true,
       benefits: true,
-      highlighted: true,
+       highlighted: true,
       status: true,
       annualPrice: true,
       annualPixPrice: true,
@@ -478,8 +478,9 @@ export async function listPublicPlans(userId?: string | null) {
         name: true,
         slug: true,
         description: true,
-        benefits: true,
-        highlighted: true,
+         benefits: true,
+         highlighted: true,
+         showOnPlans: true,
         annualPrice: true,
         annualPixPrice: true,
         annualCardPrice: true,
@@ -522,12 +523,7 @@ export async function listPublicPlans(userId?: string | null) {
     ])
   )
 
-  const publicPlans = plans.filter((plan) => {
-    const planIdentifier = `${plan.name} ${plan.slug}`.toLocaleLowerCase("pt-BR")
-    const isNamedLifetime = /vital[ií]cio|lifetime/.test(planIdentifier)
-    const isLongTermAccess = plan.annualAccessDurationDays >= 3650
-    return !isNamedLifetime && !isLongTermAccess
-  })
+  const publicPlans = plans.filter((plan) => plan.showOnPlans)
 
   return publicPlans.map((plan) => ({
     id: plan.id,
