@@ -125,7 +125,7 @@ function RevenueChart({ data, chartId, color, ordersHref }: { data: ChartPoint[]
 
   return (
     <>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-36 w-full overflow-visible" preserveAspectRatio="none" role="img" aria-label="Gráfico de receita">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-36 w-full overflow-visible" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de receita">
       <defs>
         <linearGradient id={`${chartId}-gradient`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.28" />
