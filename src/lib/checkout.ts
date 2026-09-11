@@ -5,6 +5,10 @@ import type { Coupon, DiscountType, Prisma } from "@prisma/client"
 export type CheckoutPeriod = "annual" | "monthly"
 type PlanCheckoutPeriodValue = "ANNUAL" | "MONTHLY"
 
+const LEGACY_PLAN_SLUGS: Record<string, string> = {
+  "plano-anual": "gamedoctor",
+}
+
 export interface CheckoutQuote {
   plan: {
     id: string
@@ -262,8 +266,9 @@ async function validateCouponForQuote(input: {
 }
 
 async function getPlanForQuote(planSlug: string) {
+  const resolvedPlanSlug = LEGACY_PLAN_SLUGS[planSlug] ?? planSlug
   const plan = await db.plan.findUnique({
-    where: { slug: planSlug },
+    where: { slug: resolvedPlanSlug },
     select: {
       id: true,
       name: true,

@@ -134,14 +134,14 @@ export async function PATCH(
 
   const target = await db.plan.findUnique({
     where: { id },
-    select: { id: true, name: true, cardInstallmentTotal: true },
+    select: { id: true, name: true, slug: true, cardInstallmentTotal: true },
   })
 
   if (!target) {
     return NextResponse.json({ error: "Plano não encontrado." }, { status: 404 })
   }
 
-  const payload = normalizePlanPayload(body)
+  const payload = normalizePlanPayload({ ...body, slug: target.slug })
   if ("error" in payload) {
     return NextResponse.json({ error: payload.error }, { status: 400 })
   }

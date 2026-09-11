@@ -47,7 +47,7 @@ export default async function LiveCheckoutPage({ searchParams }: { searchParams:
     <div className="min-h-screen bg-[#05080d] text-white">
       <LiveCheckoutClient
         quote={quote}
-        planSlug={planSlug}
+        planSlug={quote.plan.slug}
         allowedMethods={allowedMethods}
         pagaleveEnabled={isPagaleveEnabled() || Boolean(allowedMethods?.includes("pagaleve"))}
         initialProfile={profile ? {
