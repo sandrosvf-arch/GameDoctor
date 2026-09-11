@@ -18,6 +18,7 @@ import {
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { DEFAULT_CATALOG_CATEGORIES } from "@/lib/catalog"
+import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
 
 function HeartbeatLine() {
   const [tick, setTick] = useState(-1)
@@ -486,7 +487,7 @@ export function Header() {
                 <Link href="/login">Entrar</Link>
               </Button>
               <Button size="sm" asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
-                <Link href="/planos">Começar agora</Link>
+                <Link href={GAME_DOCTOR_CHECKOUT_URL}>Começar agora</Link>
               </Button>
             </>
           )}
@@ -642,7 +643,7 @@ export function Header() {
                       </Link>
                     </Button>
                     <Button asChild className="bg-primary text-primary-foreground">
-                      <Link href="/planos" onClick={() => setMobileOpen(false)}>
+                      <Link href={GAME_DOCTOR_CHECKOUT_URL} onClick={() => setMobileOpen(false)}>
                         Começar agora
                       </Link>
                     </Button>

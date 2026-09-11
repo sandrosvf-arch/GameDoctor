@@ -307,7 +307,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <h2 className="text-xl font-semibold text-white sm:text-2xl">Acesso completo à plataforma</h2>
-                  <h2 className="mt-1 text-sm text-slate-400">{quote.plan.name}</h2>
+                  <h2 className="mt-1 text-sm text-slate-400">{quote.plan.name} • {quote.periodLabel}</h2>
                 </div>
                 <div className="shrink-0 sm:text-right">
                   <p className="text-xs">No cartão</p>
@@ -355,8 +355,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
 
               <div className="mt-5 border-t border-white/[0.07] pt-5">
                 {method === "card" && (
-                  !identityValid ? <p className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4 text-sm text-cyan-100">Preencha seus dados acima para abrir o pagamento com cartão.</p>
-                  : !mercadoPagoPublicKey ? <p className="text-sm text-amber-200">Pagamento com cartão temporariamente indisponível.</p>
+                  !mercadoPagoPublicKey ? <p className="text-sm text-amber-200">Pagamento com cartão temporariamente indisponível.</p>
                   : <div ref={cardContainerRef} className="overflow-hidden rounded-xl bg-white p-2 sm:p-3">
                       {sdkReady ? <CardPayment initialization={cardInitialization} customization={cardCustomization} locale="pt-BR" onSubmit={submitCard} onError={() => setError("Não foi possível carregar o formulário do cartão.")} /> : <div className="flex min-h-28 items-center justify-center text-slate-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Carregando...</div>}
                     </div>

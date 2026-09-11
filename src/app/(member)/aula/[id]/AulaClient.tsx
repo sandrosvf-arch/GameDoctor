@@ -28,8 +28,9 @@ import { cn } from "@/lib/utils"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 import { BunnyPreviewPlayer } from "@/components/lessons/BunnyPreviewPlayer"
-import { LoginToWatchOverlay } from "@/components/lessons/LoginToWatchOverlay"
+import { LessonSubscriptionCta } from "@/components/lessons/LessonSubscriptionCta"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
+import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
 
 interface Material {
   id: string
@@ -144,7 +145,7 @@ function PaywallOverlay({ lessonCount }: { lessonCount: number }) {
         </div>
         <div className="mt-3">
           <Button size="lg" asChild className="cta-shine relative w-full bg-gradient-to-r from-amber-400 to-emerald-400 font-black uppercase tracking-wide text-zinc-950 shadow-[0_8px_24px_rgba(245,158,11,0.35)]">
-            <Link href="/checkout?plan=plano-anual&period=annual">
+            <Link href={GAME_DOCTOR_CHECKOUT_URL}>
               <span className="relative z-10">Garantir oferta especial</span>
               <span
                 aria-hidden
@@ -268,7 +269,7 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
     flushProgress,
   } = useLessonProgress({
     lessonId,
-    enabled: data?.lesson.isAccessible ?? false,
+    enabled: sessionStatus === "authenticated" && (data?.lesson.isAccessible ?? false),
     durationSeconds: data?.lesson.durationSeconds,
     initialWatchedSeconds: data?.lesson.progress?.watchedSeconds ?? 0,
     initialCompleted: Boolean(data?.lesson.progress?.completedAt),
@@ -335,20 +336,6 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     />
                   )}
                 </div>
-              ) : isGuest && lesson.isFree ? (
-                <LoginToWatchOverlay
-                  thumbnail={lesson.videoThumbnailUrl}
-                  title={lesson.title}
-                  isFree
-                  callbackUrl={`/aula/${lesson.id}`}
-                />
-              ) : isGuest && lesson.previewAvailable ? (
-                <LoginToWatchOverlay
-                  thumbnail={lesson.videoThumbnailUrl}
-                  title={lesson.title}
-                  isFree={false}
-                  callbackUrl={`/aula/${lesson.id}`}
-                />
               ) : !lesson.isAccessible && lesson.previewAvailable && !paywallVisible ? (
                 <BunnyPreviewPlayer
                   lessonId={lesson.id}
@@ -409,6 +396,12 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
 
               {paywallVisible && <PaywallOverlay lessonCount={data.lessonCount} />}
             </div>
+
+            {((isGuest && lesson.isFree) || (!lesson.isAccessible && lesson.previewAvailable)) && (
+              <div className="flex justify-center">
+                <LessonSubscriptionCta />
+              </div>
+            )}
 
             {/* Title + actions bar */}
             <div className="flex items-start justify-between gap-4 flex-wrap">

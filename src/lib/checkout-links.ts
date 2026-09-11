@@ -1,0 +1,1 @@
+export const GAME_DOCTOR_CHECKOUT_URL = "https://www.gamedoctor.com.br/checkout/live?plan=plano-anual"

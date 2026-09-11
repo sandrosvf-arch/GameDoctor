@@ -2,6 +2,7 @@ import Link from "next/link"
 import { CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
 
 interface HomePlan {
   name: string
@@ -59,7 +60,7 @@ export function HomePlansSection({ plans }: { plans: HomePlan[] }) {
                   : "bg-zinc-800 text-white hover:bg-zinc-700"
                 }
               >
-                <Link href="/planos">Comecar com {plan.name}</Link>
+                <Link href={GAME_DOCTOR_CHECKOUT_URL}>Comecar com {plan.name}</Link>
               </Button>
             </div>
           ))}

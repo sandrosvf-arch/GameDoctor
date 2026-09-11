@@ -437,7 +437,7 @@ function PlatformAssistantContent({
         </section>
       )}
 
-      {!page && <div className="flex items-center gap-2">
+      {!page && !hideFloatingAssistant && <div className="flex items-center gap-2">
         <a
           href={supportUrl}
           target="_blank"
@@ -448,10 +448,10 @@ function PlatformAssistantContent({
         >
           <WhatsAppIcon className="h-5 w-5" />
         </a>
-        {!hideFloatingAssistant && <button type="button" onClick={() => setOpen((value) => !value)} className={`flex items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-950/30 transition hover:bg-cyan-300 ${isLessonPage && !showLessonAssistantBadge ? "h-11 w-11 px-0 md:h-12 md:w-auto md:px-4" : "h-11 px-4 md:h-12"}`} title="Abrir assistente">
+        <button type="button" onClick={() => setOpen((value) => !value)} className={`flex items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-950/30 transition hover:bg-cyan-300 ${isLessonPage && !showLessonAssistantBadge ? "h-11 w-11 px-0 md:h-12 md:w-auto md:px-4" : "h-11 px-4 md:h-12"}`} title="Abrir assistente">
           {open ? <X className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
           <span className={isLessonPage && !showLessonAssistantBadge ? "sr-only md:not-sr-only" : undefined}>Fale com nossa IA</span>
-        </button>}
+        </button>
       </div>}
     </div>
   )

@@ -32,8 +32,9 @@ import { BUNNY_CDN_HOST } from "@/lib/constants"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 import { BunnyEmbedPlayer } from "@/components/lessons/BunnyPreviewPlayer"
-import { LoginToWatchOverlay } from "@/components/lessons/LoginToWatchOverlay"
+import { LessonSubscriptionCta } from "@/components/lessons/LessonSubscriptionCta"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
+import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
 
 export interface LessonMaterial {
   id: string
@@ -154,7 +155,7 @@ export default function BunnyAulaClient({
     markCompleted,
   } = useLessonProgress({
     lessonId,
-    enabled: isAccessible,
+    enabled: sessionStatus === "authenticated" && isAccessible,
     durationSeconds,
     initialWatchedSeconds,
     initialCompleted,
@@ -376,14 +377,7 @@ export default function BunnyAulaClient({
                 </div>
               ) : !isAccessible ? (
                 <div className="absolute inset-0">
-                  {isGuest && canPreview && previewEmbedUrl ? (
-                    <LoginToWatchOverlay
-                      thumbnail={previewImage}
-                      title={title}
-                      isFree={false}
-                      callbackUrl={`/aula/bunny/${videoId}`}
-                    />
-                  ) : canPreview && previewEmbedUrl && !paywallVisible ? (
+                  {canPreview && previewEmbedUrl && !paywallVisible ? (
                     !started ? (
                       <>
                         {previewImage && (
@@ -453,7 +447,7 @@ export default function BunnyAulaClient({
                         </div>
                         <div className="mt-3">
                           <Link
-                            href="/checkout?plan=plano-anual&period=annual"
+                            href={GAME_DOCTOR_CHECKOUT_URL}
                             className="cta-shine relative inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 px-4 py-3 text-sm font-black uppercase tracking-wide text-zinc-950 shadow-[0_8px_24px_rgba(245,158,11,0.35)]"
                           >
                             <span className="relative z-10">Garantir oferta especial</span>
@@ -467,13 +461,6 @@ export default function BunnyAulaClient({
                     </div>
                   )}
                 </div>
-              ) : isGuest && isFree ? (
-                <LoginToWatchOverlay
-                  thumbnail={previewImage}
-                  title={title}
-                  isFree
-                  callbackUrl={`/aula/bunny/${videoId}`}
-                />
               ) : !started ? (
                 <div className="absolute inset-0">
                   {previewImage && (
@@ -504,6 +491,12 @@ export default function BunnyAulaClient({
                 />
               ) : null}
             </div>
+
+            {((isGuest && isFree) || (!isAccessible && canPreview)) && (
+              <div className="flex justify-center">
+                <LessonSubscriptionCta />
+              </div>
+            )}
             
             {/* {isAccessible && lessonId && (
               <button

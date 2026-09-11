@@ -5,6 +5,7 @@ import { listPublicPlans } from "@/lib/checkout"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { PlanCheckoutButton } from "@/components/checkout/PlanCheckoutButton"
 import { Header } from "@/components/layout/Header"
+import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -122,9 +123,11 @@ export default async function PlanosPage() {
 
                 <div className="relative z-10 px-7 pb-7 pt-5 md:px-10 md:pb-9 md:pt-6">
                   {plan.offers.map((offer) => {
-                    const href = isLoggedIn
-                      ? buildCheckoutHref(plan.slug, offer.period)
-                      : buildLoginHref(plan.slug, offer.period)
+                    const href = offer.period === "annual"
+                      ? GAME_DOCTOR_CHECKOUT_URL
+                      : isLoggedIn
+                        ? buildCheckoutHref(plan.slug, offer.period)
+                        : buildLoginHref(plan.slug, offer.period)
                     const installmentCount = plan.installments.max
                     const installmentValue = offer.cardEstimate.installmentAmount
                     const showInstallments = offer.period === "annual" && installmentCount > 1

@@ -24,6 +24,7 @@ import { LazyMoreRows } from "@/components/LazyMoreRows"
 import { fetchHomeRows, type HomeRowDto } from "@/lib/home-rows"
 import { unstable_cache } from "next/cache"
 import { bunnySignedMp4Url } from "@/lib/bunny"
+import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
 
 // ── Server-side data cache (works even with force-dynamic) ─────────────────
 const getCachedBanners = unstable_cache(
@@ -257,6 +258,12 @@ export default async function HomePage() {
   const banners = (dbBanners.length > 0 ? dbBanners : fallbackBanners).map((banner) => ({
     ...banner,
     videoUrl: resolveSignedBannerVideoUrl(banner.videoUrl),
+    ctaHref: banner.ctaText?.trim().toLocaleLowerCase("pt-BR") === "começar agora"
+      ? GAME_DOCTOR_CHECKOUT_URL
+      : banner.ctaHref,
+    secondaryCtaHref: banner.secondaryCtaText?.trim().toLocaleLowerCase("pt-BR") === "começar agora"
+      ? GAME_DOCTOR_CHECKOUT_URL
+      : banner.secondaryCtaHref,
   }))
 
   // ── "Continue assistindo" row ──────────────────────────────────────────
