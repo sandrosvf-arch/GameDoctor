@@ -8,11 +8,102 @@ import { getAiSystemPrompts } from "@/lib/ai/settings"
 import { classifyAiFaq, searchAiContext } from "@/lib/ai/search"
 import { routeAiConversation } from "@/lib/ai/router"
 import { getAiProvider } from "@/lib/ai/provider"
+import {
+  BANCADA_AI_SYSTEM_PROMPT,
+  buildBancadaContextNote,
+  collectToolIds,
+  filterBancadaContext,
+  finalizeBancadaAnswer,
+  isBancadaRequest,
+} from "@/lib/ai/bancada"
 
 const bodySchema = z.object({
   message: z.string().trim().min(1).max(4_000),
   conversationId: z.string().cuid().nullable().optional(),
 })
+
+// [IA_BANCADA] Corpo enviado pela Edge Function ia-chat do Bancada PRO.
+const bancadaBodySchema = z.object({
+  produto: z.literal("bancada"),
+  message: z.string().trim().min(1).max(4_000),
+  historico: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string().max(6_000),
+  })).max(12).optional(),
+  aluno: z.object({ id: z.string().max(80), nome: z.string().max(120).nullable().optional() }).optional(),
+  contexto: z.object({
+    tela: z.string().max(300).nullable().optional(),
+    log: z.string().max(6_000).nullable().optional(),
+  }).nullable().optional(),
+})
+
+// [IA_BANCADA] Caminho do Bancada PRO: sem sessão NextAuth, sem créditos do site
+// (o limite mensal é do app), sem gravar conversa aqui (a Edge Function registra em
+// ia_mensagens). Mesma base, prompt próprio, contexto filtrado e ações whitelisted.
+async function handleBancadaChat(request: Request) {
+  const parsed = bancadaBodySchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Corpo inválido para produto=bancada." }, { status: 400 })
+  }
+  const provider = getAiProvider()
+  if (!provider) {
+    return NextResponse.json({ error: "O assistente ainda não está configurado." }, { status: 503 })
+  }
+
+  const { message, aluno, contexto } = parsed.data
+  const history = (parsed.data.historico ?? []).slice(-8)
+  const note = buildBancadaContextNote(contexto)
+  const socialOrFeedback = isSocialMessage(message) || isFeedbackMessage(message)
+
+  const routing = socialOrFeedback
+    ? { action: "respond" as const, query: null as string | null, answer: null as string | null, inputTokens: null as number | null, outputTokens: null as number | null }
+    : await routeAiConversation({ provider, promptText: BANCADA_AI_SYSTEM_PROMPT, history, message })
+
+  let inputTokens = routing.inputTokens ?? 0
+  let outputTokens = routing.outputTokens ?? 0
+
+  if (routing.action === "respond" && !note) {
+    const social = await buildSocialResponse(provider, message, history, aluno?.nome)
+    return NextResponse.json({
+      resposta: social.answer, acoes: [], fontes: [], model: provider.model,
+      inputTokens: inputTokens + (social.inputTokens ?? 0), outputTokens: outputTokens + (social.outputTokens ?? 0),
+    })
+  }
+
+  // Com log/tela no contexto, os códigos do log entram na busca junto com a pergunta.
+  const searchQuery = [routing.query ?? message, contexto?.log ? contexto.log.slice(-600) : ""].filter(Boolean).join("\n")
+  const context = filterBancadaContext(await searchAiContext(searchQuery, true, { skipFaq: true }))
+  const toolIds = collectToolIds(context)
+
+  const system = [
+    buildAiSystemPrompt(BANCADA_AI_SYSTEM_PROMPT, context, aluno?.nome),
+    note ? `Contexto do software:\n${note}` : null,
+    buildAiQuestionDirective(message),
+  ].filter(Boolean).join("\n\n")
+
+  const completion = await provider.complete({
+    system,
+    messages: [...history, { role: "user", content: message }],
+    temperature: 0.3,
+    maxTokens: 2_400,
+  })
+  const raw = completion.content?.trim()
+  if (!raw) {
+    return NextResponse.json({ error: "O assistente não retornou uma resposta." }, { status: 502 })
+  }
+  inputTokens += completion.inputTokens ?? 0
+  outputTokens += completion.outputTokens ?? 0
+
+  const finalized = finalizeBancadaAnswer(raw.slice(0, 8_000), toolIds)
+  return NextResponse.json({
+    resposta: finalized.text,
+    acoes: finalized.acoes,
+    fontes: context.slice(0, 5).map((item) => item.title),
+    model: provider.model,
+    inputTokens,
+    outputTokens,
+  })
+}
 
 function isKnowledgeQuestion(message: string) {
   const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase()
@@ -88,6 +179,8 @@ function isCommunityQuestion(message: string) {
 }
 
 export async function POST(request: Request) {
+  if (isBancadaRequest(request)) return handleBancadaChat(request) // [IA_BANCADA]
+
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Faça login para conversar com o assistente.", requiresAuth: true }, { status: 401 })

@@ -360,6 +360,7 @@ const TIPO_LABEL: Record<string, string> = {
   plataforma: "Plataforma",
   faq: "FAQ",
   referencia_precos: "Referência de preços (quanto cobrar)",
+  ferramenta: "Ferramenta do Bancada PRO", // [IA_BANCADA]
 }
 
 function listOrEmpty(value: unknown) {
@@ -385,6 +386,8 @@ function buildKnowledgebaseDocument(chunk: KnowledgebaseChunkV2, sourceId: strin
     sintomas.length > 0 ? `Sintomas: ${sintomas.join("; ")}` : null,
     designators.length > 0 ? `Componentes: ${designators.join(", ")}` : null,
     chunk.confianca ? `Confiança: ${chunk.confianca}` : null,
+    // [IA_BANCADA] deep link do software (bancada://tool/<id>) vai no texto para o modelo ver o alvo da ação
+    typeof chunk.link_app === "string" && chunk.link_app.startsWith("bancada://") ? `Link app: ${chunk.link_app}` : null,
   ].filter(Boolean).join("\n")
 
   // Deep link só quando a base trouxer um (link_web); caso contrário fica o marcador
