@@ -4,6 +4,14 @@ import { db } from "@/lib/db"
 import type { BillingType, PlanStatus, Prisma } from "@prisma/client"
 
 type PeriodAvailability = "ANNUAL" | "MONTHLY" | "BOTH"
+type OfferPeriod = "annual" | "monthly"
+
+function normalizeOfferOrder(value: unknown, activePeriods: OfferPeriod[]) {
+  const requested = Array.isArray(value)
+    ? value.filter((period): period is OfferPeriod => period === "annual" || period === "monthly")
+    : []
+  return [...new Set([...requested, ...activePeriods])].filter((period) => activePeriods.includes(period))
+}
 
 async function requireAdminOrEditor() {
   const session = await auth()
@@ -58,6 +66,14 @@ function normalizePlanPayload(body: Record<string, unknown>) {
         : "ANNUAL") as PeriodAvailability
   const annualEnabled = periodAvailability !== "MONTHLY"
   const monthlyEnabled = periodAvailability !== "ANNUAL"
+  const annualDisplayOrder = Math.max(1, Math.min(999, parseInteger(body.annualDisplayOrder, 2) ?? 2))
+  const monthlyDisplayOrder = Math.max(1, Math.min(999, parseInteger(body.monthlyDisplayOrder, 1) ?? 1))
+  const planOrder = Math.max(0, Math.min(999999, parseInteger(body.planOrder, 0) ?? 0))
+  const activePeriods: OfferPeriod[] = [
+    ...(annualEnabled ? ["annual" as const] : []),
+    ...(monthlyEnabled ? ["monthly" as const] : []),
+  ]
+  const offerOrder = normalizeOfferOrder(body.offerOrder, activePeriods)
   const annualAccessDurationDays = Math.max(1, parseInteger(body.annualAccessDurationDays, 365) ?? 365)
   const monthlyAccessDurationDays = monthlyEnabled
     ? Math.max(1, parseInteger(body.monthlyAccessDurationDays, 30) ?? 30)
@@ -118,6 +134,10 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       cardInstallmentTotal: annualEnabled ? cardInstallmentTotal : null,
       monthlyPrice: monthlyEnabled ? monthlyPrice : null,
       monthlyEnabled,
+      offerOrder,
+      annualDisplayOrder,
+      monthlyDisplayOrder,
+      planOrder,
       annualAccessDurationDays,
       monthlyAccessDurationDays,
       maxInstallments,
@@ -150,7 +170,16 @@ export async function PATCH(
 
   const target = await db.plan.findUnique({
     where: { id },
-    select: { id: true, name: true, slug: true, cardInstallmentTotal: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      cardInstallmentTotal: true,
+      offerOrder: true,
+      annualDisplayOrder: true,
+      monthlyDisplayOrder: true,
+      planOrder: true,
+    },
   })
 
   if (!target) {
@@ -169,6 +198,22 @@ export async function PATCH(
     payload.data.cardInstallmentTotal = target.cardInstallmentTotal === null
       ? null
       : Number(target.cardInstallmentTotal)
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(body, "offerOrder")) {
+    payload.data.offerOrder = normalizeOfferOrder(target.offerOrder, ["annual", "monthly"])
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(body, "annualDisplayOrder")) {
+    payload.data.annualDisplayOrder = target.annualDisplayOrder
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(body, "monthlyDisplayOrder")) {
+    payload.data.monthlyDisplayOrder = target.monthlyDisplayOrder
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(body, "planOrder")) {
+    payload.data.planOrder = target.planOrder
   }
 
   const conflict = await db.plan.findFirst({

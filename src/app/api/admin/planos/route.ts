@@ -4,6 +4,14 @@ import { db } from "@/lib/db"
 import type { BillingType, PlanStatus, Prisma } from "@prisma/client"
 
 type PeriodAvailability = "ANNUAL" | "MONTHLY" | "BOTH"
+type OfferPeriod = "annual" | "monthly"
+
+function normalizeOfferOrder(value: unknown, activePeriods: OfferPeriod[]) {
+  const requested = Array.isArray(value)
+    ? value.filter((period): period is OfferPeriod => period === "annual" || period === "monthly")
+    : []
+  return [...new Set([...requested, ...activePeriods])].filter((period) => activePeriods.includes(period))
+}
 
 async function requireAdminOrEditor() {
   const session = await auth()
@@ -58,6 +66,14 @@ function normalizePlanPayload(body: Record<string, unknown>) {
         : "ANNUAL") as PeriodAvailability
   const annualEnabled = periodAvailability !== "MONTHLY"
   const monthlyEnabled = periodAvailability !== "ANNUAL"
+  const annualDisplayOrder = Math.max(1, Math.min(999, parseInteger(body.annualDisplayOrder, 2) ?? 2))
+  const monthlyDisplayOrder = Math.max(1, Math.min(999, parseInteger(body.monthlyDisplayOrder, 1) ?? 1))
+  const planOrder = Math.max(0, Math.min(999999, parseInteger(body.planOrder, 0) ?? 0))
+  const activePeriods: OfferPeriod[] = [
+    ...(annualEnabled ? ["annual" as const] : []),
+    ...(monthlyEnabled ? ["monthly" as const] : []),
+  ]
+  const offerOrder = normalizeOfferOrder(body.offerOrder, activePeriods)
   const annualAccessDurationDays = Math.max(1, parseInteger(body.annualAccessDurationDays, 365) ?? 365)
   const monthlyAccessDurationDays = monthlyEnabled
     ? Math.max(1, parseInteger(body.monthlyAccessDurationDays, 30) ?? 30)
@@ -118,6 +134,10 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       cardInstallmentTotal: annualEnabled ? cardInstallmentTotal ?? annualPixInstallmentPrice ?? annualPrice : null,
       monthlyPrice: monthlyEnabled ? monthlyPrice : null,
       monthlyEnabled,
+      offerOrder,
+      annualDisplayOrder,
+      monthlyDisplayOrder,
+      planOrder,
       annualAccessDurationDays,
       monthlyAccessDurationDays,
       maxInstallments,
@@ -141,7 +161,7 @@ export async function GET() {
   }
 
   const plans = await db.plan.findMany({
-    orderBy: [{ createdAt: "desc" }],
+    orderBy: [{ planOrder: "asc" }, { createdAt: "desc" }],
     select: {
       id: true,
       name: true,
@@ -155,6 +175,10 @@ export async function GET() {
       cardInstallmentTotal: true,
       monthlyPrice: true,
       monthlyEnabled: true,
+      offerOrder: true,
+      annualDisplayOrder: true,
+      monthlyDisplayOrder: true,
+      planOrder: true,
       annualAccessDurationDays: true,
       monthlyAccessDurationDays: true,
       maxInstallments: true,
@@ -191,6 +215,10 @@ export async function GET() {
         : Number((Number(plan.cardInstallmentTotal) / plan.maxInstallments).toFixed(2)),
       monthlyPrice: plan.monthlyPrice === null ? null : Number(plan.monthlyPrice),
       monthlyEnabled: plan.monthlyEnabled,
+      offerOrder: plan.offerOrder,
+      annualDisplayOrder: plan.annualDisplayOrder,
+      monthlyDisplayOrder: plan.monthlyDisplayOrder,
+      planOrder: plan.planOrder,
       periodAvailability: plan.annualPrice === null ? "MONTHLY" : plan.monthlyEnabled ? "BOTH" : "ANNUAL",
       annualAccessDurationDays: plan.annualAccessDurationDays,
       monthlyAccessDurationDays: plan.monthlyAccessDurationDays,

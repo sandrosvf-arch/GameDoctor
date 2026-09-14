@@ -98,6 +98,14 @@ export function getCardEstimate(
   }
 }
 
+function orderPlanOffers<T extends { period: CheckoutPeriod }>(offers: T[], configuredOrder: string[]) {
+  const positions = new Map(configuredOrder.map((period, index) => [period, index]))
+  return offers.sort((left, right) =>
+    (positions.get(left.period) ?? Number.MAX_SAFE_INTEGER)
+    - (positions.get(right.period) ?? Number.MAX_SAFE_INTEGER)
+  )
+}
+
 export function areCheckoutCouponsEnabled() {
   return process.env.CHECKOUT_COUPONS_ENABLED?.trim().toLowerCase() !== "false"
 }
@@ -477,7 +485,7 @@ export async function listPublicPlans(userId?: string | null) {
   const [plans, activeAccesses] = await Promise.all([
     db.plan.findMany({
       where: { status: "ACTIVE" },
-      orderBy: [{ highlighted: "desc" }, { annualPrice: "asc" }, { name: "asc" }],
+      orderBy: [{ planOrder: "asc" }, { highlighted: "desc" }, { annualPrice: "asc" }, { name: "asc" }],
       select: {
         id: true,
         name: true,
@@ -494,6 +502,10 @@ export async function listPublicPlans(userId?: string | null) {
         cardInstallmentTotal: true,
         monthlyPrice: true,
         monthlyEnabled: true,
+        offerOrder: true,
+        annualDisplayOrder: true,
+        monthlyDisplayOrder: true,
+        planOrder: true,
         annualAccessDurationDays: true,
         monthlyAccessDurationDays: true,
         maxInstallments: true,
@@ -541,7 +553,7 @@ export async function listPublicPlans(userId?: string | null) {
       max: plan.maxInstallments,
       noInterest: plan.maxInstallmentsNoInterest,
     },
-    offers: [
+    offers: orderPlanOffers([
       ...(plan.annualPrice !== null && toNumber(plan.annualPrice) > 0 ? [{
         period: "annual" as const,
         label: "Anual",
@@ -565,7 +577,10 @@ export async function listPublicPlans(userId?: string | null) {
             accessDurationDays: plan.monthlyAccessDurationDays ?? 30,
           }]
         : []),
-    ],
+    ], [
+      ...(plan.monthlyDisplayOrder <= plan.annualDisplayOrder ? ["monthly"] : ["annual"]),
+      ...(plan.monthlyDisplayOrder <= plan.annualDisplayOrder ? ["annual"] : ["monthly"]),
+    ]),
     currentPlan: accessMap.get(plan.id) ?? null,
   }))
 }

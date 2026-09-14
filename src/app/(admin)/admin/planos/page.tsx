@@ -7,6 +7,7 @@ type PlanStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED"
 type PeriodAvailability = "ANNUAL" | "MONTHLY" | "BOTH"
 type SmartPaymentMethod = "card" | "pix" | "pagaleve"
 type SmartCheckoutPeriod = "annual" | "monthly"
+type OfferPeriod = "annual" | "monthly"
 
 interface PlanItem {
   id: string
@@ -23,6 +24,10 @@ interface PlanItem {
   monthlyPrice: number | null
   monthlyEnabled: boolean
   periodAvailability: PeriodAvailability
+  offerOrder: OfferPeriod[]
+  planOrder: number
+  annualDisplayOrder: number
+  monthlyDisplayOrder: number
   annualAccessDurationDays: number
   monthlyAccessDurationDays: number | null
   maxInstallments: number
@@ -54,6 +59,10 @@ interface FormState {
   annualInstallmentAmount: string
   annualAccessDurationDays: string
   periodAvailability: PeriodAvailability
+  offerOrder: OfferPeriod[]
+  planOrder: string
+  annualDisplayOrder: string
+  monthlyDisplayOrder: string
   monthlyPrice: string
   monthlyAccessDurationDays: string
   maxInstallments: string
@@ -75,6 +84,10 @@ const emptyForm: FormState = {
   annualInstallmentAmount: "",
   annualAccessDurationDays: "365",
   periodAvailability: "ANNUAL",
+  offerOrder: ["annual", "monthly"],
+  planOrder: "0",
+  annualDisplayOrder: "2",
+  monthlyDisplayOrder: "1",
   monthlyPrice: "",
   monthlyAccessDurationDays: "30",
   maxInstallments: "12",
@@ -129,6 +142,11 @@ function statusTone(status: PlanStatus) {
   if (status === "ACTIVE") return "border-emerald-500/30 bg-emerald-500/15 text-emerald-400"
   if (status === "INACTIVE") return "border-amber-500/30 bg-amber-500/15 text-amber-400"
   return "border-zinc-500/30 bg-zinc-500/15 text-zinc-400"
+}
+
+function periodsForAvailability(availability: PeriodAvailability): OfferPeriod[] {
+  if (availability === "BOTH") return ["annual", "monthly"]
+  return availability === "MONTHLY" ? ["monthly"] : ["annual"]
 }
 
 export default function AdminPlanosPage() {
@@ -213,6 +231,10 @@ export default function AdminPlanosPage() {
       annualInstallmentAmount: plan.annualInstallmentAmount === null ? "" : String(plan.annualInstallmentAmount),
       annualAccessDurationDays: String(plan.annualAccessDurationDays),
       periodAvailability: plan.periodAvailability,
+      offerOrder: plan.offerOrder,
+      planOrder: String(plan.planOrder),
+      annualDisplayOrder: String(plan.annualDisplayOrder),
+      monthlyDisplayOrder: String(plan.monthlyDisplayOrder),
       monthlyPrice: plan.monthlyPrice === null ? "" : String(plan.monthlyPrice),
       monthlyAccessDurationDays: String(plan.monthlyAccessDurationDays ?? 30),
       maxInstallments: String(plan.maxInstallments),
@@ -241,6 +263,10 @@ export default function AdminPlanosPage() {
       annualInstallmentAmount: form.annualInstallmentAmount,
       annualAccessDurationDays: form.annualAccessDurationDays,
       periodAvailability: form.periodAvailability,
+      offerOrder: form.offerOrder,
+      planOrder: form.planOrder,
+      annualDisplayOrder: form.annualDisplayOrder,
+      monthlyDisplayOrder: form.monthlyDisplayOrder,
       monthlyEnabled: form.periodAvailability !== "ANNUAL",
       monthlyPrice: form.monthlyPrice,
       monthlyAccessDurationDays: form.monthlyAccessDurationDays,
@@ -489,6 +515,20 @@ export default function AdminPlanosPage() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Ordem do plano</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={999999}
+                    value={form.planOrder}
+                    onChange={(event) => setForm((current) => ({ ...current, planOrder: event.target.value }))}
+                    className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-muted-foreground">Menor número aparece primeiro em /planos.</p>
+                </div>
+
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Períodos disponíveis</label>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -500,7 +540,15 @@ export default function AdminPlanosPage() {
                       <button
                         key={value}
                         type="button"
-                        onClick={() => setForm((current) => ({ ...current, periodAvailability: value }))}
+                        onClick={() => setForm((current) => {
+                          const activePeriods = periodsForAvailability(value)
+                          return {
+                            ...current,
+                            periodAvailability: value,
+                            offerOrder: [...new Set([...current.offerOrder, ...activePeriods])]
+                              .filter((period): period is OfferPeriod => activePeriods.includes(period as OfferPeriod)),
+                          }
+                        })}
                         className={`h-11 rounded-2xl border px-4 text-sm font-medium transition ${form.periodAvailability === value ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-300" : "border-border/80 bg-background text-muted-foreground hover:text-foreground"}`}
                       >
                         {label}
@@ -508,6 +556,23 @@ export default function AdminPlanosPage() {
                     ))}
                   </div>
                 </div>
+
+                {form.periodAvailability === "BOTH" && (
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Ordem numérica das ofertas</label>
+                    <p className="text-xs text-muted-foreground">A menor posição aparece primeiro. Exemplo: Mensal 1 e Anual 2.</p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <label className="space-y-2 text-xs text-muted-foreground">
+                        Mensal
+                        <input type="number" min={1} max={999} value={form.monthlyDisplayOrder} onChange={(event) => setForm((current) => ({ ...current, monthlyDisplayOrder: event.target.value }))} className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm text-foreground outline-none transition focus:border-cyan-500/60" placeholder="1" />
+                      </label>
+                      <label className="space-y-2 text-xs text-muted-foreground">
+                        Anual
+                        <input type="number" min={1} max={999} value={form.annualDisplayOrder} onChange={(event) => setForm((current) => ({ ...current, annualDisplayOrder: event.target.value }))} className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm text-foreground outline-none transition focus:border-cyan-500/60" placeholder="2" />
+                      </label>
+                    </div>
+                  </div>
+                )}
 
                 {form.periodAvailability !== "MONTHLY" && (
                   <>

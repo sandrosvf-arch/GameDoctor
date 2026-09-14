@@ -1,0 +1,2 @@
+ALTER TABLE "plans"
+ADD COLUMN "plan_order" INTEGER NOT NULL DEFAULT 0;
