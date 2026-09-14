@@ -32,6 +32,7 @@ import { BUNNY_CDN_HOST } from "@/lib/constants"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 import { BunnyEmbedPlayer } from "@/components/lessons/BunnyPreviewPlayer"
+import { LoginToWatchOverlay } from "@/components/lessons/LoginToWatchOverlay"
 import { LessonSubscriptionCta } from "@/components/lessons/LessonSubscriptionCta"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
@@ -377,7 +378,14 @@ export default function BunnyAulaClient({
                 </div>
               ) : !isAccessible ? (
                 <div className="absolute inset-0">
-                  {canPreview && previewEmbedUrl && !paywallVisible ? (
+                  {isGuest && canPreview && previewEmbedUrl ? (
+                    <LoginToWatchOverlay
+                      thumbnail={previewImage}
+                      title={title}
+                      isFree={false}
+                      callbackUrl={`/aula/bunny/${videoId}`}
+                    />
+                  ) : canPreview && previewEmbedUrl && !paywallVisible ? (
                     !started ? (
                       <>
                         {previewImage && (
@@ -461,6 +469,13 @@ export default function BunnyAulaClient({
                     </div>
                   )}
                 </div>
+              ) : isGuest && isFree ? (
+                <LoginToWatchOverlay
+                  thumbnail={previewImage}
+                  title={title}
+                  isFree
+                  callbackUrl={`/aula/bunny/${videoId}`}
+                />
               ) : !started ? (
                 <div className="absolute inset-0">
                   {previewImage && (

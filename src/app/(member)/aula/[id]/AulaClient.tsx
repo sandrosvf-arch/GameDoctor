@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils"
 import { useLessonProgress } from "@/lib/use-lesson-progress"
 import { LessonReleaseLock } from "@/components/lessons/LessonReleaseLock"
 import { BunnyPreviewPlayer } from "@/components/lessons/BunnyPreviewPlayer"
+import { LoginToWatchOverlay } from "@/components/lessons/LoginToWatchOverlay"
 import { LessonSubscriptionCta } from "@/components/lessons/LessonSubscriptionCta"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
@@ -336,6 +337,20 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
                     />
                   )}
                 </div>
+              ) : isGuest && lesson.isFree ? (
+                <LoginToWatchOverlay
+                  thumbnail={lesson.videoThumbnailUrl}
+                  title={lesson.title}
+                  isFree
+                  callbackUrl={`/aula/${lesson.id}`}
+                />
+              ) : isGuest && lesson.previewAvailable ? (
+                <LoginToWatchOverlay
+                  thumbnail={lesson.videoThumbnailUrl}
+                  title={lesson.title}
+                  isFree={false}
+                  callbackUrl={`/aula/${lesson.id}`}
+                />
               ) : !lesson.isAccessible && lesson.previewAvailable && !paywallVisible ? (
                 <BunnyPreviewPlayer
                   lessonId={lesson.id}
