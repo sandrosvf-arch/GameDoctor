@@ -418,7 +418,7 @@ export function CheckoutPageClient({
     const normalizedBin = bin.replace(/\D/g, "").slice(0, 8)
     const requestId = ++installmentRequestRef.current
 
-    if (normalizedBin.length < 6) {
+    if (normalizedBin.length < 8) {
       setCardInstallments([])
       setSelectedCardInstallments(null)
       setLoadingCardInstallments(false)
@@ -461,22 +461,6 @@ export function CheckoutPageClient({
     if (!container || selectedPaymentMethod !== "card") return
     const activeContainer = container
 
-    function cleanInstallmentLabels() {
-      activeContainer.querySelectorAll("option").forEach((option) => {
-        const current = option.textContent ?? ""
-        const installmentMatch = current.match(/^(\d+)\s*x\b/i)
-        const installment = installmentMatch ? Number(installmentMatch[1]) : null
-        const installmentOption = installment === null
-          ? null
-          : cardInstallments.find((item) => item.installments === installment)
-        const replacement = installmentOption
-          ? ` (${formatCurrency(installmentOption.totalAmount)})`
-          : ""
-        const cleaned = current.replace(/\s*\(Sem acréscimo\)/gi, replacement).trim()
-        if (cleaned !== current) option.textContent = cleaned
-      })
-    }
-
     function handleInstallmentChange(event: Event) {
       if (!(event.target instanceof HTMLSelectElement)) return
 
@@ -490,12 +474,8 @@ export function CheckoutPageClient({
       }
     }
 
-    cleanInstallmentLabels()
-    const observer = new MutationObserver(cleanInstallmentLabels)
-    observer.observe(container, { childList: true, subtree: true })
     activeContainer.addEventListener("change", handleInstallmentChange, true)
     return () => {
-      observer.disconnect()
       activeContainer.removeEventListener("change", handleInstallmentChange, true)
     }
   }, [cardInstallments, selectedPaymentMethod])
@@ -597,12 +577,12 @@ export function CheckoutPageClient({
                         )}
                       </div>
                     )}
-                    {loadingCardInstallments ? (
+                    {loadingCardInstallments && quote.period !== "monthly" ? (
                       <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         Consultando as condições do cartão...
                       </div>
-                    ) : cardInstallments.length > 0 ? (
+                    ) : cardInstallments.length > 0 && quote.period !== "monthly" ? (
                       <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
                         <p className="text-xs font-semibold text-slate-300">Parcelamento calculado para este cartão</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">

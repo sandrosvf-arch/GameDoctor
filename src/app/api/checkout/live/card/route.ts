@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { getAppBaseUrl, normalizeCheckoutPeriod, toPlanCheckoutPeriod } from "@/lib/checkout"
 import { prepareLiveCheckout, setLiveCheckoutCookie } from "@/lib/live-checkout"
 import { grantApprovedOrderAccess, sendLiveCheckoutAccessIfNeeded } from "@/lib/payment/live-checkout-approval"
+import { createMonthlySubscription } from "@/lib/payment/monthly-subscription"
 import {
   createMercadoPagoOrder,
   getMercadoPagoPayerEmail,
@@ -28,18 +29,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Preencha corretamente os dados do cartão." }, { status: 400 })
   }
 
+  const period = normalizeCheckoutPeriod(body?.period) ?? "annual"
+  if (period === "monthly" && installments !== 1) {
+    return NextResponse.json({ error: "O plano mensal aceita somente pagamento em 1x no cartão." }, { status: 400 })
+  }
+
   try {
     const prepared = await prepareLiveCheckout({
       request,
       identity: body?.customer,
       planSlug,
-      period: normalizeCheckoutPeriod(body?.period) ?? "annual",
+      period,
       accessToken: body?.accessToken,
       idempotencyKey,
       gateway: "MERCADOPAGO",
       paymentMethod: "CREDIT_CARD",
     })
     const { checkout, user } = prepared
+    if (installments > checkout.quote.installments.max) {
+      return NextResponse.json({ error: `Este plano aceita no máximo ${checkout.quote.installments.max}x no cartão.` }, { status: 400 })
+    }
+
     const existingOrder = await db.order.findUnique({
       where: { id: checkout.orderId },
       select: { gatewayReference: true, paymentStatus: true },
@@ -48,6 +58,26 @@ export async function POST(request: Request) {
     if (existingOrder?.gatewayReference) {
       return setLiveCheckoutCookie(
         NextResponse.json({ orderId: checkout.orderId, status: existingOrder.paymentStatus }),
+        prepared.accessToken,
+      )
+    }
+
+    if (checkout.quote.period === "monthly") {
+      if (!checkout.paymentId) {
+        throw new Error("Não foi possível preparar o pagamento mensal.")
+      }
+
+      await createMonthlySubscription({
+        orderId: checkout.orderId,
+        paymentId: checkout.paymentId,
+        quote: checkout.quote,
+        payerEmail: user.email,
+        cardToken,
+        idempotencyKey,
+      })
+
+      return setLiveCheckoutCookie(
+        NextResponse.json({ orderId: checkout.orderId, status: "PENDING" }),
         prepared.accessToken,
       )
     }
@@ -103,14 +133,14 @@ export async function POST(request: Request) {
       })
     }
 
-    if ((checkout.quote.period === "annual" || checkout.quote.period === "monthly") && status !== "REFUSED" && status !== "CANCELLED") {
+    if (status !== "REFUSED" && status !== "CANCELLED") {
       try {
         const subscription = await createMercadoPagoSubscription({
           externalReference: checkout.orderId,
           payerEmail: getMercadoPagoPayerEmail(user.email),
           reason: `${checkout.quote.plan.name} - renovação ${checkout.quote.periodLabel.toLowerCase()}`,
           amount: checkout.quote.subtotal,
-          frequency: checkout.quote.period === "monthly" ? 1 : 12,
+          frequency: 12,
           cardToken,
           startDate: new Date(Date.now() + checkout.quote.accessDurationDays * 24 * 60 * 60 * 1000),
           backUrl: getAppBaseUrl() + "/minha-conta",

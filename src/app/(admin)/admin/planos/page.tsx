@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Check, Copy, Loader2, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react"
 
 type PlanStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED"
+type PeriodAvailability = "ANNUAL" | "MONTHLY" | "BOTH"
 type SmartPaymentMethod = "card" | "pix" | "pagaleve"
 type SmartCheckoutPeriod = "annual" | "monthly"
 
@@ -18,8 +19,10 @@ interface PlanItem {
   annualBoletoPrice: number | null
   annualPixInstallmentPrice: number | null
   cardInstallmentTotal: number | null
+  annualInstallmentAmount: number | null
   monthlyPrice: number | null
   monthlyEnabled: boolean
+  periodAvailability: PeriodAvailability
   annualAccessDurationDays: number
   monthlyAccessDurationDays: number | null
   maxInstallments: number
@@ -48,8 +51,9 @@ interface FormState {
   annualCardPrice: string
   annualBoletoPrice: string
   annualPixInstallmentPrice: string
+  annualInstallmentAmount: string
   annualAccessDurationDays: string
-  monthlyEnabled: boolean
+  periodAvailability: PeriodAvailability
   monthlyPrice: string
   monthlyAccessDurationDays: string
   maxInstallments: string
@@ -68,8 +72,9 @@ const emptyForm: FormState = {
   annualCardPrice: "",
   annualBoletoPrice: "",
   annualPixInstallmentPrice: "",
+  annualInstallmentAmount: "",
   annualAccessDurationDays: "365",
-  monthlyEnabled: false,
+  periodAvailability: "ANNUAL",
   monthlyPrice: "",
   monthlyAccessDurationDays: "30",
   maxInstallments: "12",
@@ -205,8 +210,9 @@ export default function AdminPlanosPage() {
       annualCardPrice: plan.annualCardPrice === null ? "" : String(plan.annualCardPrice),
       annualBoletoPrice: plan.annualBoletoPrice === null ? "" : String(plan.annualBoletoPrice),
       annualPixInstallmentPrice: plan.annualPixInstallmentPrice === null ? "" : String(plan.annualPixInstallmentPrice),
+      annualInstallmentAmount: plan.annualInstallmentAmount === null ? "" : String(plan.annualInstallmentAmount),
       annualAccessDurationDays: String(plan.annualAccessDurationDays),
-      monthlyEnabled: plan.monthlyEnabled,
+      periodAvailability: plan.periodAvailability,
       monthlyPrice: plan.monthlyPrice === null ? "" : String(plan.monthlyPrice),
       monthlyAccessDurationDays: String(plan.monthlyAccessDurationDays ?? 30),
       maxInstallments: String(plan.maxInstallments),
@@ -232,8 +238,10 @@ export default function AdminPlanosPage() {
       annualCardPrice: form.annualCardPrice,
       annualBoletoPrice: form.annualBoletoPrice,
       annualPixInstallmentPrice: form.annualPixInstallmentPrice,
+      annualInstallmentAmount: form.annualInstallmentAmount,
       annualAccessDurationDays: form.annualAccessDurationDays,
-      monthlyEnabled: form.monthlyEnabled,
+      periodAvailability: form.periodAvailability,
+      monthlyEnabled: form.periodAvailability !== "ANNUAL",
       monthlyPrice: form.monthlyPrice,
       monthlyAccessDurationDays: form.monthlyAccessDurationDays,
       maxInstallments: form.maxInstallments,
@@ -356,19 +364,28 @@ export default function AdminPlanosPage() {
                     </div>
 
                     <div className="space-y-2 text-sm">
-                      <p className="font-semibold text-foreground">Plano: {formatCurrency(plan.annualPrice)}</p>
-                      <p className="text-muted-foreground">Pix: {formatCurrency(plan.annualPixPrice)}</p>
-                      <p className="text-muted-foreground">Cartao: {formatCurrency(plan.annualCardPrice)}</p>
-                      <p className="text-muted-foreground">Boleto: {formatCurrency(plan.annualBoletoPrice)}</p>
-                      <p className="text-muted-foreground">Pix parcelado: {formatCurrency(plan.annualPixInstallmentPrice)}</p>
+                      {plan.annualPrice !== null ? (
+                        <>
+                          <p className="font-semibold text-foreground">Anual: {formatCurrency(plan.annualPrice)}</p>
+                          <p className="text-muted-foreground">Pix: {formatCurrency(plan.annualPixPrice)}</p>
+                          <p className="text-muted-foreground">Cartao: {formatCurrency(plan.annualCardPrice)}</p>
+                          <p className="text-muted-foreground">Boleto: {formatCurrency(plan.annualBoletoPrice)}</p>
+                          <p className="text-muted-foreground">Pix parcelado: {formatCurrency(plan.annualPixInstallmentPrice)}</p>
+                        </>
+                      ) : null}
                       {plan.monthlyEnabled && plan.monthlyPrice !== null ? (
                         <p className="text-muted-foreground">Mensal: {formatCurrency(plan.monthlyPrice)}</p>
                       ) : null}
                     </div>
 
                     <div className="space-y-2 text-sm">
-                      <p className="font-semibold text-foreground">Maximo: {plan.maxInstallments}x</p>
-                      <p className="text-muted-foreground">Sem juros: {plan.maxInstallmentsNoInterest}x</p>
+                      {plan.annualPrice !== null ? (
+                        <>
+                          <p className="font-semibold text-foreground">Maximo: {plan.maxInstallments}x</p>
+                          <p className="text-muted-foreground">Destaque: {formatCurrency(plan.annualInstallmentAmount)}</p>
+                          <p className="text-muted-foreground">Sem juros: {plan.maxInstallmentsNoInterest}x</p>
+                        </>
+                      ) : <p className="font-semibold text-foreground">Cartão em 1x</p>}
                     </div>
 
                     <div className="space-y-2 text-sm">
@@ -391,7 +408,11 @@ export default function AdminPlanosPage() {
                         </span>
                       </div>
                       <p className="text-muted-foreground">
-                        {plan.monthlyEnabled ? "Anual e mensal visiveis" : "Somente anual visivel"}
+                        {plan.periodAvailability === "BOTH"
+                          ? "Anual e mensal visíveis"
+                          : plan.periodAvailability === "MONTHLY"
+                            ? "Somente mensal visível"
+                            : "Somente anual visível"}
                       </p>
                     </div>
 
@@ -468,28 +489,53 @@ export default function AdminPlanosPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                   <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Valor anual (opcional)</label>
-                  <input
-                    value={form.annualPrice}
-                    onChange={(event) => setForm((current) => ({ ...current, annualPrice: event.target.value }))}
-                    className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
-                    placeholder="997.00"
-                  />
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Períodos disponíveis</label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {([
+                      ["ANNUAL", "Anual"],
+                      ["MONTHLY", "Mensal"],
+                      ["BOTH", "Anual e mensal"],
+                    ] as Array<[PeriodAvailability, string]>).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setForm((current) => ({ ...current, periodAvailability: value }))}
+                        className={`h-11 rounded-2xl border px-4 text-sm font-medium transition ${form.periodAvailability === value ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-300" : "border-border/80 bg-background text-muted-foreground hover:text-foreground"}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Dias de acesso anual</label>
-                  <input
-                    value={form.annualAccessDurationDays}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, annualAccessDurationDays: event.target.value }))
-                    }
-                    className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
-                    placeholder="365"
-                    required
-                  />
-                </div>
+                {form.periodAvailability !== "MONTHLY" && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Valor anual</label>
+                      <input
+                        value={form.annualPrice}
+                        onChange={(event) => setForm((current) => ({ ...current, annualPrice: event.target.value }))}
+                        className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
+                        placeholder="997.00"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Dias de acesso anual</label>
+                      <input
+                        value={form.annualAccessDurationDays}
+                        onChange={(event) =>
+                          setForm((current) => ({ ...current, annualAccessDurationDays: event.target.value }))
+                        }
+                        className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
+                        placeholder="365"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Vitrine pública</label>
@@ -504,7 +550,7 @@ export default function AdminPlanosPage() {
                   </label>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                {form.periodAvailability !== "MONTHLY" && <div className="space-y-2 md:col-span-2">
                   <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Valores por forma de pagamento</p>
                   <p className="text-xs text-muted-foreground">O valor do cartao e a base enviada ao gateway; o Mercado Pago calcula as condicoes de parcelas.</p>
                   <div className="grid grid-cols-1 gap-4 pt-2 md:grid-cols-2">
@@ -513,21 +559,13 @@ export default function AdminPlanosPage() {
                     <PriceInput label="Valor no boleto" value={form.annualBoletoPrice} onChange={(value) => setForm((current) => ({ ...current, annualBoletoPrice: value }))} placeholder="614.38" />
                     <PriceInput label="Valor no Pix parcelado" value={form.annualPixInstallmentPrice} onChange={(value) => setForm((current) => ({ ...current, annualPixInstallmentPrice: value }))} placeholder="750.00" />
                   </div>
-                </div>
+                </div>}
 
-                <div className="rounded-2xl border border-border/70 bg-background/40 p-4 md:col-span-2">
-                  <label className="flex cursor-pointer items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={form.monthlyEnabled}
-                      onChange={(event) => setForm((current) => ({ ...current, monthlyEnabled: event.target.checked }))}
-                      className="mt-0.5 h-4 w-4 rounded border-border bg-background"
-                    />
-                    <span>
-                      <span className="block text-sm font-semibold text-foreground">Habilitar opcao mensal</span>
-                      <span className="block text-xs text-muted-foreground">Ative apenas se o plano puder ser vendido tambem no mensal.</span>
-                    </span>
-                  </label>
+                {form.periodAvailability !== "ANNUAL" && <div className="rounded-2xl border border-border/70 bg-background/40 p-4 md:col-span-2">
+                  <div>
+                    <span className="block text-sm font-semibold text-foreground">Assinatura mensal</span>
+                    <span className="block text-xs text-muted-foreground">Cobrança recorrente imediata, exclusivamente no cartão de crédito em 1x.</span>
+                  </div>
 
                   <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
@@ -535,9 +573,9 @@ export default function AdminPlanosPage() {
                       <input
                         value={form.monthlyPrice}
                         onChange={(event) => setForm((current) => ({ ...current, monthlyPrice: event.target.value }))}
-                        className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60 disabled:cursor-not-allowed disabled:opacity-45"
+                        className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
                         placeholder="97.00"
-                        disabled={!form.monthlyEnabled}
+                        required
                       />
                     </div>
 
@@ -548,27 +586,40 @@ export default function AdminPlanosPage() {
                         onChange={(event) =>
                           setForm((current) => ({ ...current, monthlyAccessDurationDays: event.target.value }))
                         }
-                        className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60 disabled:cursor-not-allowed disabled:opacity-45"
+                        className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
                         placeholder="30"
-                        disabled={!form.monthlyEnabled}
+                        required
                       />
                     </div>
                   </div>
-                </div>
+                </div>}
 
-                <div className="space-y-2">
+                {form.periodAvailability !== "MONTHLY" && <div className="space-y-2">
                   <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Parcelamento maximo</label>
                   <input
+                    type="number"
+                    min={1}
+                    max={12}
                     value={form.maxInstallments}
                     onChange={(event) => setForm((current) => ({ ...current, maxInstallments: event.target.value }))}
                     className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
                     placeholder="12"
                   />
-                </div>
+                </div>}
 
-                <div className="space-y-2">
+                {form.periodAvailability !== "MONTHLY" && <PriceInput
+                  label="Valor da parcela em destaque"
+                  value={form.annualInstallmentAmount}
+                  onChange={(value) => setForm((current) => ({ ...current, annualInstallmentAmount: value }))}
+                  placeholder="62.50"
+                />}
+
+                {form.periodAvailability !== "MONTHLY" && <div className="space-y-2 md:col-span-2">
                   <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Maximo sem juros</label>
                   <input
+                    type="number"
+                    min={0}
+                    max={12}
                     value={form.maxInstallmentsNoInterest}
                     onChange={(event) =>
                       setForm((current) => ({ ...current, maxInstallmentsNoInterest: event.target.value }))
@@ -576,7 +627,7 @@ export default function AdminPlanosPage() {
                     className="h-11 w-full rounded-2xl border border-border/80 bg-background px-3 text-sm outline-none transition focus:border-cyan-500/60"
                     placeholder="1"
                   />
-                </div>
+                </div>}
 
                 <div className="space-y-2">
                   <label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Status</label>

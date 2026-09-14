@@ -185,7 +185,7 @@ export default async function PlanosPage() {
 
                         {canSeePrices && (
                           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-400">
-                            <span>Até {plan.installments.max}x no cartão</span>
+                            <span>{offer.period === "monthly" ? "Cobrança mensal no cartão" : `Até ${plan.installments.max}x no cartão`}</span>
                           </div>
                         )}
                       </div>

@@ -160,19 +160,40 @@ async function processRecurringPaymentNotification(paymentId: string) {
 
   const subscription = await db.subscription.findUnique({
     where: { gatewaySubscriptionId },
-    include: { plan: true },
+    include: {
+      plan: true,
+      initialOrder: { select: { id: true, paymentStatus: true } },
+    },
   })
 
-  if (!subscription) return
+  if (!subscription) {
+    throw new Error("Assinatura local ainda não disponível.")
+  }
 
-  const status = mapMercadoPagoStatusToInternal(authorizedPayment.status)
   const gatewayPaymentId = String(authorizedPayment.payment?.id ?? authorizedPayment.id)
-  const amount = Number(authorizedPayment.transaction_amount ?? subscription.amount)
+  const gatewayPayment = authorizedPayment.payment?.id
+    ? await getMercadoPagoPayment(String(authorizedPayment.payment.id)).catch(() => null)
+    : null
+  const status = mapMercadoPagoStatusToInternal(gatewayPayment?.status ?? authorizedPayment.status)
+  const amount = Number(gatewayPayment?.transaction_amount ?? authorizedPayment.transaction_amount ?? subscription.amount)
+  const paidAt = gatewayPayment?.date_approved
+    ? new Date(gatewayPayment.date_approved)
+    : authorizedPayment.date_approved
+      ? new Date(authorizedPayment.date_approved)
+      : null
 
   let order = await db.order.findFirst({
     where: { gatewayReference: gatewayPaymentId },
     select: { id: true },
   })
+
+  if (!order && subscription.initialOrder.paymentStatus === "PENDING") {
+    order = { id: subscription.initialOrder.id }
+    await db.order.update({
+      where: { id: order.id },
+      data: { gatewayReference: gatewayPaymentId, subscriptionId: subscription.id },
+    })
+  }
 
   if (!order) {
     order = await db.order.create({
@@ -201,7 +222,7 @@ async function processRecurringPaymentNotification(paymentId: string) {
             paymentStatus: "PENDING",
             amount,
             installments: 1,
-            paidAt: authorizedPayment.date_approved ? new Date(authorizedPayment.date_approved) : null,
+            paidAt,
           },
         },
       },
@@ -217,7 +238,7 @@ async function processRecurringPaymentNotification(paymentId: string) {
     paymentMethod: "CREDIT_CARD",
     amount,
     installments: 1,
-    paidAt: authorizedPayment.date_approved ? new Date(authorizedPayment.date_approved) : null,
+    paidAt,
   })
 
   if (status === "APPROVED") {
@@ -243,7 +264,9 @@ async function processSubscriptionNotification(subscriptionId: string) {
     select: { id: true },
   })
 
-  if (!localSubscription) return
+  if (!localSubscription) {
+    throw new Error("Assinatura local ainda não disponível.")
+  }
 
   const status =
     gatewaySubscription.status === "authorized" ? "ACTIVE"
@@ -306,10 +329,10 @@ export async function POST(request: NextRequest) {
   })
 
   try {
-    if (type.includes("preapproval") || type.includes("subscription")) {
-      await processSubscriptionNotification(dataId)
-    } else if (type.includes("authorized_payment")) {
+    if (type.includes("authorized_payment")) {
       await processRecurringPaymentNotification(dataId)
+    } else if (type.includes("preapproval") || type.includes("subscription")) {
+      await processSubscriptionNotification(dataId)
     } else if (type.includes("order")) {
       await processOrderNotification(dataId)
     } else {

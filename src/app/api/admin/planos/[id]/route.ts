@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import type { BillingType, PlanStatus, Prisma } from "@prisma/client"
 
+type PeriodAvailability = "ANNUAL" | "MONTHLY" | "BOTH"
+
 async function requireAdminOrEditor() {
   const session = await auth()
   if (!session || (session.user.role !== "ADMIN" && session.user.role !== "EDITOR")) {
@@ -43,14 +45,27 @@ function normalizePlanPayload(body: Record<string, unknown>) {
   const annualCardPrice = parseDecimal(body.annualCardPrice)
   const annualBoletoPrice = parseDecimal(body.annualBoletoPrice)
   const annualPixInstallmentPrice = parseDecimal(body.annualPixInstallmentPrice)
-  const cardInstallmentTotal = parseDecimal(body.cardInstallmentTotal)
+  const rawCardInstallmentTotal = parseDecimal(body.cardInstallmentTotal)
+  const annualInstallmentAmount = parseDecimal(body.annualInstallmentAmount)
   const monthlyPrice = parseDecimal(body.monthlyPrice)
-  const monthlyEnabled = Boolean(body.monthlyEnabled)
+  const requestedAvailability = String(body.periodAvailability ?? "").toUpperCase()
+  const periodAvailability = (["ANNUAL", "MONTHLY", "BOTH"].includes(requestedAvailability)
+    ? requestedAvailability
+    : annualPrice === null && Boolean(body.monthlyEnabled)
+      ? "MONTHLY"
+      : Boolean(body.monthlyEnabled)
+        ? "BOTH"
+        : "ANNUAL") as PeriodAvailability
+  const annualEnabled = periodAvailability !== "MONTHLY"
+  const monthlyEnabled = periodAvailability !== "ANNUAL"
   const annualAccessDurationDays = Math.max(1, parseInteger(body.annualAccessDurationDays, 365) ?? 365)
   const monthlyAccessDurationDays = monthlyEnabled
     ? Math.max(1, parseInteger(body.monthlyAccessDurationDays, 30) ?? 30)
     : null
-  const maxInstallments = Math.max(1, parseInteger(body.maxInstallments, 12) ?? 12)
+  const maxInstallments = Math.min(12, Math.max(1, parseInteger(body.maxInstallments, 12) ?? 12))
+  const cardInstallmentTotal = annualInstallmentAmount !== null
+    ? Number((annualInstallmentAmount * maxInstallments).toFixed(2))
+    : rawCardInstallmentTotal
   const maxInstallmentsNoInterest = Math.max(
     0,
     Math.min(maxInstallments, parseInteger(body.maxInstallmentsNoInterest, 1) ?? 1)
@@ -72,8 +87,8 @@ function normalizePlanPayload(body: Record<string, unknown>) {
     return { error: "Não foi possível gerar um slug válido para o plano." }
   }
 
-  if (annualPrice === null && (!monthlyEnabled || monthlyPrice === null)) {
-    return { error: "Informe o valor anual ou ative o plano mensal com um valor válido." }
+  if (annualEnabled && (annualPrice === null || annualPrice <= 0)) {
+    return { error: "Informe um valor anual válido." }
   }
 
   if ([annualPixPrice, annualCardPrice, annualBoletoPrice, annualPixInstallmentPrice]
@@ -81,11 +96,12 @@ function normalizePlanPayload(body: Record<string, unknown>) {
     return { error: "Os valores por forma de pagamento devem ser vÃ¡lidos." }
   }
 
-  if (annualPrice !== null && cardInstallmentTotal !== null && cardInstallmentTotal < annualPrice) {
-    return { error: "O valor total parcelado deve ser igual ou maior que o valor anual." }
+  const annualCardBasePrice = annualCardPrice ?? annualPrice
+  if (annualEnabled && annualCardBasePrice !== null && cardInstallmentTotal !== null && cardInstallmentTotal < annualCardBasePrice) {
+    return { error: "O valor total parcelado deve ser igual ou maior que o valor anual no cartÃ£o." }
   }
 
-  if (monthlyEnabled && (monthlyPrice === null || monthlyPrice < 0)) {
+  if (monthlyEnabled && (monthlyPrice === null || monthlyPrice <= 0)) {
     return { error: "Informe um valor mensal válido para ativar o plano mensal." }
   }
 
@@ -94,12 +110,12 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       name,
       slug,
       description,
-      annualPrice,
-      annualPixPrice: annualPrice === null ? null : annualPixPrice ?? annualPrice,
-      annualCardPrice: annualPrice === null ? null : annualCardPrice ?? annualPrice,
-      annualBoletoPrice: annualPrice === null ? null : annualBoletoPrice ?? annualPrice,
-      annualPixInstallmentPrice: annualPrice === null ? null : annualPixInstallmentPrice ?? cardInstallmentTotal ?? annualPrice,
-      cardInstallmentTotal: annualPrice === null ? null : cardInstallmentTotal,
+      annualPrice: annualEnabled ? annualPrice : null,
+      annualPixPrice: annualEnabled ? annualPixPrice ?? annualPrice : null,
+      annualCardPrice: annualEnabled ? annualCardPrice ?? annualPrice : null,
+      annualBoletoPrice: annualEnabled ? annualBoletoPrice ?? annualPrice : null,
+      annualPixInstallmentPrice: annualEnabled ? annualPixInstallmentPrice ?? cardInstallmentTotal ?? annualPrice : null,
+      cardInstallmentTotal: annualEnabled ? cardInstallmentTotal : null,
       monthlyPrice: monthlyEnabled ? monthlyPrice : null,
       monthlyEnabled,
       annualAccessDurationDays,
@@ -110,9 +126,9 @@ function normalizePlanPayload(body: Record<string, unknown>) {
       showOnPlans,
       status,
       benefits,
-      price: annualPrice ?? monthlyPrice,
-      billingType: (annualPrice === null ? "MONTHLY" : "YEARLY") as BillingType,
-      accessDurationDays: annualPrice === null ? monthlyAccessDurationDays : annualAccessDurationDays,
+      price: annualEnabled ? annualPrice : monthlyPrice,
+      billingType: (annualEnabled ? "YEARLY" : "MONTHLY") as BillingType,
+      accessDurationDays: annualEnabled ? annualAccessDurationDays : monthlyAccessDurationDays,
     } satisfies Prisma.PlanUncheckedUpdateInput,
   }
 }
@@ -146,7 +162,10 @@ export async function PATCH(
     return NextResponse.json({ error: payload.error }, { status: 400 })
   }
 
-  if (!Object.prototype.hasOwnProperty.call(body, "cardInstallmentTotal")) {
+  if (
+    !Object.prototype.hasOwnProperty.call(body, "cardInstallmentTotal")
+    && !Object.prototype.hasOwnProperty.call(body, "annualInstallmentAmount")
+  ) {
     payload.data.cardInstallmentTotal = target.cardInstallmentTotal === null
       ? null
       : Number(target.cardInstallmentTotal)

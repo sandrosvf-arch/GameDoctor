@@ -33,6 +33,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Plano ou período inválido." }, { status: 400 })
   }
 
+  if (period === "monthly") {
+    return NextResponse.json({ error: "O plano mensal deve ser contratado pelo checkout com cartão." }, { status: 400 })
+  }
+
   try {
     const user = await db.user.findUnique({
       where: { id: session.user.id },

@@ -333,7 +333,7 @@ export async function buildCheckoutQuote(input: {
     : cardTotal
   const cardEstimate = getCardEstimate(
     finalTotal,
-    plan.maxInstallments,
+    offer.period === "monthly" ? 1 : plan.maxInstallments,
     offer.period === "annual" ? offer.subtotal : undefined,
     offer.period === "annual" ? cardDisplayTotal || offer.subtotal : undefined,
   )
@@ -360,8 +360,8 @@ export async function buildCheckoutQuote(input: {
     pixInstallmentTotal,
     installmentTotal,
     installments: {
-      max: plan.maxInstallments,
-      noInterest: plan.maxInstallmentsNoInterest,
+      max: offer.period === "monthly" ? 1 : plan.maxInstallments,
+      noInterest: offer.period === "monthly" ? 1 : plan.maxInstallmentsNoInterest,
     },
     cardEstimate,
     coupon: {
@@ -561,7 +561,7 @@ export async function listPublicPlans(userId?: string | null) {
             period: "monthly" as const,
             label: "Mensal",
             price: toNumber(plan.monthlyPrice),
-            cardEstimate: getCardEstimate(toNumber(plan.monthlyPrice), plan.maxInstallments),
+            cardEstimate: getCardEstimate(toNumber(plan.monthlyPrice), 1),
             accessDurationDays: plan.monthlyAccessDurationDays ?? 30,
           }]
         : []),

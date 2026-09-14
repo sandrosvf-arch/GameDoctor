@@ -387,9 +387,13 @@ export async function createMercadoPagoSubscription(input: {
   cardToken: string
   startDate: Date
   backUrl: string
+  idempotencyKey?: string
 }) {
   return mercadoPagoRequest<MercadoPagoSubscriptionDetails>("/preapproval", {
     method: "POST",
+    headers: input.idempotencyKey
+      ? { "X-Idempotency-Key": input.idempotencyKey }
+      : undefined,
     body: JSON.stringify({
       reason: input.reason,
       external_reference: input.externalReference,
@@ -403,6 +407,7 @@ export async function createMercadoPagoSubscription(input: {
         start_date: input.startDate.toISOString(),
       },
       back_url: input.backUrl,
+      status: "authorized",
     }),
   })
 }
@@ -425,7 +430,7 @@ export async function cancelMercadoPagoSubscription(subscriptionId: string) {
 
 export async function getMercadoPagoAuthorizedPayment(paymentId: string) {
   return mercadoPagoRequest<MercadoPagoAuthorizedPaymentDetails>(
-    `/v1/authorized_payments/${encodeURIComponent(paymentId)}`
+    `/authorized_payments/${encodeURIComponent(paymentId)}`
   )
 }
 

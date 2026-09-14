@@ -46,6 +46,7 @@ export async function POST(request: Request) {
 
   const cpf = String(body?.cpf ?? "").replace(/\D/g, "").slice(0, 11)
   const planSlug = normalizeText(body?.planSlug, 120)
+  const period = normalizeCheckoutPeriod(body?.period) ?? "annual"
   const idempotencyKey = normalizeText(body?.idempotencyKey, 120) || randomUUID()
   const address = normalizeAddress(body?.billingAddress)
   if (!planSlug || cpf.length !== 11) return NextResponse.json({ error: "Informe o plano e um CPF válido." }, { status: 400 })
@@ -54,6 +55,9 @@ export async function POST(request: Request) {
     || !address.neighborhood || !address.city || address.state.length !== 2
   ) {
     return NextResponse.json({ error: "Preencha o endereço de cobrança completo." }, { status: 400 })
+  }
+  if (period === "monthly") {
+    return NextResponse.json({ error: "O plano mensal aceita somente cartão de crédito." }, { status: 400 })
   }
 
   try {
@@ -64,7 +68,7 @@ export async function POST(request: Request) {
       request,
       identity: body?.customer,
       planSlug,
-      period: normalizeCheckoutPeriod(body?.period) ?? "annual",
+      period,
       accessToken: body?.accessToken,
       idempotencyKey,
       gateway: "PAGALEVE",

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { CardPayment, initMercadoPago } from "@mercadopago/sdk-react"
+import { CardPayment, getInstallments, initMercadoPago } from "@mercadopago/sdk-react"
 import { Check, Copy, CreditCard, Loader2, MapPin, QrCode, ShieldCheck, Wallet } from "lucide-react"
 import type { CheckoutQuote } from "@/lib/checkout"
 import { isValidBrazilianPhone, normalizeBrazilianPhone } from "@/lib/phone"
@@ -11,6 +11,7 @@ import { OfferUrgency } from "@/components/checkout/OfferUrgency"
 
 const mercadoPagoPublicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() ?? ""
 type PaymentMethod = "card" | "pix" | "pagaleve"
+type CardInstallmentOption = { installments: number; installmentAmount: number; totalAmount: number }
 type Address = { postalCode: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string }
 type Profile = { name: string; email: string; phone: string; cpf: string; billingAddress: Address | null }
 
@@ -93,9 +94,13 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   const [cepError, setCepError] = useState<string | null>(null)
   const [pix, setPix] = useState<{ orderId: string; qrCodeBase64: string; copyPaste: string; expiresAt: string | null } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [cardInstallments, setCardInstallments] = useState<CardInstallmentOption[]>([])
+  const [selectedCardInstallments, setSelectedCardInstallments] = useState<number | null>(null)
+  const [loadingCardInstallments, setLoadingCardInstallments] = useState(false)
   const attemptRef = useRef(newAttempt())
   const submittingRef = useRef(false)
   const cardContainerRef = useRef<HTMLDivElement>(null)
+  const installmentRequestRef = useRef(0)
 
   useEffect(() => {
     if (!mercadoPagoPublicKey) return
@@ -106,6 +111,68 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   useEffect(() => {
     if (!availableMethods.includes(method)) setMethod(availableMethods[0] ?? "card")
   }, [availableMethods, method])
+
+  const maxInstallments = Math.min(12, Math.max(1, quote.installments.max))
+
+  const handleCardBinChange = useCallback(async (bin: string) => {
+    const normalizedBin = bin.replace(/\D/g, "").slice(0, 8)
+    const requestId = ++installmentRequestRef.current
+
+    if (normalizedBin.length < 8) {
+      setCardInstallments([])
+      setSelectedCardInstallments(null)
+      setLoadingCardInstallments(false)
+      return
+    }
+
+    setLoadingCardInstallments(true)
+    try {
+      const result = await getInstallments({
+        amount: quote.cardTotal.toFixed(2),
+        bin: normalizedBin,
+        locale: "pt-BR",
+        processingMode: "aggregator",
+      })
+      if (requestId !== installmentRequestRef.current) return
+
+      setSelectedCardInstallments(null)
+      setCardInstallments(
+        (result ?? [])
+          .flatMap((item) => item.payer_costs)
+          .filter((option) => option.installments >= 1 && option.installments <= maxInstallments)
+          .sort((left, right) => left.installments - right.installments)
+          .map((option) => ({
+            installments: option.installments,
+            installmentAmount: option.installment_amount,
+            totalAmount: option.total_amount,
+          })),
+      )
+    } catch {
+      if (requestId === installmentRequestRef.current) setCardInstallments([])
+    } finally {
+      if (requestId === installmentRequestRef.current) setLoadingCardInstallments(false)
+    }
+  }, [maxInstallments, quote.cardTotal])
+
+  useEffect(() => {
+    const container = cardContainerRef.current
+    if (!container || method !== "card") return
+
+    function handleInstallmentChange(event: Event) {
+      if (!(event.target instanceof HTMLSelectElement)) return
+      const selectedText = event.target.selectedOptions[0]?.textContent?.trim() ?? ""
+      const match = selectedText.match(/^(\d+)\s*x\b/i) ?? selectedText.match(/^(\d+)\s*parcel/i)
+      if (!match) return
+
+      const installments = Number(match[1])
+      if (cardInstallments.some((option) => option.installments === installments)) {
+        setSelectedCardInstallments(installments)
+      }
+    }
+
+    container.addEventListener("change", handleInstallmentChange, true)
+    return () => container.removeEventListener("change", handleInstallmentChange, true)
+  }, [cardInstallments, method])
 
   const identityValid = customer.name.trim().length >= 2
     && /^\S+@\S+\.\S+$/.test(customer.email.trim())
@@ -290,7 +357,18 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   }, [pix?.orderId])
 
   const cardInitialization = useMemo(() => ({ amount: quote.cardTotal, payer: { email: customer.email.trim() } }), [customer.email, quote.cardTotal])
-  const cardCustomization = useMemo(() => ({ paymentMethods: { minInstallments: 1, maxInstallments: quote.period === "monthly" ? 1 : Math.min(12, quote.installments.max) }, visual: { hideFormTitle: true } }), [quote.installments.max, quote.period])
+  const cardCustomization = useMemo(() => ({ paymentMethods: { minInstallments: 1, maxInstallments }, visual: { hideFormTitle: true } }), [maxInstallments])
+  const handleCardError = useCallback(() => {
+    setError("Não foi possível carregar o formulário do cartão.")
+  }, [])
+  const selectedCardInstallment = cardInstallments.find((option) => option.installments === selectedCardInstallments) ?? null
+  const displayedInstallments = selectedCardInstallment?.installments ?? maxInstallments
+  const displayedInstallmentAmount = selectedCardInstallment?.installmentAmount ?? quote.cardEstimate.installmentAmount
+  const displayedTotal = method === "card"
+    ? selectedCardInstallment?.totalAmount ?? quote.cardEstimate.total
+    : method === "pix"
+      ? quote.pixTotal
+      : quote.pixInstallmentTotal
 
   return (
     <main className="relative overflow-hidden px-4 pb-28 pt-8 sm:px-6 lg:py-12 lg:pb-32">
@@ -311,7 +389,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 </div>
                 <div className="shrink-0 sm:text-right">
                   <p className="text-xs">No cartão</p>
-                   <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">{quote.period === "monthly" ? `${currency(quote.cardTotal)} / mês` : `12x de ${currency(quote.cardEstimate.installmentAmount)}`}</p>
+                   <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">{quote.period === "monthly" ? `${currency(quote.cardTotal)} / mês` : `${displayedInstallments}x de ${currency(displayedInstallmentAmount)}`}</p>
                    {quote.period === "annual" && <p className="mt-1 text-xs">ou {currency(quote.pixTotal)} à vista</p>}
                 </div>
               </div>
@@ -348,7 +426,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 <div><h2 className="font-semibold">Escolha como pagar</h2><p className="text-xs text-slate-500">Pagamento seguro e acesso liberado após confirmação.</p></div>
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {availableMethods.includes("card") && <MethodButton active={method === "card"} icon={<CreditCard className="h-5 w-5" />} title="Cartão" description="Parcele em até 12x" onClick={() => chooseMethod("card")} />}
+                {availableMethods.includes("card") && <MethodButton active={method === "card"} icon={<CreditCard className="h-5 w-5" />} title="Cartão" description={quote.period === "monthly" ? "Cobrança mensal em 1x" : `Parcele em até ${maxInstallments}x`} onClick={() => chooseMethod("card")} />}
                 {availableMethods.includes("pix") && <MethodButton active={method === "pix"} icon={<QrCode className="h-5 w-5" />} title="Pix" description={`${currency(quote.pixTotal)} à vista`} onClick={() => chooseMethod("pix")} />}
                 {availableMethods.includes("pagaleve") && <MethodButton active={method === "pagaleve"} icon={<Wallet className="h-5 w-5" />} title="Parcelamento via Pix" description={`${currency(quote.pixInstallmentTotal)} no total, pela Pagaleve`} onClick={() => chooseMethod("pagaleve")} />}
               </div>
@@ -357,9 +435,10 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 {method === "card" && (
                   !mercadoPagoPublicKey ? <p className="text-sm text-amber-200">Pagamento com cartão temporariamente indisponível.</p>
                   : <div ref={cardContainerRef} className="overflow-hidden rounded-xl bg-white p-2 sm:p-3">
-                      {sdkReady ? <CardPayment initialization={cardInitialization} customization={cardCustomization} locale="pt-BR" onSubmit={submitCard} onError={() => setError("Não foi possível carregar o formulário do cartão.")} /> : <div className="flex min-h-28 items-center justify-center text-slate-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Carregando...</div>}
+                      {sdkReady ? <CardPayment initialization={cardInitialization} customization={cardCustomization} locale="pt-BR" onSubmit={submitCard} onError={handleCardError} onBinChange={handleCardBinChange} /> : <div className="flex min-h-28 items-center justify-center text-slate-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Carregando...</div>}
                     </div>
                 )}
+                {method === "card" && loadingCardInstallments && <p className="mt-3 flex items-center gap-2 text-xs text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" />Consultando as condições do cartão...</p>}
 
                 {method === "pix" && (
                   <div className="space-y-4">
@@ -405,7 +484,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
             {quote.plan.description && <p className="mt-3 text-sm leading-6 text-slate-400">{quote.plan.description}</p>}
             <div className="my-5 border-y border-white/[0.08] py-5">
               <p className="text-sm text-slate-400">No cartão</p>
-              <p className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-white">12x de {currency(quote.cardEstimate.installmentAmount)}</p>
+              <p className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-white">{displayedInstallments}x de {currency(displayedInstallmentAmount)}</p>
               <p className="mt-2 text-xs text-slate-500">ou {currency(quote.pixTotal)} à vista no Pix</p>
             </div>
             <ul className="space-y-3">{quote.plan.benefits.map((benefit) => <li key={benefit} className="flex gap-2 text-sm text-slate-300"><Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />{benefit}</li>)}</ul>
@@ -416,7 +495,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
       </div>
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.1] bg-[#090d14]/95 px-4 py-3 shadow-[0_-12px_35px_rgba(0,0,0,.35)] backdrop-blur-xl sm:px-6">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-             <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Total</p><p className="truncate text-lg font-semibold text-white sm:text-xl">{currency(quote.finalTotal)} <span className="text-xs font-normal text-slate-500">{quote.period === "monthly" ? "/ mês" : `ou 12x de ${currency(quote.cardEstimate.installmentAmount)}`}</span></p></div>
+             <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Total</p><p className="truncate text-lg font-semibold text-white sm:text-xl">{currency(displayedTotal)} <span className="text-xs font-normal text-slate-500">{quote.period === "monthly" ? "/ mês" : `ou ${displayedInstallments}x de ${currency(displayedInstallmentAmount)}`}</span></p></div>
           <button type="button" onClick={() => document.getElementById("live-payment")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="h-11 shrink-0 rounded-xl bg-cyan-300 px-5 text-sm font-bold text-slate-950 transition hover:bg-cyan-200 sm:px-8">Continuar compra</button>
         </div>
       </div>

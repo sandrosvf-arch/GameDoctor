@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { grantOrderAccess } from "@/lib/payment/grant-order-access"
+import { createMonthlySubscription } from "@/lib/payment/monthly-subscription"
 import { createPendingPlanCheckout, getAppBaseUrl, normalizeCheckoutPeriod, toPlanCheckoutPeriod } from "@/lib/checkout"
 import {
   createMercadoPagoOrder,
@@ -83,6 +84,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "O valor final do pedido precisa ser maior que zero." }, { status: 400 })
     }
 
+    if (installments > checkout.quote.installments.max) {
+      return NextResponse.json({ error: `Este plano aceita no máximo ${checkout.quote.installments.max}x no cartão.` }, { status: 400 })
+    }
+
     const existingOrder = await db.order.findUnique({
       where: { id: checkout.orderId },
       select: {
@@ -98,6 +103,28 @@ export async function POST(request: Request) {
         paymentId: checkout.paymentId,
         status: existingOrder.paymentStatus,
         subscriptionCreated: Boolean(existingOrder.subscription),
+      })
+    }
+
+    if (period === "monthly") {
+      if (!checkout.paymentId) {
+        return NextResponse.json({ error: "Não foi possível preparar o pagamento mensal." }, { status: 400 })
+      }
+
+      await createMonthlySubscription({
+        orderId: checkout.orderId,
+        paymentId: checkout.paymentId,
+        quote: checkout.quote,
+        payerEmail: user.email,
+        cardToken,
+        idempotencyKey,
+      })
+
+      return NextResponse.json({
+        orderId: checkout.orderId,
+        paymentId: checkout.paymentId,
+        status: "PENDING",
+        subscriptionCreated: true,
       })
     }
 
@@ -163,7 +190,7 @@ export async function POST(request: Request) {
     let subscriptionCreated = false
     let subscriptionWarning: string | null = null
 
-    if (autoRenew && (period === "annual" || period === "monthly") && internalStatus !== "REFUSED" && internalStatus !== "CANCELLED") {
+    if (autoRenew && internalStatus !== "REFUSED" && internalStatus !== "CANCELLED") {
       try {
         const startDate = new Date(Date.now() + checkout.quote.accessDurationDays * 24 * 60 * 60 * 1000)
         const subscription = await createMercadoPagoSubscription({
@@ -171,7 +198,7 @@ export async function POST(request: Request) {
           payerEmail: getMercadoPagoPayerEmail(user.email),
           reason: checkout.quote.plan.name + " - renovação " + checkout.quote.periodLabel.toLowerCase(),
           amount: checkout.quote.subtotal,
-          frequency: period === "monthly" ? 1 : 12,
+          frequency: 12,
           cardToken,
           startDate,
           backUrl: getAppBaseUrl() + "/minha-conta",
