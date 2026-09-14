@@ -245,7 +245,7 @@ export default function BunnyAulaClient({
       completed: true,
     })
 
-    if (isGuest && isRegistrationGateExempt) {
+    if (isRegistrationGateExempt) {
       setPaywallVisible(true)
       return
     }
@@ -258,7 +258,7 @@ export default function BunnyAulaClient({
       : `/aula/${nextLesson.id}`
 
     window.location.assign(href)
-  }, [autoAdvance, durationSeconds, flushProgress, isAccessible, isGuest, isRegistrationGateExempt, nextLesson])
+  }, [autoAdvance, durationSeconds, flushProgress, isAccessible, isRegistrationGateExempt, nextLesson])
 
   const loadComments = useCallback(async () => {
     if (!lessonId) return
@@ -493,7 +493,7 @@ export default function BunnyAulaClient({
                   isFree
                   callbackUrl={`/aula/bunny/${videoId}`}
                 />
-              ) : isGuest && isRegistrationGateExempt && paywallVisible ? (
+              ) : isRegistrationGateExempt && paywallVisible ? (
                 <PurchaseOfferOverlay lessonCount={lessonCount} />
               ) : !started ? (
                 <div className="absolute inset-0">
@@ -526,7 +526,7 @@ export default function BunnyAulaClient({
               ) : null}
             </div>
 
-            {((isGuest && isFree) || (!isAccessible && canPreview)) && (
+            {(isFree || (!isAccessible && canPreview)) && (
               <div className="flex justify-center">
                 <LessonSubscriptionCta />
               </div>
