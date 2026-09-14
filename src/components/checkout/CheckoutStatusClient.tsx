@@ -15,6 +15,7 @@ import {
   Sparkles,
   XCircle,
 } from "lucide-react"
+import { trackPurchase } from "@/lib/analytics/data-layer"
 
 type CheckoutStatusResponse = {
   canView: boolean
@@ -148,6 +149,20 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
 
     return () => window.clearInterval(interval)
   }, [data?.order])
+
+  useEffect(() => {
+    const order = data?.order
+    if (!order || order.paymentStatus !== "APPROVED") return
+
+    trackPurchase({
+      transactionId: order.id,
+      value: order.payment?.amount ?? order.finalTotal,
+      itemId: order.item?.slug,
+      itemName: order.item?.name ?? "Plano GameDoctor",
+      paymentMethod: order.payment?.method ?? order.paymentMethod,
+      installments: order.payment?.installments,
+    })
+  }, [data])
 
   const statusMeta = useMemo(() => {
     const status = data?.order?.paymentStatus

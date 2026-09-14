@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { CheckCircle2, Clock3, Copy, Loader2, Mail, RefreshCcw, ShieldAlert, XCircle } from "lucide-react"
+import { trackPurchase } from "@/lib/analytics/data-layer"
 
 type StatusData = {
   order: {
@@ -67,6 +68,19 @@ export function LiveCheckoutStatusClient({ orderId }: { orderId: string }) {
     const interval = window.setInterval(() => void load(true), 5000)
     return () => window.clearInterval(interval)
   }, [data?.order.status, orderId])
+
+  useEffect(() => {
+    const order = data?.order
+    if (!order || order.status !== "APPROVED") return
+
+    trackPurchase({
+      transactionId: order.id,
+      value: order.total,
+      itemName: order.planName,
+      paymentMethod: order.paymentMethod,
+      installments: order.installments,
+    })
+  }, [data])
 
   async function resend() {
     setResending(true)
