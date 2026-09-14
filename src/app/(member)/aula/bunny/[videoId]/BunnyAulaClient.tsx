@@ -85,6 +85,39 @@ function formatSecs(seconds: number | null | undefined): string | null {
   return remaining > 0 ? `${minutes}min ${remaining}s` : `${minutes}min`
 }
 
+function PurchaseOfferOverlay({ lessonCount }: { lessonCount: number }) {
+  return (
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 px-6 text-center animate-in fade-in duration-300 backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-2xl border-2 border-amber-400/50 bg-zinc-950/85 p-5 shadow-[0_0_40px_rgba(245,158,11,0.25)]">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-400">
+          Oferta especial
+        </p>
+        <p className="mt-2 text-lg font-bold leading-snug text-white">
+          Entre para a melhor plataforma de manutenção de videogames do Brasil
+        </p>
+        <p className="mt-1 text-xs text-zinc-400">
+          IA especializada · {lessonCount} aulas · softwares · comunidade
+        </p>
+        <div className="mt-3 flex justify-center">
+          <OfferCountdown />
+        </div>
+        <div className="mt-3">
+          <Link
+            href={GAME_DOCTOR_CHECKOUT_URL}
+            className="cta-shine relative inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 px-4 py-3 text-sm font-black uppercase tracking-wide text-zinc-950 shadow-[0_8px_24px_rgba(245,158,11,0.35)]"
+          >
+            <span className="relative z-10">Garantir oferta especial</span>
+            <span
+              aria-hidden
+              className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]"
+            />
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface BunnyAulaClientProps {
   videoId: string
   lessonId: string | null
@@ -212,6 +245,11 @@ export default function BunnyAulaClient({
       completed: true,
     })
 
+    if (isGuest && isRegistrationGateExempt) {
+      setPaywallVisible(true)
+      return
+    }
+
     if (!autoAdvance || !nextLesson || advancingRef.current) return
     advancingRef.current = true
 
@@ -220,7 +258,7 @@ export default function BunnyAulaClient({
       : `/aula/${nextLesson.id}`
 
     window.location.assign(href)
-  }, [autoAdvance, durationSeconds, flushProgress, isAccessible, nextLesson])
+  }, [autoAdvance, durationSeconds, flushProgress, isAccessible, isGuest, isRegistrationGateExempt, nextLesson])
 
   const loadComments = useCallback(async () => {
     if (!lessonId) return
@@ -445,34 +483,7 @@ export default function BunnyAulaClient({
                   )}
 
                   {paywallVisible && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 px-6 text-center animate-in fade-in duration-300 backdrop-blur-[2px]">
-                      <div className="w-full max-w-md rounded-2xl border-2 border-amber-400/50 bg-zinc-950/85 p-5 shadow-[0_0_40px_rgba(245,158,11,0.25)]">
-                        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-400">
-                          Oferta especial
-                        </p>
-                        <p className="mt-2 text-lg font-bold leading-snug text-white">
-                          Entre para a melhor plataforma de manutenção de videogames do Brasil
-                        </p>
-                        <p className="mt-1 text-xs text-zinc-400">
-                          IA especializada · {lessonCount} aulas · softwares · comunidade
-                        </p>
-                        <div className="mt-3 flex justify-center">
-                          <OfferCountdown />
-                        </div>
-                        <div className="mt-3">
-                          <Link
-                            href={GAME_DOCTOR_CHECKOUT_URL}
-                            className="cta-shine relative inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 px-4 py-3 text-sm font-black uppercase tracking-wide text-zinc-950 shadow-[0_8px_24px_rgba(245,158,11,0.35)]"
-                          >
-                            <span className="relative z-10">Garantir oferta especial</span>
-                            <span
-                              aria-hidden
-                              className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]"
-                            />
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
+                    <PurchaseOfferOverlay lessonCount={lessonCount} />
                   )}
                 </div>
               ) : isGuest && isFree && !isRegistrationGateExempt ? (
@@ -482,6 +493,8 @@ export default function BunnyAulaClient({
                   isFree
                   callbackUrl={`/aula/bunny/${videoId}`}
                 />
+              ) : isGuest && isRegistrationGateExempt && paywallVisible ? (
+                <PurchaseOfferOverlay lessonCount={lessonCount} />
               ) : !started ? (
                 <div className="absolute inset-0">
                   {previewImage && (

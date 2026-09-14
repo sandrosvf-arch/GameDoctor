@@ -35,7 +35,7 @@ export function LoginToWatchOverlay({ thumbnail, title, isFree, callbackUrl }: L
             )}
           </p>
           <p className="text-xs leading-relaxed text-zinc-300">
-            Cadastro rápido e grátis. Sem compromisso.
+            Cadastro rápido, grátis e <span className="font-bold italic text-white">SEM COMPROMISSO</span>
           </p>
           <Link
             href={`/cadastro?callbackUrl=${encodeURIComponent(callbackUrl)}`}
