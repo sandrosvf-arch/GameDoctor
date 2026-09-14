@@ -37,6 +37,11 @@ import { LessonSubscriptionCta } from "@/components/lessons/LessonSubscriptionCt
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
 
+const REGISTRATION_GATE_EXEMPT_VIDEO_IDS = new Set([
+  "c145f9b5-8176-414b-89c1-92666d551ce5",
+  "aa5c32b6-121f-4772-bda0-fcea6e1a1249",
+])
+
 export interface LessonMaterial {
   id: string
   title: string
@@ -136,6 +141,7 @@ export default function BunnyAulaClient({
   const router = useRouter()
   const { data: session, status: sessionStatus } = useSession()
   const isGuest = sessionStatus === "unauthenticated"
+  const isRegistrationGateExempt = REGISTRATION_GATE_EXEMPT_VIDEO_IDS.has(videoId)
   const [mounted, setMounted] = useState(false)
   const [paywallVisible, setPaywallVisible] = useState(false)
   const [started, setStarted] = useState(false)
@@ -469,7 +475,7 @@ export default function BunnyAulaClient({
                     </div>
                   )}
                 </div>
-              ) : isGuest && isFree ? (
+              ) : isGuest && isFree && !isRegistrationGateExempt ? (
                 <LoginToWatchOverlay
                   thumbnail={previewImage}
                   title={title}
