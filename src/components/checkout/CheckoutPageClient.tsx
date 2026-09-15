@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react"
-import { OfferUrgency } from "@/components/checkout/OfferUrgency"
 
 const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() ?? ""
 
@@ -119,7 +118,7 @@ export function CheckoutPageClient({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>("card")
   const [submittingPayment, setSubmittingPayment] = useState(false)
   const [redirectingPayment, setRedirectingPayment] = useState(false)
-  const [autoRenew, setAutoRenew] = useState(initialQuote.period === "annual" || initialQuote.period === "monthly")
+  const [autoRenew, setAutoRenew] = useState(initialQuote.period === "annual")
   const [error, setError] = useState<string | null>(null)
   const [cardSdkReady, setCardSdkReady] = useState(false)
   const [cardInstallments, setCardInstallments] = useState<CardInstallmentOption[]>([])
@@ -141,7 +140,7 @@ export function CheckoutPageClient({
     setCardSdkReady(true)
   }, [])
 
-  const maxInstallments = quote.period === "monthly" ? 1 : Math.min(12, Math.max(1, quote.installments.max))
+  const maxInstallments = Math.min(12, Math.max(1, quote.installments.max))
 
   function choosePaymentMethod(method: PaymentMethod) {
     setSelectedPaymentMethod(method)
@@ -178,7 +177,7 @@ export function CheckoutPageClient({
             paymentMethodId: formData.payment_method_id,
             issuerId: formData.issuer_id,
             installments: formData.installments,
-            autoRenew,
+            autoRenew: quote.period === "annual" && autoRenew,
             idempotencyKey: idempotencyKeyRef.current,
           }),
         })
@@ -418,7 +417,7 @@ export function CheckoutPageClient({
     const normalizedBin = bin.replace(/\D/g, "").slice(0, 8)
     const requestId = ++installmentRequestRef.current
 
-    if (normalizedBin.length < 8) {
+    if (normalizedBin.length < 6) {
       setCardInstallments([])
       setSelectedCardInstallments(null)
       setLoadingCardInstallments(false)
@@ -461,6 +460,22 @@ export function CheckoutPageClient({
     if (!container || selectedPaymentMethod !== "card") return
     const activeContainer = container
 
+    function cleanInstallmentLabels() {
+      activeContainer.querySelectorAll("option").forEach((option) => {
+        const current = option.textContent ?? ""
+        const installmentMatch = current.match(/^(\d+)\s*x\b/i)
+        const installment = installmentMatch ? Number(installmentMatch[1]) : null
+        const installmentOption = installment === null
+          ? null
+          : cardInstallments.find((item) => item.installments === installment)
+        const replacement = installmentOption
+          ? ` (${formatCurrency(installmentOption.totalAmount)})`
+          : ""
+        const cleaned = current.replace(/\s*\(Sem acréscimo\)/gi, replacement).trim()
+        if (cleaned !== current) option.textContent = cleaned
+      })
+    }
+
     function handleInstallmentChange(event: Event) {
       if (!(event.target instanceof HTMLSelectElement)) return
 
@@ -474,8 +489,12 @@ export function CheckoutPageClient({
       }
     }
 
+    cleanInstallmentLabels()
+    const observer = new MutationObserver(cleanInstallmentLabels)
+    observer.observe(container, { childList: true, subtree: true })
     activeContainer.addEventListener("change", handleInstallmentChange, true)
     return () => {
+      observer.disconnect()
       activeContainer.removeEventListener("change", handleInstallmentChange, true)
     }
   }, [cardInstallments, selectedPaymentMethod])
@@ -493,7 +512,7 @@ export function CheckoutPageClient({
   const hasProfileCpf = profile.cpf?.replace(/\D/g, "").length === 11
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-0 py-5 sm:px-6 lg:py-8 px-0">
+    <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
       <div className="mx-auto max-w-3xl space-y-4">
         <section className="min-w-0 space-y-4">
           {quote.currentPlan?.active && (
@@ -517,13 +536,11 @@ export function CheckoutPageClient({
               <div className="sm:text-right">
                 <p className="text-xs text-slate-400">No cartão</p>
                 <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-white">
-                  {quote.period === "monthly"
-                    ? `${formatCurrency(quote.cardTotal)} / mês`
-                    : selectedCardInstallment
-                      ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
-                      : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}
+                  {selectedCardInstallment
+                    ? `${selectedCardInstallment.installments}x de ${formatCurrency(selectedCardInstallment.installmentAmount)}`
+                    : `${maxInstallments}x de ${formatCurrency(quote.cardEstimate.installmentAmount)}`}
                 </p>
-                {quote.period === "annual" && <p className="mt-1 text-xs text-slate-400">ou {formatCurrency(quote.pixTotal)} à vista</p>}
+                <p className="mt-1 text-xs text-slate-400">ou {formatCurrency(quote.pixTotal)} à vista</p>
               </div>
             </div>
 
@@ -538,8 +555,6 @@ export function CheckoutPageClient({
               </div>
             )}
           </div>
-
-          <OfferUrgency />
 
           <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0d1118] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
             <div className="border-b border-white/[0.07] px-5 py-4">
@@ -577,12 +592,12 @@ export function CheckoutPageClient({
                         )}
                       </div>
                     )}
-                    {loadingCardInstallments && quote.period !== "monthly" ? (
+                    {loadingCardInstallments ? (
                       <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         Consultando as condições do cartão...
                       </div>
-                    ) : cardInstallments.length > 0 && quote.period !== "monthly" ? (
+                    ) : cardInstallments.length > 0 ? (
                       <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
                         <p className="text-xs font-semibold text-slate-300">Parcelamento calculado para este cartão</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -606,7 +621,7 @@ export function CheckoutPageClient({
                 )}
               </div>
 
-              {quote.period === "annual" && <div>
+              <div>
                 <button
                   type="button"
                   onClick={() => choosePaymentMethod("pix")}
@@ -714,7 +729,7 @@ export function CheckoutPageClient({
                     )}
                   </div>
                 )}
-              </div>}
+              </div>
 
               {pagaleveEnabled && quote.period === "annual" && (
                 <div>
