@@ -47,6 +47,7 @@ body{background:var(--bg);color:var(--tx);font:13px 'Segoe UI',sans-serif;displa
       <button class="btn" onclick="CP.zoom(-1)">−</button>
       <span id="zoomlbl">100%</span>
       <button class="btn" onclick="CP.zoom(1)">+</button>
+      <button class="btn" onclick="CP._zoomManual=false;CP.ajustar()" title="Página inteira na tela">⤢ Ajustar</button>
       · pág <input id="pgnum" value="1"> / <span id="pgtot">?</span>
       <button class="btn" onclick="CP.pagina(CP.pg-1)">‹</button>
       <button class="btn" onclick="CP.pagina(CP.pg+1)">›</button>
@@ -104,7 +105,7 @@ function abrirPdf(u8) {
     $('pgtot').textContent = pdf.numPages;
     $('load').style.display = 'none';
     $('pagewrap').style.display = 'inline-block';
-    CP.pagina(1);
+    CP.ajustar(1);          /* abre com a pagina inteira visivel */
     CP.indexar();
     if (CP.cross) statusMsg('🔗 Cross-probe <b>ATIVO</b> — clique num nome no esquema para selecionar no Boardview');
   }, function (e) { $('load').textContent = 'Falha ao abrir PDF: ' + e.message; });
@@ -174,10 +175,24 @@ CP.pagina = function (n, cb) {
   });
 };
 CP.zoom = function (d) {
-  CP.escala = Math.max(0.4, Math.min(4, CP.escala + d * 0.2));
+  CP._zoomManual = true;
+  CP.escala = Math.max(0.1, Math.min(4, CP.escala + d * 0.2));
   $('zoomlbl').textContent = Math.round(CP.escala * 100) + '%';
   CP.pagina(CP.pg);
 };
+/* escala que faz a pagina inteira caber na area de leitura (mapas/fotos de placa sao enormes) */
+CP.ajustar = function (n) {
+  if (!CP.pdf) return;
+  CP.pdf.getPage(n || CP.pg).then(function (page) {
+    var vp = page.getViewport({ scale: 1.5 });
+    var v = $('viewer'), w = v.clientWidth - 24, h = v.clientHeight - 24;
+    var esc = Math.min(w / vp.width, h / vp.height);
+    CP.escala = Math.max(0.1, Math.min(4, Math.floor(esc * 100) / 100));
+    $('zoomlbl').textContent = Math.round(CP.escala * 100) + '%';
+    CP.pagina(n || CP.pg);
+  });
+};
+window.addEventListener('resize', function () { if (CP.pdf && !CP._zoomManual) CP.ajustar(); });
 $('pgnum').addEventListener('keydown', function (e) { if (e.key === 'Enter') CP.pagina(parseInt(this.value, 10) || 1); });
 function regexTermo(t, ww) {
   var esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

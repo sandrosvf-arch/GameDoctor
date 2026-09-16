@@ -15,7 +15,8 @@ entram no cofre: sao baixados sob demanda para a pasta do aluno.
 """
 import os, io, json, hashlib, threading, time, zipfile, traceback, urllib.parse
 from gd_auth import _req, SESSAO
-from gd_config import GAME_DOCTOR_API_URL, CATEGORIAS_COFRE, CATEGORIA_SOFTWARE, PASTA_SOFTWARES
+from gd_config import (GAME_DOCTOR_API_URL, CATEGORIAS_COFRE, CATEGORIA_SOFTWARE, PASTA_SOFTWARES,
+                       EXT_PACOTE, categoria_por_extensao)
 import gd_marca
 
 
@@ -45,21 +46,32 @@ class Sync:
         if st != 200 or not isinstance(rows, list):
             msg = rows.get("message") if isinstance(rows, dict) else None
             raise RuntimeError(f"catálogo indisponível (HTTP {st}) {msg or ''}")
-        self.catalogo = rows
-        return rows
+        self.catalogo = [_normalizar(r) for r in rows]
+        return self.catalogo
 
     def pendentes(self):
         """Itens do cofre que faltam/estao desatualizados + ids a remover."""
         faltam, ids_remotos = [], set()
         for m in self.catalogo:
             ids_remotos.add(str(m["id"]))
-            if m.get("categoria") not in CATEGORIAS_COFRE:
+            if m.get("categoria") not in CATEGORIAS_COFRE or m.get("parte_extra"):
                 continue
-            if not self.cofre.tem(m["id"], m.get("sha256"), m.get("versao")):
+            if not self.cofre.tem(m["id"], m.get("sha256"), m.get("versao")) or not self._marcado(m):
                 faltam.append(m)
         remover = [mid for mid in list(self.cofre.manifesto["itens"].keys())
                    if mid not in ids_remotos]
         return faltam, remover
+
+    def _marcado(self, m):
+        """Documento/imagem guardado SEM marca d'água (versão antiga do app) conta
+        como não baixado: força baixar de novo e carimbar."""
+        if m.get("categoria") not in ("documento", "imagem"):
+            return True
+        it = self.cofre.item(m["id"]) or {}
+        return bool(it.get("marcado"))
+
+    def tem_pronto(self, m):
+        return self.cofre.tem(m["id"], m.get("sha256"), m.get("versao")) and self._marcado(m)
 
     def _catalogo_local(self):
         """[DEV] monta o catalogo a partir de uma pasta local (mesmas regras
@@ -121,23 +133,56 @@ class Sync:
                     progresso(lido, tot)
             return buf.getvalue()
 
+    def _partes_de(self, m):
+        """Lista ordenada das partes de um material dividido (a propria parte 1 inclusa)."""
+        if m.get("partes", 1) <= 1:
+            return [m]
+        chave = (m.get("grupo"), m.get("marca"), m.get("console"), m.get("pasta") or "")
+        ps = [o for o in self.catalogo
+              if (o.get("grupo"), o.get("marca"), o.get("console"), o.get("pasta") or "") == chave]
+        ps.sort(key=lambda o: o.get("parte", 1))
+        if len(ps) != m["partes"] or [o.get("parte") for o in ps] != list(range(1, m["partes"] + 1)):
+            raise RuntimeError(f"material incompleto no servidor ({len(ps)} de {m['partes']} partes)")
+        return ps
+
+    def _baixar_material(self, m, progresso=None):
+        """Baixa o material inteiro; se estiver em partes, baixa todas e junta."""
+        partes = self._partes_de(m)
+        if len(partes) == 1:
+            return self._baixar_bytes(m["storage_path"], progresso)
+        total = int(m.get("tamanho") or 0)      # tamanho_total ja veio em "tamanho" (_normalizar)
+        buf, feito = io.BytesIO(), [0]
+        for p in partes:
+            base = feito[0]
+            def prog(lido, tot, base=base):
+                if progresso and total:
+                    progresso(min(base + lido, total), total)
+            dados = self._baixar_bytes(p["storage_path"], prog)
+            buf.write(dados)
+            feito[0] += len(dados)
+        return buf.getvalue()
+
     def _ingerir(self, m):
         """Baixa, confere hash, aplica marca e guarda no cofre."""
         def prog(lido, tot):
             with self._lock:
                 self.estado["pct_item"] = int(lido * 100 / tot)
-        dados = self._baixar_bytes(m["storage_path"], prog)
+        dados = self._baixar_material(m, prog)
         if m.get("sha256") and len(m["sha256"]) == 64:
             h = hashlib.sha256(dados).hexdigest()
             if h.lower() != m["sha256"].lower():
                 raise RuntimeError("hash divergente (download corrompido)")
-        if m.get("aplicar_marca", True) and m.get("categoria") in ("documento", "imagem"):
+        # Marca d'água SEMPRE em documento/imagem (decisão do produto; o servidor não manda nisso).
+        marcado = False
+        if m.get("categoria") in ("documento", "imagem"):
             with self._lock:
                 self.estado["fase"] = "Aplicando marca d'água"
             dados = gd_marca.aplicar(dados, m["categoria"], m.get("arquivo") or m["nome"], SESSAO)
+            marcado = True
         meta = {k: m.get(k) for k in ("slug", "nome", "arquivo", "categoria", "marca",
-                                      "console", "sha256", "versao", "tamanho", "descricao")}
+                                      "console", "pasta", "sha256", "versao", "tamanho", "descricao")}
         meta["visto"] = False
+        meta["marcado"] = marcado
         self.cofre.guardar(m["id"], dados, meta)
 
     # ── ciclo completo (thread) ──────────────────────────────────
@@ -214,9 +259,10 @@ class Sync:
 
     # ── softwares: download direto pra pasta do aluno ────────────
     def baixar_software(self, m, destino=None):
-        destino = destino or os.path.join(PASTA_SOFTWARES,
-                                          _limpo(m.get("marca") or ""),
-                                          _limpo(m.get("console") or ""))
+        # Árvore igual à da biblioteca: Documentos\Game Doctor\marca\console\subpasta...
+        destino = destino or os.path.join(PASTA_SOFTWARES, _limpo(m.get("marca") or ""),
+                                          _limpo(m.get("console") or ""),
+                                          *[_limpo(x) for x in (m.get("pasta") or "").split("/") if x.strip()])
         os.makedirs(destino, exist_ok=True)
         self._cancel_event.clear()
         self._download_id = str(m.get("id"))
@@ -227,11 +273,11 @@ class Sync:
             def prog(lido, tot):
                 with self._lock:
                     self.estado["pct_item"] = int(lido * 100 / tot)
-            dados = self._baixar_bytes(m["storage_path"], prog)
+            dados = self._baixar_material(m, prog)
             if m.get("sha256") and len(m["sha256"]) == 64 and hashlib.sha256(dados).hexdigest().lower() != m["sha256"].lower():
                 raise RuntimeError("hash divergente (download corrompido)")
             arq = m.get("arquivo") or os.path.basename(m["storage_path"])
-            if arq.lower().endswith(".zip") and m.get("extrair", True):
+            if arq.lower().endswith(".zip") and m.get("extrair", False):
                 pasta = os.path.join(destino, _limpo(os.path.splitext(arq)[0]))
                 os.makedirs(pasta, exist_ok=True)
                 with zipfile.ZipFile(io.BytesIO(dados)) as z:
@@ -265,4 +311,29 @@ class Sync:
 
 
 def _limpo(s):
-    return "".join(c for c in s if c not in '\\/:*?"<>|').strip() or "geral"
+    return "".join(c for c in str(s) if c not in '\\/:*?"<>|').strip().lstrip("#").strip() or "geral"
+
+
+def _normalizar(r):
+    """Aplica as regras do cliente por cima do que a API manda."""
+    r = dict(r)
+    arq = r.get("arquivo") or os.path.basename(r.get("storage_path") or "") or r.get("nome") or ""
+    r["arquivo"] = arq
+    r["categoria"] = categoria_por_extensao(arq)
+    meta_ext = r.get("extrair")
+    if meta_ext is None:
+        meta_ext = arq.lower().endswith(".zip")
+    r["extrair"] = bool(meta_ext)
+    r["pasta"] = "/".join(x.strip() for x in str(r.get("pasta") or "").split("/") if x.strip())
+    # arquivo grande dividido em partes no servidor: a parte 1 representa o material,
+    # as demais ficam invisiveis e sao juntadas no download
+    try:
+        r["partes"] = max(1, int(r.get("partes") or 1))
+        r["parte"] = max(1, int(r.get("parte") or 1))
+    except (TypeError, ValueError):
+        r["partes"], r["parte"] = 1, 1
+    r["grupo"] = str(r.get("grupo") or "")
+    if r["partes"] > 1 and r.get("tamanho_total"):
+        r["tamanho"] = int(r["tamanho_total"])
+    r["parte_extra"] = r["partes"] > 1 and r["parte"] > 1
+    return r

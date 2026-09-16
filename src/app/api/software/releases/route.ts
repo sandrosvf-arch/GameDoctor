@@ -23,10 +23,12 @@ export async function POST(request: Request) {
     const creatorId = process.env.SOFTWARE_RELEASE_CREATED_BY_ID?.trim()
       || (await db.user.findFirst({ where: { role: "ADMIN" }, select: { id: true } }))?.id
     if (!creatorId) return NextResponse.json({ error: "Nenhum administrador disponível para registrar a versão." }, { status: 500 })
+    // instalador (.exe, Inno Setup) ou pacote .zip
+    const mimeType = fileName.toLowerCase().endsWith(".exe") ? "application/vnd.microsoft.portable-executable" : "application/zip"
     const material = await db.downloadMaterial.upsert({
       where: { sourceKey: SOURCE_KEY },
-      create: { title: `GameDoctor para Windows v${version}`, description: "Aplicativo oficial para acessar os materiais, diagramas, boardviews e softwares das aulas.", category: "Software", fileName, storagePath, mimeType: "application/zip", sizeBytes, type: "ARCHIVE", order: 0, status: "ACTIVE", sourceKey: SOURCE_KEY, metadata: { version, releaseNotes: String(body?.releaseNotes ?? "").trim() || null }, createdById: creatorId },
-      update: { title: `GameDoctor para Windows v${version}`, fileName, storagePath, sizeBytes, status: "ACTIVE", metadata: { version, releaseNotes: String(body?.releaseNotes ?? "").trim() || null } },
+      create: { title: `GameDoctor para Windows v${version}`, description: "Aplicativo oficial para acessar os materiais, diagramas, boardviews e softwares das aulas.", category: "Software", fileName, storagePath, mimeType, sizeBytes, type: "ARCHIVE", order: 0, status: "ACTIVE", sourceKey: SOURCE_KEY, metadata: { version, releaseNotes: String(body?.releaseNotes ?? "").trim() || null }, createdById: creatorId },
+      update: { title: `GameDoctor para Windows v${version}`, fileName, storagePath, mimeType, sizeBytes, status: "ACTIVE", metadata: { version, releaseNotes: String(body?.releaseNotes ?? "").trim() || null } },
       select: { id: true, title: true, fileName: true, sizeBytes: true },
     })
     return NextResponse.json({ release: material })

@@ -3,11 +3,21 @@ import { db } from "@/lib/db"
 import { getSoftwareBearer } from "@/lib/software-auth"
 import { getSoftwareDownloadAvailability } from "@/lib/access"
 
-function mapCategory(type: string) {
-  if (type === "PDF") return "documento"
-  if (type === "IMAGE") return "imagem"
-  if (type === "ARCHIVE") return "software"
-  return "documento"
+// Categoria pela EXTENSÃO do arquivo (o tipo do banco só conhece PDF/IMAGE/ARCHIVE).
+// documento/imagem/boardview abrem dentro do app; o resto vai para o disco do aluno.
+const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "webp", "bmp", "gif"])
+const BOARDVIEW_EXT = new Set(["pcb", "bvr", "cad", "brd", "bdv", "xzz", "fz", "tvw"])
+function mapCategory(type: string, fileName: string) {
+  const ext = (fileName.split(".").pop() || "").toLowerCase()
+  if (ext === "pdf" || type === "PDF") return "documento"
+  if (IMAGE_EXT.has(ext) || type === "IMAGE") return "imagem"
+  if (BOARDVIEW_EXT.has(ext)) return "boardview"
+  return "software"
+}
+function partMeta(metadata: unknown, key: string): number {
+  if (typeof metadata !== "object" || !metadata || !(key in metadata)) return 0
+  const n = Number((metadata as Record<string, unknown>)[key])
+  return Number.isFinite(n) ? n : 0
 }
 
 export async function GET(request: Request) {
@@ -51,7 +61,7 @@ export async function GET(request: Request) {
       id: material.id,
       nome: material.title,
       arquivo: material.fileName,
-      categoria: mapCategory(material.type),
+      categoria: mapCategory(material.type, material.fileName),
       marca: typeof material.metadata === "object" && material.metadata && "marca" in material.metadata ? String(material.metadata.marca) : "GameDoctor",
       console: typeof material.metadata === "object" && material.metadata && "console" in material.metadata ? String(material.metadata.console) : "Geral",
       pasta: typeof material.metadata === "object" && material.metadata && "pasta" in material.metadata ? String(material.metadata.pasta) : "",
@@ -59,10 +69,15 @@ export async function GET(request: Request) {
       tamanho: material.sizeBytes,
       versao: material.updatedAt.getTime(),
       sha256: "",
-      aplicar_marca: false,
+      aplicar_marca: true,
       extrair: typeof material.metadata === "object" && material.metadata && "extrair" in material.metadata
         ? Boolean(material.metadata.extrair)
         : material.fileName.toLowerCase().endsWith(".zip"),
+      // arquivos grandes sobem em partes (limite do storage); o app junta as partes ao baixar
+      partes: partMeta(material.metadata, "partes"),
+      parte: partMeta(material.metadata, "parte"),
+      grupo: typeof material.metadata === "object" && material.metadata && "grupo" in material.metadata ? String(material.metadata.grupo) : "",
+      tamanho_total: partMeta(material.metadata, "tamanho_total"),
       criado_em: material.createdAt.toISOString(),
       atualizado_em: material.updatedAt.toISOString(),
       storage_path: material.storagePath,
