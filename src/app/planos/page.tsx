@@ -85,7 +85,7 @@ export default async function PlanosPage() {
                 : "Para quem quer testar sem compromisso"
               const fallbackDescription = plan.highlighted
                 ? "Pague uma vez e tenha acesso a tudo pelo ano inteiro."
-                : "Cancele quando quiser, sem taxas escondidas."
+                : ""
               const description = plan.description && plan.description.trim().toLocaleLowerCase("pt-BR") !== plan.name.trim().toLocaleLowerCase("pt-BR")
                 ? plan.description
                 : fallbackDescription

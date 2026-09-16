@@ -3,7 +3,7 @@ import { unstable_cache } from "next/cache"
 import BunnyAulaClient, { type CourseLessonInfo, type LessonMaterial } from "./BunnyAulaClient"
 import { auth } from "@/lib/auth"
 import { bunnySignedEmbedUrl } from "@/lib/bunny"
-import { hasAccessToLesson } from "@/lib/access"
+import { hasAccessToLesson, hasActivePlanAccess } from "@/lib/access"
 import { db } from "@/lib/db"
 
 const getCachedLessonCount = unstable_cache(
@@ -122,6 +122,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
   ])
 
   const isAccessible = lesson.isFree || Boolean(lessonAccess?.hasAccess && !lessonAccess.isPreview)
+  const hasActiveSubscription = isStaff || (userId ? await hasActivePlanAccess(userId) : false)
   const isReleaseLocked = lessonAccess?.isReleaseLocked ?? false
   const hasRestrictedContentAccess = isAccessible
   // previewEnabled is now admin-editable per lesson (see /admin/aulas) and defaults to true for existing paid lessons
@@ -155,6 +156,7 @@ export default async function BunnyAulaPage({ params, searchParams }: Props) {
       previewImage={previewImage}
       embedUrl={embedUrl}
       isAccessible={isAccessible}
+      hasActiveSubscription={hasActiveSubscription}
       isReleaseLocked={isReleaseLocked}
       releaseAt={lessonAccess?.releaseAt ?? null}
       canViewRestrictedContent={hasRestrictedContentAccess}

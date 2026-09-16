@@ -128,6 +128,7 @@ interface BunnyAulaClientProps {
   previewImage: string | null
   embedUrl: string
   isAccessible: boolean
+  hasActiveSubscription: boolean
   isReleaseLocked: boolean
   releaseAt: string | null
   canViewRestrictedContent: boolean
@@ -155,6 +156,7 @@ export default function BunnyAulaClient({
   previewImage,
   embedUrl,
   isAccessible,
+  hasActiveSubscription,
   isReleaseLocked,
   releaseAt,
   canViewRestrictedContent,
@@ -526,7 +528,9 @@ export default function BunnyAulaClient({
               ) : null}
             </div>
 
-            {(isFree || (!isAccessible && canPreview)) && (
+            {(sessionStatus !== "loading"
+              && (isGuest || !hasActiveSubscription)
+              && (isFree || (!isAccessible && canPreview))) && (
               <div className="flex justify-center">
                 <LessonSubscriptionCta />
               </div>

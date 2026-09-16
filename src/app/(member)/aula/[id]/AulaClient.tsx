@@ -68,6 +68,7 @@ interface LessonData {
   videoPlaybackUrl: string | null
   videoThumbnailUrl: string | null
   isFree: boolean
+  hasActiveSubscription: boolean
   isAccessible: boolean
   releaseAfterDays: number
   isReleaseLocked: boolean
@@ -412,7 +413,8 @@ export default function AulaClient({ lessonId }: { lessonId: string }) {
               {paywallVisible && <PaywallOverlay lessonCount={data.lessonCount} />}
             </div>
 
-            {((isGuest && lesson.isFree) || (!lesson.isAccessible && lesson.previewAvailable)) && (
+            {((isGuest || (sessionStatus === "authenticated" && !lesson.hasActiveSubscription))
+              && (lesson.isFree || (!lesson.isAccessible && lesson.previewAvailable))) && (
               <div className="flex justify-center">
                 <LessonSubscriptionCta />
               </div>

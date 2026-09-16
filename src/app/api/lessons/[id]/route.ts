@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { hasAccessToLesson } from "@/lib/access"
+import { hasAccessToLesson, hasActivePlanAccess } from "@/lib/access"
 import { bunnySignedPlaylistUrl, bunnySignedEmbedUrl } from "@/lib/bunny"
 
 export async function GET(
@@ -80,6 +80,7 @@ export async function GET(
   }
 
   const lessonAccess = await hasAccessToLesson(userId, id, { isStaff })
+  const hasActiveSubscription = isStaff || (userId ? await hasActivePlanAccess(userId) : false)
   const isAccessible = lessonAccess.hasAccess && !lessonAccess.isPreview
   const canExposeVideo = isAccessible
   const lessonCount = await db.lesson.count()
@@ -107,6 +108,7 @@ export async function GET(
         : canExposeVideo ? lesson.videoPlaybackUrl : null,
       videoThumbnailUrl: lesson.videoThumbnailUrl,
       isFree: lesson.isFree,
+      hasActiveSubscription,
       isAccessible,
       previewEnabled: lesson.previewEnabled,
       previewAvailable: lessonAccess.isPreview && Boolean(lesson.previewVideoProviderId),
