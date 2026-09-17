@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useEffect, useState } from "react"
+import { FormEvent, useEffect, useRef, useState } from "react"
 import { BellRing, CheckCircle2, Clock3, Loader2, Mail, Send, Trash2, X, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -48,12 +48,21 @@ export default function AdminNotificationsPage() {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<Broadcast | null>(null)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const loadingRef = useRef(false)
 
   async function load() {
-    const response = await fetch("/api/admin/notifications", { cache: "no-store" })
-    const data = await response.json().catch(() => null)
-    if (response.ok) setBroadcasts(data?.broadcasts ?? [])
-    setLoading(false)
+    if (loadingRef.current) return
+    loadingRef.current = true
+    try {
+      const response = await fetch("/api/admin/notifications", { cache: "no-store" })
+      const data = await response.json().catch(() => null)
+      if (response.ok) setBroadcasts(data?.broadcasts ?? [])
+    } catch {
+      // Polling is best effort. Keep the current list when the network blips.
+    } finally {
+      loadingRef.current = false
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
