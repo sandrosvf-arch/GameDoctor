@@ -7,7 +7,7 @@ import {
   Search, Filter, Paperclip, Plus, Trash2, ChevronLeft, ChevronRight,
   FileText, FileSpreadsheet, Link2, Mic, BrainCircuit, CheckCircle,
   AlertCircle, RefreshCw, ChevronDown, ChevronUp, Check, X,
-  Download,
+  Download, BellRing,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -147,6 +147,7 @@ export default function TodasAsAulasPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [edits, setEdits] = useState<Record<string, LessonEdits>>({})
   const [saving, setSaving] = useState<string | null>(null)
+  const [notifying, setNotifying] = useState<string | null>(null)
 
   // Materials state
   const [materials, setMaterials] = useState<Record<string, MaterialItem[]>>({})
@@ -360,6 +361,20 @@ export default function TodasAsAulasPage() {
     })
     setSaving(null)
     setEditingId(null)
+    load()
+  }
+
+  async function notifyNewLesson(lesson: LessonWithCourse) {
+    if (!window.confirm(`Enviar o aviso de nova aula para todos os usuários?\n\n${lesson.title}`)) return
+    setNotifying(lesson.id)
+    const response = await fetch(`/api/admin/aulas/${lesson.id}/notify`, { method: "POST" })
+    const data = await response.json().catch(() => null)
+    setNotifying(null)
+    if (!response.ok) {
+      alert(data?.error ?? "Não foi possível enviar o aviso.")
+      return
+    }
+    alert(`Aviso enviado para ${data.sent} usuários. E-mails enviados: ${data.emailed}.`)
     load()
   }
 
@@ -893,6 +908,12 @@ export default function TodasAsAulasPage() {
                         }
                         Salvar
                       </Button>
+                      {lesson.status === "PUBLISHED" && (
+                        <Button size="sm" variant="outline" onClick={() => void notifyNewLesson(lesson)} disabled={notifying === lesson.id}>
+                          {notifying === lesson.id ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <BellRing className="h-3.5 w-3.5 mr-1.5" />}
+                          Avisar usuários
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
                         Cancelar
                       </Button>

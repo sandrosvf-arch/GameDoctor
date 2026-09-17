@@ -616,6 +616,7 @@ model Lesson {
   transcriptionStatus    String?             @map("transcription_status")
   transcriptionJobId     String?             @map("transcription_job_id")
   status                 LessonStatus        @default(DRAFT)
+  newLessonNotificationSentAt DateTime?      @map("new_lesson_notification_sent_at")
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
 
