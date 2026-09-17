@@ -497,7 +497,7 @@ export function Header() {
           )}
         </div>
 
-        <div className="flex items-center gap-1 md:hidden">
+        <div className="flex items-center gap-1 md:hidden relative z-3">
           {session ? <NotificationBell /> : null}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>

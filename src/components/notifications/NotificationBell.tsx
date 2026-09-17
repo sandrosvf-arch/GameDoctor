@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Bell, CheckCheck, ExternalLink, Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 
 type Notification = {
@@ -47,13 +48,13 @@ export function NotificationBell() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative z-3">
       <button type="button" onClick={() => setOpen((current) => !current)} className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-foreground" aria-label="Notificações">
         <Bell className="h-4 w-4" />
         {unreadCount > 0 ? <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#67e8f9]" /> : null}
       </button>
-      {open ? (
-        <div className="absolute right-0 top-11 z-[100] w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      {open ? createPortal(
+        <div className="fixed right-2 top-[4.5rem] z-[1000] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl md:right-4 md:top-16 md:w-[min(24rem,calc(100vw-2rem))]">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div><p className="font-semibold">Notificações</p><p className="text-xs text-muted-foreground">{unreadCount ? `${unreadCount} não lida(s)` : "Tudo em dia"}</p></div>
             <button type="button" disabled={!unreadCount || marking} onClick={() => void markRead()} className="flex items-center gap-1 text-xs text-cyan-300 disabled:opacity-40"><CheckCheck className="h-3.5 w-3.5" /> Marcar todas</button>
@@ -65,7 +66,8 @@ export function NotificationBell() {
               </div>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   )
