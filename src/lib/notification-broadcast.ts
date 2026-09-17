@@ -13,7 +13,8 @@ export async function processNotificationBroadcast(broadcastId: string) {
   let failed = 0
   for (const notification of broadcast.notifications) {
     try {
-      await sendNotificationEmail({ email: notification.user.email, name: notification.user.name, title: broadcast.title, body: broadcast.body, href: broadcast.href })
+      const lessonTitle = broadcast.title.replace(/^\[TESTE\]\s*/i, "").match(/^Nova aula:\s*(.+)$/i)?.[1]
+      await sendNotificationEmail({ email: notification.user.email, name: notification.user.name, title: broadcast.title, body: broadcast.body, href: broadcast.href, lessonTitle, isTest: /^\[TESTE\]/i.test(broadcast.title) })
       sent++
       await db.userNotification.update({ where: { id: notification.id }, data: { emailSentAt: new Date() } })
     } catch {
