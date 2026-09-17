@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Menu, ChevronDown, ChevronRight, Search, LayoutGrid } from "lucide-react"
+import { NotificationBell } from "@/components/notifications/NotificationBell"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -296,9 +297,9 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-zinc-950/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-[70] w-full border-b border-border/50 bg-zinc-950/80 backdrop-blur-xl">
       {pendingCategoryHref ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-primary/50" /> : null}
-      <div className="container flex h-16 items-center gap-3 px-2 justify-end relative overflow-hidden">
+      <div className="container flex h-16 items-center gap-3 px-2 justify-end relative overflow-visible">
         <div className="flex shrink-0 items-center header-logo">
           <Link href="/" className="flex items-center">
             <Image
@@ -440,7 +441,9 @@ export function Header() {
 
         <div className="ml-auto hidden shrink-0 items-center gap-3 md:flex">
           {status === "loading" ? null : session ? (
-            <DropdownMenu>
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex cursor-pointer items-center gap-2 rounded-full pr-1 transition-colors hover:bg-secondary/50">
                   <Avatar className="h-8 w-8">
@@ -480,7 +483,8 @@ export function Header() {
                   Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
+            </div>
           ) : (
             <>
               <Button variant="ghost" size="sm" asChild>
@@ -493,17 +497,19 @@ export function Header() {
           )}
         </div>
 
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild className="md:hidden">
-            <Button variant="ghost" size="icon" className="nav-button">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent
-            side="right"
-            onOpenAutoFocus={(event) => event.preventDefault()}
-            className="h-dvh max-h-[100dvh] w-72 overflow-y-auto pb-24"
-          >
+        <div className="flex items-center gap-1 md:hidden relative z-3">
+          {session ? <NotificationBell /> : null}
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="nav-button">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="right"
+              onOpenAutoFocus={(event) => event.preventDefault()}
+              className="h-dvh max-h-[100dvh] w-72 overflow-y-auto pb-24"
+            >
             <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
             <div className="flex flex-col gap-2 pt-6">
               <Link
@@ -596,6 +602,7 @@ export function Header() {
               <div className="flex flex-col gap-2 border-t border-border pt-2">
                 {session ? (
                   <>
+                    <Link href="/notificacoes" onClick={() => setMobileOpen(false)} className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary">Notificações</Link>
                     {!isAdminUser ? (
                       <Link
                         href={memberHome}
@@ -651,8 +658,9 @@ export function Header() {
                 )}
               </div>
             </div>
-          </SheetContent>
-        </Sheet>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   )

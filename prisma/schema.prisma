@@ -262,6 +262,20 @@ enum AiMessageStatus {
   FAILED
 }
 
+enum NotificationKind {
+  SIMPLE
+  RICH_TEXT
+  LINK
+}
+
+enum NotificationBroadcastStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
 // ─────────────────────────────────────────────
 // MODELS
 // ─────────────────────────────────────────────
@@ -311,8 +325,51 @@ model User {
   aiUsageMonths              AiUsageMonth[]
   billingAddress             UserBillingAddress?
   passwordResetTokens        PasswordResetToken[]
+  notifications              UserNotification[]
+  notificationBroadcasts     NotificationBroadcast[] @relation("NotificationBroadcastAuthor")
 
   @@map("users")
+}
+
+model UserNotification {
+  id           String           @id @default(cuid())
+  userId       String           @map("user_id")
+  title        String
+  body         String
+  kind         NotificationKind @default(SIMPLE)
+  href         String?
+  readAt       DateTime?        @map("read_at")
+  emailSentAt  DateTime?        @map("email_sent_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  broadcastId  String?          @map("broadcast_id")
+  broadcast    NotificationBroadcast? @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([broadcastId])
+  @@map("user_notifications")
+}
+
+model NotificationBroadcast {
+  id              String                     @id @default(cuid())
+  createdById     String                     @map("created_by_id")
+  title           String
+  body            String
+  kind            NotificationKind
+  href            String?
+  sendEmail       Boolean                    @default(true) @map("send_email")
+  status          NotificationBroadcastStatus @default(QUEUED)
+  recipientCount  Int                        @default(0) @map("recipient_count")
+  emailSentCount  Int                        @default(0) @map("email_sent_count")
+  emailFailedCount Int                       @default(0) @map("email_failed_count")
+  error           String?
+  createdAt       DateTime                   @default(now()) @map("created_at")
+  completedAt     DateTime?                  @map("completed_at")
+  createdBy       User                       @relation("NotificationBroadcastAuthor", fields: [createdById], references: [id])
+  notifications   UserNotification[]
+
+  @@index([createdAt])
+  @@map("notification_broadcasts")
 }
 
 model PasswordResetToken {
@@ -593,6 +650,7 @@ model Lesson {
   transcriptionStatus    String?             @map("transcription_status")
   transcriptionJobId     String?             @map("transcription_job_id")
   status                 LessonStatus        @default(DRAFT)
+  newLessonNotificationSentAt DateTime?      @map("new_lesson_notification_sent_at")
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
 

@@ -7,11 +7,12 @@ import {
   Search, Filter, Paperclip, Plus, Trash2, ChevronLeft, ChevronRight,
   FileText, FileSpreadsheet, Link2, Mic, BrainCircuit, CheckCircle,
   AlertCircle, RefreshCw, ChevronDown, ChevronUp, Check, X,
-  Download,
+  Download, BellRing, MailCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { uploadAdminImage } from "@/lib/admin-image-upload"
+import { useToast } from "@/hooks/use-toast"
 
 const BUNNY_CDN = "vz-38444944-922.b-cdn.net"
 
@@ -133,6 +134,7 @@ function MaterialTypeIcon({ type }: { type: string }) {
 }
 
 export default function TodasAsAulasPage() {
+  const { toast } = useToast()
   const [lessons, setLessons] = useState<LessonWithCourse[]>([])
   const [trails, setTrails] = useState<TrailOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -147,6 +149,7 @@ export default function TodasAsAulasPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [edits, setEdits] = useState<Record<string, LessonEdits>>({})
   const [saving, setSaving] = useState<string | null>(null)
+  const [notifying, setNotifying] = useState<string | null>(null)
 
   // Materials state
   const [materials, setMaterials] = useState<Record<string, MaterialItem[]>>({})
@@ -361,6 +364,33 @@ export default function TodasAsAulasPage() {
     setSaving(null)
     setEditingId(null)
     load()
+  }
+
+  async function notifyNewLesson(lesson: LessonWithCourse) {
+    if (!window.confirm(`Enviar o aviso de nova aula para todos os usuários?\n\n${lesson.title}`)) return
+    setNotifying(lesson.id)
+    const response = await fetch(`/api/admin/aulas/${lesson.id}/notify`, { method: "POST" })
+    const data = await response.json().catch(() => null)
+    setNotifying(null)
+    if (!response.ok) {
+      toast({ variant: "destructive", title: "Aviso não enviado", description: data?.error ?? "Não foi possível enviar o aviso." })
+      return
+    }
+    toast({ title: "Aviso enfileirado", description: `O processamento para ${data.sent} usuários continuará em segundo plano.` })
+    load()
+  }
+
+  async function notifyTestLesson(lesson: LessonWithCourse) {
+    if (!window.confirm(`Enviar teste de aviso somente para thiago_salests@hotmail.com?\n\n${lesson.title}`)) return
+    setNotifying(lesson.id)
+    const response = await fetch(`/api/admin/aulas/${lesson.id}/notify-test`, { method: "POST" })
+    const data = await response.json().catch(() => null)
+    setNotifying(null)
+    if (!response.ok) {
+      toast({ variant: "destructive", title: "Teste não enviado", description: data?.error ?? "Não foi possível enviar o teste." })
+      return
+    }
+    toast({ title: "Teste enfileirado", description: `O e-mail e a notificação serão enviados para ${data.email}.` })
   }
 
   return (
@@ -893,6 +923,17 @@ export default function TodasAsAulasPage() {
                         }
                         Salvar
                       </Button>
+                      {lesson.status === "PUBLISHED" && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => void notifyTestLesson(lesson)} disabled={notifying === lesson.id}>
+                            {notifying === lesson.id ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <MailCheck className="h-3.5 w-3.5 mr-1.5" />}
+                            Enviar teste
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => void notifyNewLesson(lesson)} disabled={notifying === lesson.id}>
+                            <BellRing className="h-3.5 w-3.5 mr-1.5" /> Avisar usuários
+                          </Button>
+                        </>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
                         Cancelar
                       </Button>

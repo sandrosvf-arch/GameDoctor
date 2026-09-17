@@ -1,0 +1,2 @@
+-- Retried migration kept as a no-op after the original was rolled back.
+-- The real migration runs after user_notifications in 20260917_z_notification_broadcasts.
