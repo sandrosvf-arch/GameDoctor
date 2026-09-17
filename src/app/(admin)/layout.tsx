@@ -25,6 +25,7 @@ import {
   Download,
   Settings,
   Bot,
+  BellRing,
   Menu,
   Award,
 } from "lucide-react"
@@ -84,6 +85,7 @@ const navGroups: AdminNavGroup[] = [
       { href: "/admin/perfil", label: "Administradores", icon: Shield },
       { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
       { href: "/admin/ia", label: "Histórico da IA", icon: Bot },
+      { href: "/admin/notificacoes", label: "Notificações", icon: BellRing },
     ],
   },
 ]

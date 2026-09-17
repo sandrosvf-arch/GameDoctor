@@ -33,6 +33,29 @@ function escapeHtml(value: string) {
   })[character] ?? character)
 }
 
+export async function sendNotificationEmail(input: {
+  email: string
+  name: string
+  title: string
+  body: string
+  href?: string | null
+}) {
+  const transporter = createTransporter()
+  const firstName = input.name.trim().split(/\s+/)[0] || "aluno"
+  const safeFirstName = escapeHtml(firstName)
+  const safeTitle = escapeHtml(input.title)
+  const safeBody = escapeHtml(input.body).replace(/\n/g, "<br />")
+  const safeHref = input.href ? escapeHtml(input.href) : null
+
+  return transporter.sendMail({
+    from: requiredEnvironment("EMAIL_FROM"),
+    to: input.email,
+    subject: `${input.title} | GameDoctor`,
+    text: `Olá, ${firstName}.\n\n${input.title}\n\n${input.body}${input.href ? `\n\nAcessar: ${input.href}` : ""}`,
+    html: `<div style="background:#080b10;padding:32px 16px;font-family:Arial,sans-serif;color:#f8fafc"><div style="max-width:560px;margin:0 auto;background:#11161d;border:1px solid #26313d;border-radius:16px;padding:32px"><p style="margin:0 0 12px;color:#22d3ee;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">GameDoctor</p><p style="margin:0 0 12px;color:#cbd5e1">Olá, ${safeFirstName}.</p><h1 style="margin:0 0 16px;font-size:24px">${safeTitle}</h1><p style="margin:0;color:#cbd5e1;line-height:1.6">${safeBody}</p>${safeHref ? `<a href="${safeHref}" style="display:inline-block;margin-top:24px;background:#22d3ee;color:#061018;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px">Acessar aviso</a>` : ""}</div></div>`,
+  })
+}
+
 export async function sendPasswordResetEmail(input: {
   email: string
   name: string

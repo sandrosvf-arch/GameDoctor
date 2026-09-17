@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Menu, ChevronDown, ChevronRight, Search, LayoutGrid } from "lucide-react"
+import { NotificationBell } from "@/components/notifications/NotificationBell"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -440,7 +441,9 @@ export function Header() {
 
         <div className="ml-auto hidden shrink-0 items-center gap-3 md:flex">
           {status === "loading" ? null : session ? (
-            <DropdownMenu>
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex cursor-pointer items-center gap-2 rounded-full pr-1 transition-colors hover:bg-secondary/50">
                   <Avatar className="h-8 w-8">
@@ -480,7 +483,8 @@ export function Header() {
                   Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
+            </div>
           ) : (
             <>
               <Button variant="ghost" size="sm" asChild>
@@ -596,6 +600,7 @@ export function Header() {
               <div className="flex flex-col gap-2 border-t border-border pt-2">
                 {session ? (
                   <>
+                    <Link href="/notificacoes" onClick={() => setMobileOpen(false)} className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary">Notificações</Link>
                     {!isAdminUser ? (
                       <Link
                         href={memberHome}
