@@ -497,17 +497,19 @@ export function Header() {
           )}
         </div>
 
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild className="md:hidden">
-            <Button variant="ghost" size="icon" className="nav-button">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent
-            side="right"
-            onOpenAutoFocus={(event) => event.preventDefault()}
-            className="h-dvh max-h-[100dvh] w-72 overflow-y-auto pb-24"
-          >
+        <div className="flex items-center gap-1 md:hidden">
+          {session ? <NotificationBell /> : null}
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="nav-button">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="right"
+              onOpenAutoFocus={(event) => event.preventDefault()}
+              className="h-dvh max-h-[100dvh] w-72 overflow-y-auto pb-24"
+            >
             <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
             <div className="flex flex-col gap-2 pt-6">
               <Link
@@ -656,8 +658,9 @@ export function Header() {
                 )}
               </div>
             </div>
-          </SheetContent>
-        </Sheet>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   )
