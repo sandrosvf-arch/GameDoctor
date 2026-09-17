@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
+import { after } from "next/server"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { sendNotificationEmail } from "@/lib/email"
 import { sanitizeNotificationBody } from "@/lib/notifications"
+import { processNotificationBroadcast } from "@/lib/notification-broadcast"
 
 async function requireStaff() {
   const session = await auth()
@@ -26,32 +27,39 @@ export async function POST(request: Request) {
 
   const body = sanitizeNotificationBody(parsed.data.body, parsed.data.kind === "RICH_TEXT")
   if (!body) return NextResponse.json({ error: "O conteúdo não pode ficar vazio." }, { status: 400 })
-  const users = await db.user.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true, email: true } })
-  const created = await db.userNotification.createManyAndReturn({
-    data: users.map((user) => ({
-      userId: user.id,
+  const users = await db.user.findMany({ where: { status: "ACTIVE" }, select: { id: true } })
+  const broadcast = await db.notificationBroadcast.create({
+    data: {
+      createdById: session.user.id,
       title: parsed.data.title,
       body,
       kind: parsed.data.kind,
       href: parsed.data.href || null,
-    })),
-    select: { id: true, userId: true },
+      sendEmail: parsed.data.sendEmail,
+      recipientCount: users.length,
+      status: parsed.data.sendEmail ? "QUEUED" : "COMPLETED",
+      notifications: { create: users.map((user) => ({ userId: user.id, title: parsed.data.title, body, kind: parsed.data.kind, href: parsed.data.href || null })) },
+    },
   })
+  if (parsed.data.sendEmail) after(() => processNotificationBroadcast(broadcast.id))
+  await db.adminLog.create({ data: { adminUserId: session.user.id, action: "NOTIFICATION_BROADCAST", entityType: "NOTIFICATION_BROADCAST", entityId: broadcast.id, description: `Aviso enfileirado para ${users.length} usuários.` } })
+  return NextResponse.json({ id: broadcast.id, created: users.length, status: broadcast.status }, { status: 202 })
+}
 
-  let emailed = 0
-  if (parsed.data.sendEmail) {
-    for (const user of users) {
-      try {
-        await sendNotificationEmail({ email: user.email, name: user.name, title: parsed.data.title, body, href: parsed.data.href })
-        const notification = created.find((item) => item.userId === user.id)
-        if (notification) await db.userNotification.update({ where: { id: notification.id }, data: { emailSentAt: new Date() } })
-        emailed++
-      } catch {
-        // A delivery failure must not discard the internal notification.
-      }
-    }
-  }
+export async function GET() {
+  const session = await requireStaff()
+  if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 })
+  const broadcasts = await db.notificationBroadcast.findMany({ orderBy: { createdAt: "desc" }, take: 100, select: { id: true, title: true, body: true, kind: true, href: true, sendEmail: true, status: true, recipientCount: true, emailSentCount: true, emailFailedCount: true, createdAt: true, completedAt: true } })
+  return NextResponse.json({ broadcasts })
+}
 
-  await db.adminLog.create({ data: { adminUserId: session.user.id, action: "NOTIFICATION_BROADCAST", entityType: "USER_NOTIFICATION", entityId: created[0]?.id ?? "broadcast", description: `Aviso enviado para ${users.length} usuários; ${emailed} e-mails enviados.` } })
-  return NextResponse.json({ created: users.length, emailed })
+export async function DELETE(request: Request) {
+  const session = await requireStaff()
+  if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 })
+  const body = await request.json().catch(() => null) as { id?: string } | null
+  if (!body?.id) return NextResponse.json({ error: "Informe a notificação." }, { status: 400 })
+  const broadcast = await db.notificationBroadcast.findUnique({ where: { id: body.id }, select: { id: true } })
+  if (!broadcast) return NextResponse.json({ error: "Notificação não encontrada." }, { status: 404 })
+  await db.notificationBroadcast.delete({ where: { id: body.id } })
+  return NextResponse.json({ ok: true })
 }

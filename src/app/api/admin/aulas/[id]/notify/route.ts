@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
+import { after } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { sendNotificationEmail } from "@/lib/email"
 import { sanitizeNotificationBody } from "@/lib/notifications"
+import { processNotificationBroadcast } from "@/lib/notification-broadcast"
 
 async function requireStaff() {
   const session = await auth()
@@ -33,24 +34,19 @@ export async function POST(
   const title = `Nova aula: ${lesson.title}`
   const body = sanitizeNotificationBody(lesson.description?.trim() || `Uma nova aula foi publicada em ${lesson.course.title}.`, false)
   const href = `/aula/${lesson.id}`
-  const users = await db.user.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true, email: true } })
-  const created = await db.userNotification.createManyAndReturn({
-    data: users.map((user) => ({ userId: user.id, title, body, kind: "LINK" as const, href })),
-    select: { id: true, userId: true },
+  const users = await db.user.findMany({ where: { status: "ACTIVE" }, select: { id: true } })
+  const broadcast = await db.notificationBroadcast.create({
+    data: {
+      createdById: session.user.id,
+      title,
+      body,
+      kind: "LINK",
+      href,
+      recipientCount: users.length,
+      notifications: { create: users.map((user) => ({ userId: user.id, title, body, kind: "LINK", href })) },
+    },
   })
-
-  let emailed = 0
-  for (const user of users) {
-    try {
-      await sendNotificationEmail({ email: user.email, name: user.name, title, body, href })
-      const notification = created.find((item) => item.userId === user.id)
-      if (notification) await db.userNotification.update({ where: { id: notification.id }, data: { emailSentAt: new Date() } })
-      emailed++
-    } catch {
-      // Keep the internal notification even when an SMTP delivery fails.
-    }
-  }
-
-  await db.adminLog.create({ data: { adminUserId: session.user.id, action: "LESSON_NOTIFICATION_BROADCAST", entityType: "LESSON", entityId: lesson.id, description: `Aviso da aula enviado para ${users.length} usuários; ${emailed} e-mails enviados.` } })
-  return NextResponse.json({ sent: users.length, emailed })
+  after(() => processNotificationBroadcast(broadcast.id))
+  await db.adminLog.create({ data: { adminUserId: session.user.id, action: "LESSON_NOTIFICATION_BROADCAST", entityType: "NOTIFICATION_BROADCAST", entityId: broadcast.id, description: `Aviso da aula enfileirado para ${users.length} usuários.` } })
+  return NextResponse.json({ id: broadcast.id, sent: users.length, status: "QUEUED" }, { status: 202 })
 }
