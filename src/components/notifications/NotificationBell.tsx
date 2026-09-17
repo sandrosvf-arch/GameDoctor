@@ -54,7 +54,7 @@ export function NotificationBell() {
         {unreadCount > 0 ? <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#67e8f9]" /> : null}
       </button>
       {open ? createPortal(
-        <div className="fixed bottom-auto left-2 right-2 top-[4.5rem] z-[1000] box-border flex max-h-[70vh] w-auto max-w-none min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-2xl border border-border bg-card shadow-2xl md:left-auto md:right-4 md:top-16 md:max-h-[calc(100dvh-6rem)] md:w-[min(24rem,calc(100vw-2rem))]" style={{ maxWidth: "calc(100vw - 1rem)" }}>
+        <div className="fixed bottom-auto left-2 right-2 top-[4.5rem] z-[1000] box-border flex max-h-[40vh] w-auto max-w-none min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-2xl border border-border bg-card shadow-2xl md:left-auto md:right-4 md:top-16 md:max-h-[40vh] md:w-[min(24rem,calc(100vw-2rem))]" style={{ maxWidth: "calc(100vw - 1rem)" }}>
           <div className="flex min-w-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div><p className="font-semibold">Notificações</p><p className="text-xs text-muted-foreground">{unreadCount ? `${unreadCount} não lida(s)` : "Tudo em dia"}</p></div>
             <button type="button" disabled={!unreadCount || marking} onClick={() => void markRead()} className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] text-cyan-300 disabled:opacity-40"><CheckCheck className="h-3.5 w-3.5" /> <span className="sm:hidden">Marcar</span><span className="hidden sm:inline">Marcar todas</span></button>
