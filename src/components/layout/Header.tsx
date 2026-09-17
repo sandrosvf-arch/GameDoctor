@@ -297,9 +297,9 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-zinc-950/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-[70] w-full border-b border-border/50 bg-zinc-950/80 backdrop-blur-xl">
       {pendingCategoryHref ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-primary/50" /> : null}
-      <div className="container flex h-16 items-center gap-3 px-2 justify-end relative overflow-hidden">
+      <div className="container flex h-16 items-center gap-3 px-2 justify-end relative overflow-visible">
         <div className="flex shrink-0 items-center header-logo">
           <Link href="/" className="flex items-center">
             <Image

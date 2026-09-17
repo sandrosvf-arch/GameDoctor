@@ -53,7 +53,7 @@ export function NotificationBell() {
         {unreadCount > 0 ? <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#67e8f9]" /> : null}
       </button>
       {open ? (
-        <div className="absolute right-0 top-11 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="absolute right-0 top-11 z-[100] w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div><p className="font-semibold">Notificações</p><p className="text-xs text-muted-foreground">{unreadCount ? `${unreadCount} não lida(s)` : "Tudo em dia"}</p></div>
             <button type="button" disabled={!unreadCount || marking} onClick={() => void markRead()} className="flex items-center gap-1 text-xs text-cyan-300 disabled:opacity-40"><CheckCheck className="h-3.5 w-3.5" /> Marcar todas</button>
