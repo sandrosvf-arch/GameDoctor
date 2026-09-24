@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
 import {
-  Play, Save, Loader2, Eye, EyeOff, ExternalLink,
-  Search, Filter, Paperclip, Plus, Trash2, ChevronLeft, ChevronRight,
+  Play, Save, Loader2, Eye, EyeOff, ExternalLink, Scissors,
+  Search, Filter, Paperclip, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileText, FileSpreadsheet, Link2, Mic, BrainCircuit, CheckCircle,
   AlertCircle, RefreshCw, ChevronDown, ChevronUp, Check, X,
   Download, BellRing, MailCheck,
@@ -28,6 +28,7 @@ interface LessonWithCourse {
   releaseAfterDays: number
   previewEnabled: boolean
   previewVideoProviderId: string | null
+  previewDurationSeconds: number | null
   status: string
   order: number
   videoDurationSeconds: number | null
@@ -149,6 +150,8 @@ export default function TodasAsAulasPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [edits, setEdits] = useState<Record<string, LessonEdits>>({})
   const [saving, setSaving] = useState<string | null>(null)
+  const [generatingPreview, setGeneratingPreview] = useState<string | null>(null)
+  const [previewDurations, setPreviewDurations] = useState<Record<string, string>>({})
   const [notifying, setNotifying] = useState<string | null>(null)
 
   // Materials state
@@ -191,6 +194,7 @@ export default function TodasAsAulasPage() {
       setTrails(data.trails)
       setTotal(data.pagination.total)
       setTotalPages(data.pagination.totalPages)
+      setPage(current => Math.min(current, data.pagination.totalPages))
     }
     setLoading(false)
   }, [filterStatus, filterTrail, page, search])
@@ -217,6 +221,10 @@ export default function TodasAsAulasPage() {
         previewVideoProviderId: lesson.previewVideoProviderId ?? "",
         status: lesson.status,
       },
+    }))
+    setPreviewDurations(prev => ({
+      ...prev,
+      [lesson.id]: String(lesson.previewDurationSeconds ?? 60),
     }))
     // Load materials for this lesson
     if (!materials[lesson.id]) {
@@ -378,6 +386,29 @@ export default function TodasAsAulasPage() {
     }
     toast({ title: "Aviso enfileirado", description: `O processamento para ${data.sent} usuários continuará em segundo plano.` })
     load()
+  }
+
+  async function generatePreview(lesson: LessonWithCourse) {
+    const durationSeconds = Number(previewDurations[lesson.id] ?? 60)
+    setGeneratingPreview(lesson.id)
+    const response = await fetch(`/api/admin/aulas/${lesson.id}/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ durationSeconds }),
+    })
+    const data = await response.json().catch(() => ({})) as {
+      error?: string
+      previewVideoProviderId?: string
+    }
+    if (!response.ok) {
+      toast({ variant: "destructive", title: "Prévia não gerada", description: data.error ?? "Não foi possível gerar a prévia." })
+    } else {
+      patch(lesson.id, "previewEnabled", true)
+      patch(lesson.id, "previewVideoProviderId", data.previewVideoProviderId ?? "")
+      toast({ title: "Prévia gerada", description: "O clipe foi criado e vinculado à aula." })
+      await load()
+    }
+    setGeneratingPreview(null)
   }
 
   async function notifyTestLesson(lesson: LessonWithCourse) {
@@ -666,7 +697,38 @@ export default function TodasAsAulasPage() {
                           onChange={ev => patch(lesson.id, "previewVideoProviderId", ev.target.value)}
                         />
                       </div>
-                    </div>                    {/* Materials section */}
+                    </div>
+
+                    <div className="rounded-lg border border-cyan-400/20 bg-cyan-400/5 p-3">
+                      <div className="flex flex-wrap items-end gap-3">
+                        <div className="min-w-[150px] flex-1">
+                          <label className="mb-1 block text-xs text-muted-foreground">Gerar clipe da aula</label>
+                          <input
+                            type="number"
+                            min={5}
+                            max={300}
+                            value={previewDurations[lesson.id] ?? "60"}
+                            onChange={ev => setPreviewDurations(prev => ({ ...prev, [lesson.id]: ev.target.value }))}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                          />
+                          <p className="mt-1 text-[11px] text-muted-foreground">Primeiros segundos do vídeo principal, entre 5 e 300 segundos.</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void generatePreview(lesson)}
+                          disabled={generatingPreview === lesson.id || !((e.bunnyVideoId as string) ?? lesson.videoProviderId)}
+                          className="border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/10"
+                        >
+                          {generatingPreview === lesson.id
+                            ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            : <Scissors className="mr-2 h-4 w-4" />}
+                          {generatingPreview === lesson.id ? "Gerando clipe..." : "Gerar clipe automaticamente"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Materials section */}
                     <div className="border-t border-border/40 pt-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs font-semibold flex items-center gap-1.5">
@@ -952,6 +1014,16 @@ export default function TodasAsAulasPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => setPage(1)}
+                disabled={page <= 1}
+                aria-label="Ir para a primeira página"
+                title="Primeira página"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-border px-2 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
                 disabled={page <= 1}
                 className="inline-flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
@@ -960,9 +1032,22 @@ export default function TodasAsAulasPage() {
                 Anterior
               </button>
 
-              <span className="min-w-[120px] text-center text-sm text-foreground">
-                Página {page} de {totalPages}
-              </span>
+              <div className="flex items-center gap-2 text-sm text-foreground">
+                <span>Página</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={page}
+                  aria-label="Número da página"
+                  onChange={(event) => {
+                    const nextPage = Number(event.target.value)
+                    if (Number.isInteger(nextPage)) setPage(Math.min(totalPages, Math.max(1, nextPage)))
+                  }}
+                  className="h-9 w-16 rounded-lg border border-border bg-background px-2 text-center outline-none focus:ring-2 focus:ring-primary/40"
+                />
+                <span>de {totalPages}</span>
+              </div>
 
               <button
                 type="button"
@@ -972,6 +1057,16 @@ export default function TodasAsAulasPage() {
               >
                 Próxima
                 <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(totalPages)}
+                disabled={page >= totalPages}
+                aria-label="Ir para a última página"
+                title="Última página"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-border px-2 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ChevronsRight className="h-4 w-4" />
               </button>
             </div>
           </div>

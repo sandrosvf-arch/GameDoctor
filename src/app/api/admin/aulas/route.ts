@@ -55,6 +55,7 @@ export async function GET(request: Request) {
         releaseAfterDays: true,
         previewEnabled: true,
         previewVideoProviderId: true,
+        previewDurationSeconds: true,
         status: true,
         order: true,
         videoDurationSeconds: true,
