@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import { existsSync } from "node:fs"
 import { mkdir, readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -14,8 +15,6 @@ export const maxDuration = 300
 
 const BUNNY_API_URL = "https://video.bunnycdn.com"
 const MAX_PREVIEW_SECONDS = 300
-const POLL_INTERVAL_MS = 5000
-const PROCESSING_TIMEOUT_MS = 4 * 60 * 1000
 
 type BunnyVideo = {
   guid: string
@@ -57,12 +56,17 @@ function chooseResolution(availableResolutions: string | null | undefined) {
 }
 
 async function runFfmpeg(sourceUrl: string, outputPath: string, durationSeconds: number) {
-  if (!ffmpegPath) throw new Error("FFmpeg não está disponível no servidor.")
-  const executablePath = String(ffmpegPath)
+  const packagedPath = ffmpegPath ? String(ffmpegPath) : ""
+  const executablePath = packagedPath && existsSync(packagedPath)
+    ? packagedPath
+    : path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg")
+  if (!existsSync(executablePath)) throw new Error("FFmpeg não está disponível no servidor.")
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn(executablePath, [
-      "-hide_banner", "-loglevel", "error", "-y", "-i", sourceUrl,
+      "-hide_banner", "-loglevel", "error", "-y",
+      "-headers", `Referer: ${process.env.NEXTAUTH_URL ?? ""}\r\nUser-Agent: Mozilla/5.0\r\n`,
+      "-i", sourceUrl,
       "-t", String(durationSeconds),
       "-vf", "scale=min(1920\\,iw):min(1080\\,ih):force_original_aspect_ratio=decrease:force_divisible_by=2",
       "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
@@ -75,18 +79,37 @@ async function runFfmpeg(sourceUrl: string, outputPath: string, durationSeconds:
   })
 }
 
-async function waitUntilProcessed(videoId: string) {
-  const deadline = Date.now() + PROCESSING_TIMEOUT_MS
-  while (Date.now() < deadline) {
-    const video = await bunnyRequest<BunnyVideo>(`/videos/${videoId}`)
-    if (video.status === 4 && (video.encodeProgress ?? 0) >= 100) return video
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!await requireAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { id } = await params
+  const lesson = await db.lesson.findUnique({
+    where: { id },
+    select: { previewVideoProviderId: true },
+  })
+  if (!lesson?.previewVideoProviderId) {
+    return NextResponse.json({ status: "NONE" })
+  }
+
+  try {
+    const video = await bunnyRequest<BunnyVideo>(`/videos/${lesson.previewVideoProviderId}`)
+    if (video.status === 4 && (video.encodeProgress ?? 0) >= 100) {
+      const previewDurationSeconds = Math.ceil(video.length ?? 0)
+      await db.lesson.update({
+        where: { id },
+        data: { previewEnabled: true, previewDurationSeconds: previewDurationSeconds || null },
+      })
+      return NextResponse.json({ status: "READY", previewDurationSeconds })
+    }
     if (video.status === 5 || video.status === 8) {
       const message = video.transcodingMessages?.map(item => item.message).filter(Boolean).join("; ")
-      throw new Error(message || "O Bunny não conseguiu processar a prévia.")
+      return NextResponse.json({ status: "FAILED", error: message || "O Bunny não conseguiu processar a prévia." }, { status: 502 })
     }
-    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
+    return NextResponse.json({ status: "PROCESSING", progress: video.encodeProgress ?? 0 })
+  } catch (error) {
+    return NextResponse.json({ status: "FAILED", error: error instanceof Error ? error.message : "Não foi possível consultar a prévia." }, { status: 502 })
   }
-  throw new Error("Tempo limite excedido aguardando o processamento da prévia.")
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -131,15 +154,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       headers: { "Content-Type": "application/octet-stream" },
       body: new Uint8Array(file),
     })
-    const processed = await waitUntilProcessed(created.guid)
-    const previewDurationSeconds = Math.ceil(processed.length ?? durationSeconds)
-
     await db.lesson.update({
       where: { id },
-      data: { previewEnabled: true, previewVideoProviderId: created.guid, previewDurationSeconds },
+      data: { previewEnabled: false, previewVideoProviderId: created.guid, previewDurationSeconds: null },
     })
 
-    return NextResponse.json({ previewVideoProviderId: created.guid, previewDurationSeconds })
+    return NextResponse.json({ previewVideoProviderId: created.guid, status: "PROCESSING" })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível gerar a prévia." }, { status: 502 })
   } finally {

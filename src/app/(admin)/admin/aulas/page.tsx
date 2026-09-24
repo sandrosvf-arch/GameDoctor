@@ -205,6 +205,37 @@ export default function TodasAsAulasPage() {
     setPage(1)
   }, [search, filterTrail, filterStatus])
 
+  async function waitForPreview(lessonId: string) {
+    setGeneratingPreview(lessonId)
+
+    for (let attempt = 0; attempt < 72; attempt += 1) {
+      const response = await fetch(`/api/admin/aulas/${lessonId}/preview`, { cache: "no-store" })
+      const data = await response.json().catch(() => ({})) as {
+        status?: string
+        error?: string
+      }
+
+      if (data.status === "READY") {
+        patch(lessonId, "previewEnabled", true)
+        toast({ title: "Prévia pronta", description: "O clipe já está disponível na aula." })
+        await load()
+        setGeneratingPreview(null)
+        return
+      }
+
+      if (!response.ok || data.status === "FAILED") {
+        toast({ variant: "destructive", title: "Prévia não processada", description: data.error ?? "O Bunny não conseguiu finalizar o clipe." })
+        setGeneratingPreview(null)
+        return
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 5000))
+    }
+
+    toast({ variant: "destructive", title: "Processamento demorado", description: "A prévia ainda está sendo processada. Você pode atualizar e continuar acompanhando." })
+    setGeneratingPreview(null)
+  }
+
   function startEdit(lesson: LessonWithCourse) {
     setEditingId(lesson.id)
     setEdits(prev => ({
@@ -226,6 +257,9 @@ export default function TodasAsAulasPage() {
       ...prev,
       [lesson.id]: String(lesson.previewDurationSeconds ?? 60),
     }))
+    if (lesson.previewVideoProviderId && !lesson.previewEnabled) {
+      void waitForPreview(lesson.id)
+    }
     // Load materials for this lesson
     if (!materials[lesson.id]) {
       setLoadingMaterials(lesson.id)
@@ -403,12 +437,12 @@ export default function TodasAsAulasPage() {
     if (!response.ok) {
       toast({ variant: "destructive", title: "Prévia não gerada", description: data.error ?? "Não foi possível gerar a prévia." })
     } else {
-      patch(lesson.id, "previewEnabled", true)
       patch(lesson.id, "previewVideoProviderId", data.previewVideoProviderId ?? "")
-      toast({ title: "Prévia gerada", description: "O clipe foi criado e vinculado à aula." })
-      await load()
+      patch(lesson.id, "previewEnabled", false)
+      toast({ title: "Prévia enviada", description: "O Bunny está processando o clipe. A tela acompanhará o andamento." })
+      void waitForPreview(lesson.id)
     }
-    setGeneratingPreview(null)
+    if (!response.ok) setGeneratingPreview(null)
   }
 
   async function notifyTestLesson(lesson: LessonWithCourse) {
