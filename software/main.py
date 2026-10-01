@@ -15,10 +15,17 @@ os.chdir(_BASE)
 if _BASE not in sys.path:
     sys.path.insert(0, _BASE)
 
-# render: sem flags agressivas de GPU (mesma licao do Bancada PRO em PCs
-# fracos). Override: GD_RENDER=software
-if os.environ.get("GD_RENDER", "").lower() == "software":
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-gpu-compositing"
+# Intel HD Graphics legadas (como a HD 4000) podem abrir o QtWebEngine com a
+# janela preta depois do login. O modo seguro fica ativo por padrao; use
+# GD_RENDER=gpu somente para diagnosticar uma maquina moderna.
+_RENDER_MODE = os.environ.get("GD_RENDER", "software").strip().lower()
+if _RENDER_MODE != "gpu":
+    os.environ.setdefault("QT_OPENGL", "software")
+    _chromium_flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "").split()
+    for _flag in ("--disable-gpu", "--disable-gpu-compositing", "--disable-gpu-rasterization"):
+        if _flag not in _chromium_flags:
+            _chromium_flags.append(_flag)
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join(_chromium_flags)
 
 from PyQt6.QtCore import Qt, QUrl, QTimer
 from PyQt6.QtGui import QIcon, QAction
@@ -154,6 +161,8 @@ class MainWindow(QMainWindow):
 
 class GameDoctorApp(QApplication):
     def __init__(self, argv):
+        if _RENDER_MODE != "gpu":
+            QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseSoftwareOpenGL)
         super().__init__(argv)
         self.setApplicationName(APP_NOME)
         self.setWindowIcon(QIcon(ICONE))
