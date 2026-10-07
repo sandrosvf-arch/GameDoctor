@@ -52,7 +52,7 @@ export default async function PlanosPage() {
       <TrackEvent event="view_content" data={{ content_name: "planos", content_ids: plans.map((plan) => plan.slug).join(",") }} />
 
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgba(34,211,238,0.28),transparent_52%),#1e2734]">
-        <div className="mx-auto max-w-5xl px-5 pb-8 pt-8 text-center md:px-8 md:pb-10 md:pt-14">
+        <div className="mx-auto max-w-5xl px-5 pb-5 pt-6 text-center md:px-8 md:pb-10 md:pt-14">
           <h1 className="mx-auto flex max-w-none flex-col items-center justify-center gap-x-3 gap-y-3 text-2xl font-bold leading-tight text-white sm:flex-row sm:flex-nowrap sm:text-3xl md:text-4xl lg:text-5xl lg:leading-[1.1]">
             <span className="sm:whitespace-nowrap">Escolha seu acesso ao</span>
             <Image
@@ -67,7 +67,7 @@ export default async function PlanosPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl overflow-x-clip px-5 pb-10 pt-4 md:px-8 md:pb-12 md:pt-6">
+      <section className="mx-auto max-w-6xl overflow-x-clip px-5 pb-10 pt-0 md:px-8 md:pb-12 md:pt-6">
         {plans.length === 0 ? (
           <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-white/[0.14] px-6 py-16 text-center">
             <p className="text-sm font-medium text-slate-300">Nenhum plano disponível no momento.</p>
@@ -75,7 +75,7 @@ export default async function PlanosPage() {
           </div>
         ) : (
           <>
-            <div className="grid items-stretch gap-6 pt-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+            <div className="grid items-stretch gap-6 pt-0 md:grid-cols-2 lg:grid-cols-3 lg:gap-8 lg:pt-4">
             {displayPlans.map((plan) => {
               const planMonths = plan.offers[0] ? Math.max(1, Math.round(plan.offers[0].accessDurationDays / 30)) : 0
               const planDurationLabel = planMonths === 12 ? "1 ano" : `${planMonths} ${planMonths === 1 ? "mês" : "meses"}`
