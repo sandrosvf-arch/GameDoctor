@@ -4,6 +4,7 @@ import { ArrowDown, BadgeCheck } from "lucide-react"
 import { auth } from "@/lib/auth"
 import { listPublicPlans } from "@/lib/checkout"
 import { getCachedLessonCount } from "@/lib/lesson-count"
+import { repairPriceRows } from "@/lib/repair-prices"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { PlanCheckoutButton } from "@/components/checkout/PlanCheckoutButton"
 import { Header } from "@/components/layout/Header"
@@ -15,13 +16,6 @@ function formatCurrency(value: number) {
     currency: "BRL",
   }).format(value)
 }
-
-const repairPaybackRows = [
-  { service: "Troca / reparo de analógico", value: "R$ 90 ~ 120" },
-  { service: "Manutenção preventiva de console", value: "R$ 250 ~ 350" },
-  { service: "Reparo de HDMI", value: "R$ 450 ~ 650" },
-  { service: "Serviço avançado em placa", value: "R$ 750 ~ 1.250" },
-]
 
 export const dynamic = "force-dynamic"
 
@@ -231,7 +225,7 @@ export default async function PlanosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.1] bg-white/[0.025]">
-                {repairPaybackRows.map((row) => (
+                {repairPriceRows.map((row) => (
                   <tr key={row.service}>
                     <td className="px-3 py-4 text-center text-sm text-slate-300 sm:px-6 sm:py-5 sm:text-base">{row.service}</td>
                     <td className="px-3 py-4 text-center text-base font-extrabold text-emerald-400 sm:px-6 sm:py-5 sm:text-xl">{row.value}</td>
