@@ -94,7 +94,7 @@ export function getCardEstimate(
 
   return {
     total: cardTotal,
-    installmentAmount: Number((cardTotal / safeInstallments).toFixed(2)),
+    installmentAmount: Math.floor((cardTotal / safeInstallments) * 100) / 100,
   }
 }
 
@@ -134,9 +134,14 @@ function resolvePlanOffer(plan: QuotePlan, period: CheckoutPeriod) {
       throw new Error("Este plano não possui preço anual válido.")
     }
 
+    const durationMonths = Math.max(1, Math.round(plan.annualAccessDurationDays / 30))
+    const periodLabel = durationMonths === 12
+      ? "1 ano"
+      : `${durationMonths} ${durationMonths === 1 ? "mês" : "meses"}`
+
     return {
       period,
-      periodLabel: "Anual",
+      periodLabel,
       subtotal,
       accessDurationDays: plan.annualAccessDurationDays,
     }

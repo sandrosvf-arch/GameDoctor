@@ -19,7 +19,7 @@ import {
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { DEFAULT_CATALOG_CATEGORIES } from "@/lib/catalog"
-import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
+import { GAME_DOCTOR_PLANS_URL } from "@/lib/checkout-links"
 
 function HeartbeatLine() {
   const [tick, setTick] = useState(-1)
@@ -490,8 +490,11 @@ export function Header() {
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/login">Entrar</Link>
               </Button>
-              <Button size="sm" asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
-                <Link href={GAME_DOCTOR_CHECKOUT_URL}>Começar agora</Link>
+              <Button size="sm" asChild className="cta-shine bg-emerald-400 font-bold text-slate-950 shadow-[0_0_20px_rgba(52,211,153,0.45)] transition hover:bg-emerald-300 hover:shadow-[0_0_28px_rgba(52,211,153,0.6)]">
+                <Link href={GAME_DOCTOR_PLANS_URL}>
+                  Começar agora
+                  <span aria-hidden="true" className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]" />
+                </Link>
               </Button>
             </>
           )}
@@ -649,9 +652,10 @@ export function Header() {
                         Entrar
                       </Link>
                     </Button>
-                    <Button asChild className="bg-primary text-primary-foreground">
-                      <Link href={GAME_DOCTOR_CHECKOUT_URL} onClick={() => setMobileOpen(false)}>
+                    <Button asChild className="cta-shine bg-emerald-400 font-bold text-slate-950 shadow-[0_0_20px_rgba(52,211,153,0.45)] transition hover:bg-emerald-300">
+                      <Link href={GAME_DOCTOR_PLANS_URL} onClick={() => setMobileOpen(false)}>
                         Começar agora
+                        <span aria-hidden="true" className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]" />
                       </Link>
                     </Button>
                   </>

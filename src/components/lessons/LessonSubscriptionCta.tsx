@@ -1,11 +1,11 @@
 import Link from "next/link"
-import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
+import { GAME_DOCTOR_PLANS_URL } from "@/lib/checkout-links"
 
 export function LessonSubscriptionCta() {
   return (
     <Link
-      href={GAME_DOCTOR_CHECKOUT_URL}
-      className="cta-shine relative inline-flex h-12 w-full max-w-md items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-amber-300 to-emerald-400 px-5 text-center text-sm font-black uppercase tracking-wide text-zinc-950 shadow-[0_8px_24px_rgba(245,158,11,0.30)] transition hover:from-amber-200 hover:to-emerald-300"
+      href={GAME_DOCTOR_PLANS_URL}
+      className="cta-shine relative inline-flex h-12 w-full max-w-md items-center justify-center overflow-hidden rounded-xl bg-emerald-400 px-5 text-center text-sm font-black uppercase tracking-wide text-zinc-950 shadow-[0_0_26px_rgba(52,211,153,0.45)] transition hover:bg-emerald-300 hover:shadow-[0_0_34px_rgba(52,211,153,0.6)]"
     >
       <span className="relative z-10">ENTRAR PARA GAMEDOCTOR</span>
       <span

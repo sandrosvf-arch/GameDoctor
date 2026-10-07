@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { db } from "@/lib/db"
+import { getCachedLessonCount } from "@/lib/lesson-count"
 import { auth } from "@/lib/auth"
 import { HeroBannerClient } from "@/components/HeroBannerClient"
 import { TrailRowView } from "@/components/TrailRowView"
@@ -24,7 +25,7 @@ import { LazyMoreRows } from "@/components/LazyMoreRows"
 import { fetchHomeRows, type HomeRowDto } from "@/lib/home-rows"
 import { unstable_cache } from "next/cache"
 import { bunnySignedMp4Url } from "@/lib/bunny"
-import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
+import { GAME_DOCTOR_PLANS_URL } from "@/lib/checkout-links"
 
 // ── Server-side data cache (works even with force-dynamic) ─────────────────
 const getCachedBanners = unstable_cache(
@@ -36,12 +37,6 @@ const getCachedBanners = unstable_cache(
 const getCachedHomeRows = unstable_cache(
   (skip: number, take: number) => fetchHomeRows(skip, take),
   ["home-rows"],
-  { revalidate: 60 }
-)
-
-const getCachedLessonCount = unstable_cache(
-  () => db.lesson.count(),
-  ["home-lesson-count"],
   { revalidate: 60 }
 )
 
@@ -259,10 +254,10 @@ export default async function HomePage() {
     ...banner,
     videoUrl: resolveSignedBannerVideoUrl(banner.videoUrl),
     ctaHref: banner.ctaText?.trim().toLocaleLowerCase("pt-BR") === "começar agora"
-      ? GAME_DOCTOR_CHECKOUT_URL
+      ? GAME_DOCTOR_PLANS_URL
       : banner.ctaHref,
     secondaryCtaHref: banner.secondaryCtaText?.trim().toLocaleLowerCase("pt-BR") === "começar agora"
-      ? GAME_DOCTOR_CHECKOUT_URL
+      ? GAME_DOCTOR_PLANS_URL
       : banner.secondaryCtaHref,
   }))
 

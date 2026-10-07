@@ -13,11 +13,8 @@ export function OfferUrgency() {
       />
       <div className="relative grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(250px,0.9fr)] sm:items-center sm:gap-6">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+          <h2 id="checkout-offer-title" className="flex items-center gap-2 text-lg font-bold leading-tight text-white sm:text-xl">
             <Flame className="h-4 w-4 shrink-0 text-rose-300" aria-hidden="true" />
-            Oferta especial de lançamento
-          </p>
-          <h2 id="checkout-offer-title" className="mt-2 text-lg font-bold leading-tight text-white sm:text-xl">
             Garanta sua condição
           </h2>
           <p className="mt-1.5 text-xs leading-5 text-rose-100/70">

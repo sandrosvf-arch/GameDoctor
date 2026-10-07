@@ -1,11 +1,12 @@
 import Link from "next/link"
-import { ArrowDown, BadgeCheck, Check, Sparkles } from "lucide-react"
+import Image from "next/image"
+import { ArrowDown, BadgeCheck } from "lucide-react"
 import { auth } from "@/lib/auth"
 import { listPublicPlans } from "@/lib/checkout"
+import { getCachedLessonCount } from "@/lib/lesson-count"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { PlanCheckoutButton } from "@/components/checkout/PlanCheckoutButton"
 import { Header } from "@/components/layout/Header"
-import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -14,19 +15,11 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
-function buildCheckoutHref(planSlug: string, period: "annual" | "monthly") {
-  return `/checkout?plan=${encodeURIComponent(planSlug)}&period=${period}`
-}
-
-function buildLoginHref(planSlug: string, period: "annual" | "monthly") {
-  return `/login?callbackUrl=${encodeURIComponent(buildCheckoutHref(planSlug, period))}`
-}
-
 const repairPaybackRows = [
-  { service: "Troca / reparo de analógico", repairs: "5 reparos" },
-  { service: "Manutenção preventiva de console", repairs: "3 reparos" },
-  { service: "Reparo de HDMI", repairs: "2 reparos" },
-  { service: "Serviço avançado em placa", repairs: "1 reparo" },
+  { service: "Troca / reparo de analógico", value: "R$ 90 ~ 120" },
+  { service: "Manutenção preventiva de console", value: "R$ 250 ~ 350" },
+  { service: "Reparo de HDMI", value: "R$ 450 ~ 650" },
+  { service: "Serviço avançado em placa", value: "R$ 750 ~ 1.250" },
 ]
 
 export const dynamic = "force-dynamic"
@@ -34,43 +27,51 @@ export const dynamic = "force-dynamic"
 export default async function PlanosPage() {
   const session = await auth()
   const isLoggedIn = Boolean(session?.user?.id)
-  const plans = await listPublicPlans(session?.user?.id ?? null)
-  const displayPlans = [...plans].sort((firstPlan, secondPlan) => Number(secondPlan.highlighted) - Number(firstPlan.highlighted))
-  const annualOffer = plans.flatMap((plan) => plan.offers).find((offer) => offer.period === "annual")
-  const monthlyOffer = plans.flatMap((plan) => plan.offers).find((offer) => offer.period === "monthly")
-  const annualSavings = annualOffer && monthlyOffer
-    ? Math.max(0, monthlyOffer.price * 12 - annualOffer.price)
+  const [plans, lessonCount] = await Promise.all([
+    listPublicPlans(session?.user?.id ?? null),
+    getCachedLessonCount().catch(() => 0),
+  ])
+  const displayPlans = plans
+  const highlightedPlan = plans.find((plan) => plan.highlighted) ?? null
+  const highlightedOffer = highlightedPlan?.offers[0] ?? null
+  const shortestOffer = plans
+    .flatMap((plan) => plan.offers)
+    .filter((offer) => offer.accessDurationDays > 0)
+    .sort((firstOffer, secondOffer) => firstOffer.accessDurationDays - secondOffer.accessDurationDays)[0] ?? null
+  const highlightedMonths = highlightedOffer ? Math.max(1, Math.round(highlightedOffer.accessDurationDays / 30)) : 0
+  const shortestMonths = shortestOffer ? Math.max(1, Math.round(shortestOffer.accessDurationDays / 30)) : 0
+  const shortestDurationLabel = shortestMonths === 12 ? "1 ano" : `${shortestMonths} ${shortestMonths === 1 ? "mês" : "meses"}`
+  const annualSavings = highlightedOffer && shortestOffer && highlightedMonths > shortestMonths
+    ? Math.max(0, shortestOffer.price * (highlightedMonths / shortestMonths) - highlightedOffer.price)
     : 0
-  const annualSavingsPercentage = annualOffer && monthlyOffer && monthlyOffer.price > 0
-    ? Math.round((annualSavings / (monthlyOffer.price * 12)) * 100)
+  const annualSavingsPercentage = highlightedOffer && shortestOffer && shortestOffer.price > 0 && annualSavings > 0
+    ? Math.round((annualSavings / (shortestOffer.price * (highlightedMonths / shortestMonths))) * 100)
+    : 0
+  const annualSavingsPerMonth = annualSavings > 0 && highlightedMonths > 0
+    ? Math.floor((annualSavings / highlightedMonths) * 100) / 100
     : 0
 
   return (
     <main className="min-h-screen bg-[#1e2734] text-slate-100">
       <Header />
 
-      <section className="relative overflow-hidden border-b border-white/[0.1] bg-[radial-gradient(circle_at_50%_-20%,rgba(34,211,238,0.28),transparent_52%),#1e2734]">
-        <div className="mx-auto max-w-5xl px-5 pb-14 pt-6 text-center md:px-8 md:pb-16 md:pt-10">
-          <Link
-            href="/"
-            className="flex w-fit items-center gap-2 text-sm text-slate-400 transition hover:text-cyan-300"
-          >
-            ← Voltar para a home
-          </Link>
-
-          <p className="mt-8 text-xs font-bold uppercase tracking-[0.18em] text-cyan-300 md:mt-10">
-            Formação completa com certificado reconhecido no mercado
-          </p>
-          <h1 className="mx-auto mt-3 max-w-3xl text-3xl font-bold leading-tight text-white md:text-5xl md:leading-[1.1]">
-            Escolha seu acesso ao <span className="text-cyan-300">GameDoctor</span>
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgba(34,211,238,0.28),transparent_52%),#1e2734]">
+        <div className="mx-auto max-w-5xl px-5 pb-8 pt-8 text-center md:px-8 md:pb-10 md:pt-14">
+          <h1 className="mx-auto flex max-w-none flex-nowrap items-center justify-center gap-x-3 text-2xl font-bold leading-tight text-white sm:text-3xl md:text-4xl lg:text-5xl lg:leading-[1.1]">
+            <span className="whitespace-nowrap">Escolha seu acesso ao</span>
+            <Image
+              src="/doctor-oficial.png"
+              alt="GameDoctor"
+              width={280}
+              height={56}
+              className="inline-block h-7 w-auto shrink-0 sm:h-9 md:h-11 lg:h-14"
+              priority
+            />
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-400 md:text-base">
-            Juntamos 21 anos de experiência e milhares de consoles que já passaram pela nossa bancada para entregar tudo mastigado para você começar ou expandir sua assistência.
-          </p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl overflow-x-clip px-5 pb-14 pt-8 md:px-8 md:pb-20 md:pt-10">
+      <section className="mx-auto max-w-6xl overflow-x-clip px-5 pb-10 pt-4 md:px-8 md:pb-12 md:pt-6">
         {plans.length === 0 ? (
           <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-white/[0.14] px-6 py-16 text-center">
             <p className="text-sm font-medium text-slate-300">Nenhum plano disponível no momento.</p>
@@ -78,14 +79,20 @@ export default async function PlanosPage() {
           </div>
         ) : (
           <>
-            <div className="grid items-start gap-6 pt-4 lg:grid-cols-2 lg:gap-8">
+            <div className="grid items-stretch gap-6 pt-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
             {displayPlans.map((plan) => {
+              const planMonths = plan.offers[0] ? Math.max(1, Math.round(plan.offers[0].accessDurationDays / 30)) : 0
+              const planDurationLabel = planMonths === 12 ? "1 ano" : `${planMonths} ${planMonths === 1 ? "mês" : "meses"}`
               const eyebrow = plan.highlighted
                 ? "Para quem quer o melhor custo-benefício"
-                : "Para quem quer testar sem compromisso"
+                : planMonths <= 3
+                  ? "Pra quem quer conhecer melhor o mundo da manutenção"
+                  : "Para quem quer mais tempo para praticar"
               const fallbackDescription = plan.highlighted
                 ? "Pague uma vez e tenha acesso a tudo pelo ano inteiro."
-                : ""
+                : planMonths > 0
+                  ? `Acesso completo por ${planDurationLabel}.`
+                  : ""
               const description = plan.description && plan.description.trim().toLocaleLowerCase("pt-BR") !== plan.name.trim().toLocaleLowerCase("pt-BR")
                 ? plan.description
                 : fallbackDescription
@@ -126,29 +133,28 @@ export default async function PlanosPage() {
                   <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
 
                   {plan.offers.map((offer) => {
-                    const href = offer.period === "annual"
-                      ? GAME_DOCTOR_CHECKOUT_URL
-                      : isLoggedIn
-                        ? buildCheckoutHref(plan.slug, offer.period)
-                        : buildLoginHref(plan.slug, offer.period)
+                    const href = `/checkout/live?plan=${encodeURIComponent(plan.slug)}`
                     const installmentCount = plan.installments.max
-                    const installmentValue = offer.cardEstimate.installmentAmount
-                    const showInstallments = offer.period === "annual" && installmentCount > 1
+                    const installmentValue = Math.floor((offer.cardEstimate.total / installmentCount) * 100) / 100
+                    const durationMonths = Math.max(1, Math.round(offer.accessDurationDays / 30))
 
                     return (
-                      <div key={offer.period} className="mt-6">
+                      <div key={offer.period} className="mt-6 flex flex-1 flex-col">
                         {offer.period === "annual" ? (
                           <div>
-                            <p className="text-sm font-medium text-slate-400">A partir de</p>
+                            <p className="text-sm font-medium text-white">{installmentCount}x sem juros de</p>
                             <p className="mt-1 flex flex-wrap items-baseline gap-2">
-                              <span className="text-4xl font-extrabold text-white md:text-5xl">{formatCurrency(offer.price / 12)}</span>
-                              <span className="text-sm font-semibold text-slate-400">/mês equivalente</span>
+                              <span className="text-4xl font-extrabold text-white md:text-5xl">{formatCurrency(installmentValue)}</span>
+                              <span className="text-sm font-semibold text-slate-400">ou {formatCurrency(offer.price)} à vista</span>
                             </p>
-                            <p className="mt-2 text-xs text-slate-400">
-                              {showInstallments
-                                ? `Cobrado em ${installmentCount}x de ${formatCurrency(installmentValue)} ou ${formatCurrency(offer.price)} à vista.`
-                                : `Cobrado ${formatCurrency(offer.price)} por ano.`}
+                            <p className="mt-2 text-xs text-white">
+                              Equivalente a {formatCurrency(offer.price / durationMonths)} /mês
                             </p>
+                            {plan.highlighted && annualSavings > 0 && (
+                              <p className="mt-2 text-xs font-bold leading-5 text-amber-300">
+                                Você economiza {annualSavingsPercentage}% ({formatCurrency(annualSavingsPerMonth)}/mês comparado ao plano de {shortestDurationLabel})
+                              </p>
+                            )}
                           </div>
                         ) : (
                           <div>
@@ -161,7 +167,7 @@ export default async function PlanosPage() {
                           </div>
                         )}
 
-                        <div className="mt-5 [&>a]:w-full [&>button]:h-12 [&>button]:w-full">
+                        <div className="mt-auto pt-5 [&>a]:w-full [&>button]:h-12 [&>button]:w-full">
                           <PlanCheckoutButton
                             href={href}
                             emphasis={!isLoggedIn || !plan.currentPlan?.active}
@@ -169,29 +175,11 @@ export default async function PlanosPage() {
                               plan.currentPlan?.active
                                 ? "Renovar meu acesso"
                                 : plan.highlighted
-                                  ? "Quero esse"
-                                  : "Prefiro esse"
+                                  ? "Prefiro esse"
+                                  : "Quero esse"
                             }
                           />
-                          {!isLoggedIn && (
-                            <p className="mt-2 text-center text-[11px] leading-4 text-slate-400 sm:text-xs sm:leading-5">
-                              Cadastro rápido, grátis e sem compromisso.
-                            </p>
-                          )}
                         </div>
-
-                        {offer.period === "annual" && annualSavingsPercentage > 0 && (
-                          <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/[0.08] px-4 py-3 text-xs leading-5 text-amber-100">
-                            <p className="flex items-center gap-2 font-bold">
-                              <Sparkles className="h-4 w-4 shrink-0" />
-                              Você economiza {formatCurrency(annualSavings)} ({annualSavingsPercentage}%) comparado ao mensal
-                            </p>
-                          </div>
-                        )}
-
-                        <p className="mt-4 text-center text-xs text-slate-400">
-                          {offer.period === "monthly" ? "Cobrança mensal no cartão" : `Até ${plan.installments.max}x no cartão`}
-                        </p>
                       </div>
                     )
                   })}
@@ -203,18 +191,6 @@ export default async function PlanosPage() {
                         : `Seu acesso expira em ${plan.currentPlan.daysRemaining} dia${plan.currentPlan.daysRemaining === 1 ? "" : "s"}.`}
                     </div>
                   )}
-
-                  <div className="mt-7 border-t border-white/[0.08] pt-6">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">O que está incluso</p>
-                    <ul className="mt-4 space-y-2.5">
-                      {plan.benefits.slice(0, 6).map((benefit) => (
-                        <li key={benefit} className="flex items-start gap-2.5 text-sm text-slate-300">
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" strokeWidth={3} />
-                          {benefit}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
                 </div>
                 </article>
               </div>
@@ -222,25 +198,17 @@ export default async function PlanosPage() {
             })}
             </div>
 
-            <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-5 py-5">
-              <div className="flex flex-col items-center justify-between gap-4 sm:flex-row sm:text-left">
-                <div className="text-center sm:text-left">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Condição especial disponível</p>
-                  <p className="mt-1 text-sm text-slate-400">Garanta o valor atual antes do encerramento da oferta.</p>
-                </div>
-                <div className="w-full max-w-[300px] shrink-0">
-                  <OfferCountdown />
-                </div>
-              </div>
-            </div>
+            <p className="mx-auto mt-10 max-w-2xl text-center text-sm leading-6 text-white">
+              Todos os planos incluem o mesmo acesso e conteúdo: {lessonCount.toLocaleString("pt-BR")} aulas, comunidade, acesso ao professor, diagramas, materiais baixáveis, lista de fornecedores e softwares. O que muda é só o tempo de acesso.
+            </p>
           </>
         )}
       </section>
 
       <section className="border-y border-white/[0.1] bg-[#232e3e]">
-        <div className="mx-auto max-w-6xl px-5 pb-14 pt-8 md:px-8 md:pb-20 md:pt-8">
+        <div className="mx-auto max-w-6xl px-5 pb-14 pt-4 md:px-8 md:pb-20 md:pt-6">
           <div className="flex flex-wrap items-center justify-center gap-3 text-center text-xs font-bold uppercase text-cyan-300 sm:text-sm">
-            <span>Veja em quantos reparos você recupera o investimento</span>
+            <span>Veja como é fácil recuperar o investimento e logo em seguida começar a lucrar</span>
             <span className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-400/60 text-rose-400" aria-hidden="true">
               <ArrowDown className="h-4 w-4" />
             </span>
@@ -254,9 +222,9 @@ export default async function PlanosPage() {
             <table className="w-full table-fixed border-collapse text-left">
               <thead className="bg-cyan-400 text-slate-950">
                 <tr>
-                  <th className="w-[56%] px-3 py-4 text-center text-sm font-bold sm:px-6 sm:text-base">Serviço</th>
-                  <th className="w-[44%] px-3 py-4 text-center text-xs font-bold leading-4 sm:px-6 sm:text-base sm:leading-6">
-                    Quantidade de reparos para recuperar o investimento
+                  <th className="w-[55%] px-3 py-4 text-center text-sm font-bold sm:px-6 sm:text-base">Serviço</th>
+                  <th className="w-[45%] px-3 py-4 text-center text-xs font-bold leading-4 sm:px-6 sm:text-base sm:leading-6">
+                    Valor cobrado pelo reparo
                   </th>
                 </tr>
               </thead>
@@ -264,7 +232,7 @@ export default async function PlanosPage() {
                 {repairPaybackRows.map((row) => (
                   <tr key={row.service}>
                     <td className="px-3 py-4 text-center text-sm text-slate-300 sm:px-6 sm:py-5 sm:text-base">{row.service}</td>
-                    <td className="px-3 py-4 text-center text-sm font-bold text-cyan-300 sm:px-6 sm:py-5 sm:text-base">{row.repairs}</td>
+                    <td className="px-3 py-4 text-center text-base font-extrabold text-emerald-400 sm:px-6 sm:py-5 sm:text-xl">{row.value}</td>
                   </tr>
                 ))}
               </tbody>
@@ -272,6 +240,20 @@ export default async function PlanosPage() {
           </div>
         </div>
       </section>
+
+      <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-5 py-5">
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row sm:text-left">
+            <div className="text-center sm:text-left">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Condição especial disponível</p>
+              <p className="mt-1 text-sm text-slate-400">Garanta o valor atual antes do encerramento da oferta.</p>
+            </div>
+            <div className="w-full max-w-[300px] shrink-0">
+              <OfferCountdown />
+            </div>
+          </div>
+        </div>
+      </div>
 
       <section className="border-y border-white/[0.1] bg-[#1e2734]">
         <div className="mx-auto max-w-5xl px-5 py-14 md:px-8 md:py-20">

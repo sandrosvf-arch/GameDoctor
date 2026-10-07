@@ -35,7 +35,7 @@ import { BunnyEmbedPlayer } from "@/components/lessons/BunnyPreviewPlayer"
 import { LoginToWatchOverlay } from "@/components/lessons/LoginToWatchOverlay"
 import { LessonSubscriptionCta } from "@/components/lessons/LessonSubscriptionCta"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
-import { GAME_DOCTOR_CHECKOUT_URL } from "@/lib/checkout-links"
+import { GAME_DOCTOR_PLANS_URL } from "@/lib/checkout-links"
 
 const REGISTRATION_GATE_EXEMPT_VIDEO_IDS = new Set([
   "c145f9b5-8176-414b-89c1-92666d551ce5",
@@ -103,7 +103,7 @@ function PurchaseOfferOverlay({ lessonCount }: { lessonCount: number }) {
         </div>
         <div className="mt-3">
           <Link
-            href={GAME_DOCTOR_CHECKOUT_URL}
+            href={GAME_DOCTOR_PLANS_URL}
             className="cta-shine relative inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 px-4 py-3 text-sm font-black uppercase tracking-wide text-zinc-950 shadow-[0_8px_24px_rgba(245,158,11,0.35)]"
           >
             <span className="relative z-10">Garantir oferta especial</span>

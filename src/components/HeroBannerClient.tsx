@@ -188,12 +188,13 @@ export function HeroBannerClient({ banners }: HeroBannerClientProps) {
             {slide.ctaText && slide.ctaHref && (
               <Button
                 size="lg"
-                className="bg-white text-zinc-950 hover:bg-zinc-200 font-bold h-12 px-7"
+                className="cta-shine bg-emerald-400 text-slate-950 hover:bg-emerald-300 font-bold h-12 px-7 shadow-[0_0_26px_rgba(52,211,153,0.45)] transition hover:shadow-[0_0_34px_rgba(52,211,153,0.6)]"
                 asChild
               >
                 <Link href={slide.ctaHref}>
-                  <Play className="mr-2 h-4 w-4 fill-zinc-950" />
+                  <Play className="mr-2 h-4 w-4 fill-slate-950" />
                   {slide.ctaText}
+                  <span aria-hidden="true" className="cta-shine-pass pointer-events-none absolute inset-y-[-45%] left-[-60%] w-[52%] -skew-x-[20deg] bg-gradient-to-r from-white/0 via-white/65 to-white/0 blur-[0.5px]" />
                 </Link>
               </Button>
             )}

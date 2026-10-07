@@ -375,8 +375,7 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(circle_at_20%_0%,rgba(6,182,212,0.16),transparent_36%),radial-gradient(circle_at_80%_10%,rgba(245,158,11,0.10),transparent_30%)]" />
       <div className="relative mx-auto max-w-3xl">
         <div className="mb-8 max-w-3xl text-center">
-          <Image src="/doctor-oficial.png" alt="GameDoctor" width={180} height={36} className="mx-auto h-8 w-auto mb-10" />
-          <p className="text-xl text-center font-black uppercase tracking-[0.20em] text-cyan-300 sm:text-2xl">Oferta especial de lançamento</p>
+          <Image src="/doctor-oficial.png" alt="GameDoctor" width={180} height={36} className="mx-auto h-8 w-auto" />
         </div>
 
         <div className="block">
@@ -397,8 +396,6 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 {quote.plan.benefits.map((benefit) => <span key={benefit} className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-cyan-300" />{benefit}</span>)}
               </div>
             </section>
-
-            <OfferUrgency />
 
             <section id="live-customer" className="rounded-2xl border border-white/[0.08] bg-[#0b1017]/95 p-5 shadow-2xl shadow-black/20 sm:p-6">
               <div className="flex items-center gap-3">
@@ -476,6 +473,8 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
                 <p className="mt-4 text-center text-[11px] leading-5 text-slate-600">Ao continuar, você concorda com os <Link href="/termos-de-uso" className="underline hover:text-slate-300">Termos de Uso</Link> e a <Link href="/politica-privacidade" className="underline hover:text-slate-300">Política de Privacidade</Link>.</p>
               </div>
             </section>
+
+            <OfferUrgency />
           </div>
 
           <aside className="hidden">
