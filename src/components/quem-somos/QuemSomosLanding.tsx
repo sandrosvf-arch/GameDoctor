@@ -1,6 +1,5 @@
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
-import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { QuemSomosScripts } from "@/components/quem-somos/QuemSomosScripts"
 import { QuemSomosTracking } from "@/components/quem-somos/QuemSomosTracking"
@@ -105,9 +104,8 @@ export async function QuemSomosLanding({ ctaTarget }: QuemSomosLandingProps) {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
       <div dangerouslySetInnerHTML={{ __html: content }} />
-      <Footer />
+      <Footer hideWhatsApp={ctaTarget === "checkout"} />
       <QuemSomosScripts scripts={scripts} />
       <QuemSomosTracking variant={ctaTarget} />
     </div>

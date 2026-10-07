@@ -19,13 +19,16 @@ const footerLinks = {
   ],
 }
 
-export async function Footer() {
+export async function Footer({ hideWhatsApp = false }: { hideWhatsApp?: boolean } = {}) {
   const { whatsappUrl } = await getPublicPlatformSettings()
   const socialLinks = [
     { label: "YouTube", href: "https://youtube.com", Icon: Youtube },
     { label: "Instagram", href: "https://instagram.com", Icon: Instagram },
-    { label: "WhatsApp", href: whatsappUrl, Icon: MessageCircle },
+    ...(hideWhatsApp ? [] : [{ label: "WhatsApp", href: whatsappUrl, Icon: MessageCircle }]),
   ]
+  const supportLinks = hideWhatsApp
+    ? footerLinks.suporte.filter((link) => link.label !== "Fale conosco")
+    : footerLinks.suporte
 
   return (
     <footer className="border-t border-border/50 bg-card/30 mt-20">
@@ -86,7 +89,7 @@ export async function Footer() {
           <div>
             <h3 className="text-sm font-semibold mb-4">Suporte</h3>
             <ul className="space-y-2">
-              {footerLinks.suporte.map((link) => (
+              {supportLinks.map((link) => (
                 <li key={link.href}>
                   {link.label === "Fale conosco" ? (
                     <a

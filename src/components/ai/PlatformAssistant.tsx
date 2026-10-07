@@ -458,13 +458,40 @@ function PlatformAssistantContent({
   )
 }
 
+const CHECKOUT_FUNNEL_KEY = "gamedoctor:checkout-funnel"
+
+function AssistantGate(props: { page?: boolean; whatsappUrl?: string }) {
+  const pathname = usePathname()
+  const [inCheckoutFunnel, setInCheckoutFunnel] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    try {
+      if (pathname.startsWith("/quem-somos-checkout")) window.sessionStorage.setItem(CHECKOUT_FUNNEL_KEY, "1")
+      setInCheckoutFunnel(window.sessionStorage.getItem(CHECKOUT_FUNNEL_KEY) === "1")
+    } catch {
+      setInCheckoutFunnel(false)
+    }
+  }, [pathname])
+
+  if (props.page) return <PlatformAssistantContent {...props} />
+  if (inCheckoutFunnel === null) return null
+
+  // Quem entra pela LP de checkout n\u00e3o v\u00ea WhatsApp nem IA at\u00e9 concluir a compra.
+  const hidden =
+    pathname.startsWith("/quem-somos-checkout") ||
+    (inCheckoutFunnel && (pathname === "/planos" || pathname.startsWith("/checkout")))
+  if (hidden) return null
+
+  return <PlatformAssistantContent {...props} />
+}
+
 export function PlatformAssistant(props: {
   page?: boolean
   whatsappUrl?: string
 }) {
   return (
     <Suspense fallback={null}>
-      <PlatformAssistantContent {...props} />
+      <AssistantGate {...props} />
     </Suspense>
   )
 }

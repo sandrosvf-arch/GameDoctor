@@ -16,6 +16,11 @@ export function WhatsAppClickTracker() {
         link_url: href,
         page_path: window.location.pathname,
       })
+
+      // Eventos de conversão de WhatsApp definidos pelo gestor de tráfego.
+      trackEvent("working_lead", { link_location: location, page_path: window.location.pathname })
+      const fbq = (window as Window & { fbq?: (...args: unknown[]) => void }).fbq
+      if (typeof fbq === "function") fbq("track", "Contact")
     }
 
     document.addEventListener("click", handleClick, true)
