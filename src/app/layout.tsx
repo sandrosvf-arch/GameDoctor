@@ -32,6 +32,15 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     url: process.env.NEXT_PUBLIC_APP_URL,
     siteName: "GameDoctor",
+    title: "GameDoctor — A maior plataforma de manutenção de videogames do Brasil",
+    description:
+      "Aprenda manutenção de videogames com videoaulas práticas. PlayStation, Xbox, Nintendo, solda, eletrônica e muito mais.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GameDoctor — A maior plataforma de manutenção de videogames do Brasil",
+    description:
+      "Aprenda manutenção de videogames com videoaulas práticas. PlayStation, Xbox, Nintendo, solda, eletrônica e muito mais.",
   },
 }
 
