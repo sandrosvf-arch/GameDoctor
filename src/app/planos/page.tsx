@@ -135,7 +135,7 @@ export default async function PlanosPage() {
                   {plan.offers.map((offer) => {
                     const href = `/checkout/live?plan=${encodeURIComponent(plan.slug)}`
                     const installmentCount = plan.installments.max
-                    const installmentValue = Math.floor((offer.cardEstimate.total / installmentCount) * 100) / 100
+                    const installmentValue = Math.floor(Math.round(offer.cardEstimate.total * 100) / installmentCount) / 100
                     const durationMonths = Math.max(1, Math.round(offer.accessDurationDays / 30))
 
                     return (

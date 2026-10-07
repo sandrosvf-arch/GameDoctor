@@ -94,7 +94,7 @@ export function getCardEstimate(
 
   return {
     total: cardTotal,
-    installmentAmount: Math.floor((cardTotal / safeInstallments) * 100) / 100,
+    installmentAmount: Math.floor(Math.round(cardTotal * 100) / safeInstallments) / 100,
   }
 }
 
