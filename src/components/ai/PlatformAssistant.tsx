@@ -99,7 +99,7 @@ function PlatformAssistantContent({
   const limitReached = usage?.creditsRemaining === 0 || error?.toLowerCase().includes("limite mensal")
   const isLessonPage = pathname.startsWith("/aula/")
   const showLessonAssistantBadge = pathname === "/aula/bunny/c145f9b5-8176-414b-89c1-92666d551ce5"
-  const hideFloatingAssistant = pathname.startsWith("/checkout/live")
+  const hideFloatingAssistant = /^\/checkout\/(live|trimestral|semestral|anual)/.test(pathname)
   const isAboutUsPage = pathname.startsWith("/quem-somos")
   const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
   const loginHref = `/login?callbackUrl=${encodeURIComponent(currentUrl)}`

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { listPublicPlans } from "@/lib/checkout"
 import { getCachedLessonCount } from "@/lib/lesson-count"
 import { repairPriceRows } from "@/lib/repair-prices"
+import { getPlanCheckoutPath } from "@/lib/checkout-links"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { PlanCheckoutButton } from "@/components/checkout/PlanCheckoutButton"
 import { Header } from "@/components/layout/Header"
@@ -129,7 +130,7 @@ export default async function PlanosPage() {
                   <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
 
                   {plan.offers.map((offer) => {
-                    const href = `/checkout/live?plan=${encodeURIComponent(plan.slug)}`
+                    const href = getPlanCheckoutPath(plan.slug)
                     const installmentCount = plan.installments.max
                     const installmentValue = Math.floor(Math.round(offer.cardEstimate.total * 100) / installmentCount) / 100
                     const durationMonths = Math.max(1, Math.round(offer.accessDurationDays / 30))
