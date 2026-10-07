@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 import { db } from "@/lib/db"
 import { getCachedLessonCount } from "@/lib/lesson-count"
 import { auth } from "@/lib/auth"
+import { hasActivePlanAccess } from "@/lib/access"
 import { HeroBannerClient } from "@/components/HeroBannerClient"
 import { TrailRowView } from "@/components/TrailRowView"
 import { LazyMoreRows } from "@/components/LazyMoreRows"
@@ -215,6 +216,11 @@ export default async function HomePage() {
     getCachedLessonCount().catch(() => 0),
   ])
 
+  const hasActivePlan = session?.user?.id
+    ? await hasActivePlanAccess(session.user.id).catch(() => false)
+    : false
+  const startCtaUrl = hasActivePlan ? "/cursos" : GAME_DOCTOR_PLANS_URL
+
   let initialHomeRows = homeRowsResult.rows
   let totalDbRows = homeRowsResult.total
 
@@ -254,10 +260,10 @@ export default async function HomePage() {
     ...banner,
     videoUrl: resolveSignedBannerVideoUrl(banner.videoUrl),
     ctaHref: banner.ctaText?.trim().toLocaleLowerCase("pt-BR") === "começar agora"
-      ? GAME_DOCTOR_PLANS_URL
+      ? startCtaUrl
       : banner.ctaHref,
     secondaryCtaHref: banner.secondaryCtaText?.trim().toLocaleLowerCase("pt-BR") === "começar agora"
-      ? GAME_DOCTOR_PLANS_URL
+      ? startCtaUrl
       : banner.secondaryCtaHref,
   }))
 
