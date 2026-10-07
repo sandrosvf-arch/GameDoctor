@@ -476,10 +476,11 @@ function AssistantGate(props: { page?: boolean; whatsappUrl?: string }) {
   if (props.page) return <PlatformAssistantContent {...props} />
   if (inCheckoutFunnel === null) return null
 
-  // Quem entra pela LP de checkout n\u00e3o v\u00ea WhatsApp nem IA at\u00e9 concluir a compra.
+  // Sem WhatsApp nem IA em /planos; quem entra pela LP de checkout também não os vê no checkout.
   const hidden =
     pathname.startsWith("/quem-somos-checkout") ||
-    (inCheckoutFunnel && (pathname === "/planos" || pathname.startsWith("/checkout")))
+    pathname === "/planos" ||
+    (inCheckoutFunnel && pathname.startsWith("/checkout"))
   if (hidden) return null
 
   return <PlatformAssistantContent {...props} />
