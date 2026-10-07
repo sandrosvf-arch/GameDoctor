@@ -393,7 +393,7 @@ function PlatformAssistantContent({
                     Conhecer os planos
                   </Link>
                 ) : (
-                  <a href={supportUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-white transition hover:bg-emerald-400">
+                  <a href={supportUrl} target="_blank" rel="noreferrer" data-track-location="assistant_chat" className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-white transition hover:bg-emerald-400">
                     <WhatsAppIcon className="h-4 w-4" />
                     Continuar com um humano no WhatsApp
                   </a>
@@ -442,6 +442,7 @@ function PlatformAssistantContent({
           href={supportUrl}
           target="_blank"
           rel="noreferrer"
+          data-track-location="floating_button"
           className={`flex items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-500 text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400 ${isLessonPage ? "h-11 w-11 md:h-12 md:w-12" : "h-12 w-12"}`}
           title="Falar com um humano no WhatsApp"
           aria-label="Falar com um humano no WhatsApp"

@@ -46,13 +46,12 @@ export function buildFaqSections(articles: FaqArticle[]) {
                         <article class="faq-item${index === 0 ? " is-open" : ""}">
                             <button aria-expanded="${index === 0}" type="button"><span>${escapeHtml(article.title)}</span><i>+</i></button>
                             <div class="faq-answer">
-                                <p>${escapeHtml(article.excerpt ?? "")} <a href="/suporte/topico/${encodeURIComponent(article.slug)}" style="color:var(--yellow);font-weight:800;white-space:nowrap">Ver resposta completa →</a></p>
+                                <p>${escapeHtml(article.excerpt ?? "")}</p>
                             </div>
                         </article>`
     )
     .join("")}
                     </div>
-                    <p style="margin:20px 0 0;text-align:center"><a href="/suporte" style="color:var(--yellow);font-weight:800">Ver todas as dúvidas →</a></p>
                     <style>#mgu-lp .objection-more .faq-item.is-open .faq-answer{max-height:480px !important}</style>
                 </div>
                 `
