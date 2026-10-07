@@ -20,6 +20,13 @@ declare global {
   }
 }
 
+export function trackEvent(event: string, data?: Record<string, string | number | boolean | undefined>) {
+  if (typeof window === "undefined") return
+
+  window.dataLayer = window.dataLayer ?? []
+  window.dataLayer.push({ event, ...data } as DataLayerEntry)
+}
+
 export function trackPurchase(input: PurchaseDataLayerInput) {
   if (typeof window === "undefined" || !input.transactionId) return
 

@@ -6,6 +6,6 @@ export const metadata: Metadata = {
   description: "Conheça a história, autoridade e estrutura do GameDoctor.",
 }
 
-export default function QuemSomosPage() {
-  return <QuemSomosLanding ctaTarget="whatsapp" />
+export default function QuemSomosCheckoutPage() {
+  return <QuemSomosLanding ctaTarget="checkout" />
 }

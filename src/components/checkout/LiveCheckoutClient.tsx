@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import Image from "next/image"
 import Link from "next/link"
 import { CardPayment, getInstallments, initMercadoPago } from "@mercadopago/sdk-react"
+import { trackEvent } from "@/lib/analytics/data-layer"
 import { Check, Copy, CreditCard, Loader2, MapPin, QrCode, ShieldCheck, Wallet } from "lucide-react"
 import type { CheckoutQuote } from "@/lib/checkout"
 import { isValidBrazilianPhone, normalizeBrazilianPhone } from "@/lib/phone"
@@ -106,6 +107,18 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
     if (!mercadoPagoPublicKey) return
     initMercadoPago(mercadoPagoPublicKey)
     setSdkReady(true)
+  }, [])
+
+  useEffect(() => {
+    trackEvent("initiate_checkout", {
+      plan_slug: planSlug,
+      plan_name: quote.plan.name,
+      period: quote.period,
+      value: quote.cardTotal,
+      currency: "BRL",
+    })
+    // Dispara uma única vez ao abrir o checkout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

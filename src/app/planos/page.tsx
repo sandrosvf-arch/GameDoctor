@@ -7,6 +7,7 @@ import { getCachedLessonCount } from "@/lib/lesson-count"
 import { OfferCountdown } from "@/components/checkout/OfferCountdown"
 import { PlanCheckoutButton } from "@/components/checkout/PlanCheckoutButton"
 import { Header } from "@/components/layout/Header"
+import { TrackEvent } from "@/components/analytics/TrackEvent"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -54,6 +55,7 @@ export default async function PlanosPage() {
   return (
     <main className="min-h-screen bg-[#1e2734] text-slate-100">
       <Header />
+      <TrackEvent event="view_content" data={{ content_name: "planos", content_ids: plans.map((plan) => plan.slug).join(",") }} />
 
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgba(34,211,238,0.28),transparent_52%),#1e2734]">
         <div className="mx-auto max-w-5xl px-5 pb-8 pt-8 text-center md:px-8 md:pb-10 md:pt-14">
