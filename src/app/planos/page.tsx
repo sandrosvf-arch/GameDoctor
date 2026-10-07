@@ -53,14 +53,14 @@ export default async function PlanosPage() {
 
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgba(34,211,238,0.28),transparent_52%),#1e2734]">
         <div className="mx-auto max-w-5xl px-5 pb-8 pt-8 text-center md:px-8 md:pb-10 md:pt-14">
-          <h1 className="mx-auto flex max-w-none flex-nowrap items-center justify-center gap-x-3 text-2xl font-bold leading-tight text-white sm:text-3xl md:text-4xl lg:text-5xl lg:leading-[1.1]">
-            <span className="whitespace-nowrap">Escolha seu acesso ao</span>
+          <h1 className="mx-auto flex max-w-none flex-col items-center justify-center gap-x-3 gap-y-3 text-2xl font-bold leading-tight text-white sm:flex-row sm:flex-nowrap sm:text-3xl md:text-4xl lg:text-5xl lg:leading-[1.1]">
+            <span className="sm:whitespace-nowrap">Escolha seu acesso ao</span>
             <Image
               src="/doctor-oficial.png"
               alt="GameDoctor"
               width={280}
               height={56}
-              className="inline-block h-7 w-auto shrink-0 sm:h-9 md:h-11 lg:h-14"
+              className="inline-block h-10 w-auto shrink-0 sm:h-9 md:h-11 lg:h-14"
               priority
             />
           </h1>
