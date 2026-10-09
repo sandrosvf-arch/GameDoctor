@@ -159,6 +159,7 @@ export function CheckoutStatusClient({ orderId }: { orderId: string }) {
       value: order.payment?.amount ?? order.finalTotal,
       itemId: order.item?.slug,
       itemName: order.item?.name ?? "Plano GameDoctor",
+      period: order.item?.period,
       paymentMethod: order.payment?.method ?? order.paymentMethod,
       installments: order.payment?.installments,
     })

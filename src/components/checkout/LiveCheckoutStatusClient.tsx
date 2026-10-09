@@ -14,6 +14,8 @@ type StatusData = {
     installments: number
     createdAt: string
     planName: string
+    planSlug: string | null
+    period: "annual" | "monthly"
     email: string
     accessEmailSent: boolean
     pix: { qrCodeBase64: string; copyPaste: string; expiresAt: string | null } | null
@@ -76,7 +78,9 @@ export function LiveCheckoutStatusClient({ orderId }: { orderId: string }) {
     trackPurchase({
       transactionId: order.id,
       value: order.total,
+      itemId: order.planSlug,
       itemName: order.planName,
+      period: order.period,
       paymentMethod: order.paymentMethod,
       installments: order.installments,
     })

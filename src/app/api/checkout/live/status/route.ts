@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         user: { select: { email: true } },
         orderItems: {
           take: 1,
-          select: { plan: { select: { name: true } }, planPeriod: true },
+          select: { plan: { select: { name: true, slug: true } }, planPeriod: true },
         },
         payments: {
           orderBy: { createdAt: "desc" },
@@ -61,6 +61,8 @@ export async function GET(request: NextRequest) {
         installments: payment?.installments ?? 1,
         createdAt: order.createdAt.toISOString(),
         planName: order.orderItems[0]?.plan?.name ?? "Plano GameDoctor",
+        planSlug: order.orderItems[0]?.plan?.slug ?? null,
+        period: order.orderItems[0]?.planPeriod === "MONTHLY" ? "monthly" : "annual",
         email: order.user.email.replace(/^(.{2}).*(@.*)$/, "$1***$2"),
         accessEmailSent,
         pix: payment?.pixQrCode && payment.pixCopyPaste

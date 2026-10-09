@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { CardPayment, getInstallments, initMercadoPago } from "@mercadopago/sdk-react"
+import { trackBeginCheckout } from "@/lib/analytics/data-layer"
 import {
   Check,
   CreditCard,
@@ -140,6 +141,15 @@ export function CheckoutPageClient({
     setCardSdkReady(true)
   }, [])
 
+  useEffect(() => {
+    trackBeginCheckout({
+      value: quote.cardTotal,
+      itemId: quote.plan.slug,
+      itemName: quote.plan.name,
+      period: quote.period,
+    })
+  }, [quote.cardTotal, quote.period, quote.plan.name, quote.plan.slug])
+
   const maxInstallments = Math.min(12, Math.max(1, quote.installments.max))
 
   function choosePaymentMethod(method: PaymentMethod) {
@@ -232,12 +242,18 @@ export function CheckoutPageClient({
         return
       }
 
+      const pixStatus = data.status ?? "PENDING"
+      if (pixStatus !== "PENDING") {
+        window.location.assign(`/checkout/status?orderId=${encodeURIComponent(String(data.orderId))}`)
+        return
+      }
+
       setPixPayment({
         orderId: data.orderId,
         qrCodeBase64: data.pix.qrCodeBase64,
         copyPaste: data.pix.copyPaste,
         expiresAt: data.pix.expiresAt ?? null,
-        status: data.status ?? "PENDING",
+        status: pixStatus,
       })
     } catch {
       setError("Não foi possível gerar o Pix. Tente novamente.")
@@ -385,7 +401,7 @@ export function CheckoutPageClient({
         const nextStatus = data?.order?.paymentStatus
 
         if (!cancelled && nextStatus && nextStatus !== "PENDING") {
-          setPixPayment((current) => current ? { ...current, status: nextStatus } : current)
+          window.location.assign(`/checkout/status?orderId=${encodeURIComponent(String(pixOrderId))}`)
         }
       } catch {
         // O próximo ciclo de consulta tenta novamente.

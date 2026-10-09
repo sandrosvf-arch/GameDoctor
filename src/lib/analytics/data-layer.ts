@@ -3,15 +3,39 @@ type PurchaseDataLayerInput = {
   value: number
   itemId?: string | null
   itemName: string
+  period?: string | null
   paymentMethod?: string | null
   installments?: number | null
 }
 
+type CheckoutDataLayerInput = {
+  value: number
+  itemId?: string | null
+  itemName: string
+  period?: string | null
+}
+
+type DataLayerItem = {
+  item_id?: string
+  item_name: string
+  item_variant?: string
+  price: number
+  quantity: number
+}
+
+type DataLayerEcommerce = {
+  transaction_id?: string
+  value?: number
+  currency?: string
+  payment_type?: string
+  installments?: number
+  items?: DataLayerItem[]
+}
+
 type DataLayerEntry = {
   event?: string
-  ecommerce?: {
-    transaction_id?: string
-  }
+  ecommerce?: DataLayerEcommerce
+  [key: string]: unknown
 }
 
 declare global {
@@ -20,11 +44,33 @@ declare global {
   }
 }
 
-export function trackEvent(event: string, data?: Record<string, string | number | boolean | undefined>) {
+export function trackEvent(event: string, data?: Record<string, unknown>) {
   if (typeof window === "undefined") return
 
   window.dataLayer = window.dataLayer ?? []
   window.dataLayer.push({ event, ...data } as DataLayerEntry)
+}
+
+export function trackBeginCheckout(input: CheckoutDataLayerInput) {
+  if (typeof window === "undefined") return
+
+  window.dataLayer = window.dataLayer ?? []
+  window.dataLayer.push({
+    event: "begin_checkout",
+    ecommerce: {
+      value: input.value,
+      currency: "BRL",
+      items: [
+        {
+          item_id: input.itemId ?? undefined,
+          item_name: input.itemName,
+          item_variant: input.period ?? undefined,
+          price: input.value,
+          quantity: 1,
+        },
+      ],
+    },
+  })
 }
 
 export function trackPurchase(input: PurchaseDataLayerInput) {
@@ -62,6 +108,7 @@ export function trackPurchase(input: PurchaseDataLayerInput) {
         {
           item_id: input.itemId ?? undefined,
           item_name: input.itemName,
+          item_variant: input.period ?? undefined,
           price: input.value,
           quantity: 1,
         },

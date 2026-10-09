@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import Image from "next/image"
 import Link from "next/link"
 import { CardPayment, getInstallments, initMercadoPago } from "@mercadopago/sdk-react"
-import { trackEvent } from "@/lib/analytics/data-layer"
+import { trackBeginCheckout, trackEvent } from "@/lib/analytics/data-layer"
 import { Check, Copy, CreditCard, Loader2, MapPin, QrCode, ShieldCheck, Wallet } from "lucide-react"
 import type { CheckoutQuote } from "@/lib/checkout"
 import { isValidBrazilianPhone, normalizeBrazilianPhone } from "@/lib/phone"
@@ -110,6 +110,12 @@ export function LiveCheckoutClient({ quote, planSlug, initialProfile, pagaleveEn
   }, [])
 
   useEffect(() => {
+    trackBeginCheckout({
+      value: quote.cardTotal,
+      itemId: planSlug,
+      itemName: quote.plan.name,
+      period: quote.period,
+    })
     trackEvent("initiate_checkout", {
       plan_slug: planSlug,
       plan_name: quote.plan.name,
